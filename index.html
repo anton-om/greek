@@ -176,7 +176,7 @@ input[type=text].big{font-family:var(--display);font-size:24px;text-align:center
   <main id="screen"></main>
   <footer id="actions"></footer>
 </div>
-<script src="words.js?v=2026-10-17-3"></script>
+<script src="words.js?v=2026-10-17-4"></script>
 <script>
 (function(){
 'use strict';
@@ -276,7 +276,6 @@ function renderHome(){
   h+='<div class="row"><select id="setSelect" aria-label="Набор слов">'+sets.map(function(s){return '<option value="'+esc(s.id)+'"'+(s.id===set.id?' selected':'')+'>'+esc(s.title)+' ('+s.words.length+')</option>';}).join('')+'</select></div>';
   h+='<div class="prog"><div class="lab"><span>Греческий → русский</span><b>'+lg+' / '+n+'</b></div><div class="bar"><i style="width:'+pct(lg,n)+'%"></i></div></div>';
   h+='<div class="prog"><div class="lab"><span>Русский → греческий</span><b>'+lr+' / '+n+'</b></div><div class="bar"><i style="width:'+pct(lr,n)+'%"></i></div></div>';
-  if(set.source){h+='<p class="small muted">Источник: <a href="'+esc(set.source)+'" target="_blank" rel="noopener">Quizlet</a></p>';}
   h+='</div>';
   h+='<h3>Режимы</h3><div class="modes">'+MODE_LIST.map(function(m,i){
     return '<button class="mode" data-action="pick-mode" data-key="'+m.key+'"><span class="num">'+(i+1)+'</span><span class="txt"><div class="t">'+esc(m.t)+'</div><div class="d">'+esc(m.d)+'</div></span><span class="arr">›</span></button>';
@@ -482,7 +481,7 @@ function renderSettings(){
   if(confirmReset){h+='<div class="row"><button class="btn bad" data-action="reset-progress-yes">Да, сбросить</button><button class="btn" data-action="reset-progress-no">Отмена</button></div>';}
   else{h+='<div class="row"><button class="btn outline-bad" data-action="reset-progress">Сбросить прогресс набора</button></div>';}
   h+='<h3>Импорт набора</h3>';
-  h+='<p class="small muted">Вставь текст экспорта из Quizlet («⋯» → Экспорт): по строке на слово, греческий и русский через табуляцию, « - » или «;».</p>';
+  h+='<p class="small muted">Вставь список: по строке на слово, греческий и русский через табуляцию, « - » или «;».</p>';
   h+='<input type="text" id="importTitle" placeholder="Название набора, например Урок 1.2" value="'+esc(view.importTitle||'')+'">';
   h+='<textarea id="importText" placeholder="καλημέρα&#9;доброе утро&#10;ευχαριστώ&#9;спасибо">'+esc(view.importText||'')+'</textarea>';
   h+='<div class="row"><button class="btn primary" data-action="import">Импортировать</button></div>';

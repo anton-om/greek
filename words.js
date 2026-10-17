@@ -1,10 +1,9 @@
-// Наборы слов. Каждый набор: id, title, source (откуда взят), words: [{gr, ru}].
+// Наборы слов. Каждый набор: id, title, words: [{gr, ru}].
 // Чтобы добавить урок: скопируйте блок набора, задайте новый id и title, вставьте пары.
 window.WORD_SETS = [
   {
     id: "lesson-1-1",
     title: "Урок 1.1",
-    source: "https://quizlet.com/935250132/11-flash-cards/",
     words: [
       { gr: "η οικογένεια", ru: "семья" },
       { gr: "ο πατέρας", ru: "отец" },
