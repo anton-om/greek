@@ -312,7 +312,8 @@ function plural(n,a,b,c){var m10=n%10,m100=n%100;if(m10===1&&m100!==11)return a;
 function startSession(words){
   var set=currentSet();
   if(!words){words=set.words.slice();if(view.scope==='new')words=words.filter(function(w){return !isLearned(set,view.dir,w);});if(view.shuffle)shuffle(words);}
-  session={mode:view.mode,dir:view.dir,set:set,words:words,i:0,results:[],flipped:false,state:'ask',picked:[],tiles:null,options:null,typed:''};
+  var scopeWords=set.words.slice();if(view.scope==='new')scopeWords=scopeWords.filter(function(w){return !isLearned(set,view.dir,w);});
+  session={mode:view.mode,dir:view.dir,set:set,words:words,scopeWords:scopeWords,i:0,results:[],flipped:false,state:'ask',picked:[],tiles:null,options:null,typed:''};
   view.name='session';prepareItem();render();
 }
 function sessionTitle(){var t=MODE_TITLE[session.mode];if(session.mode==='flash'||session.mode==='quiz')t+=session.dir==='gr'?' · гр → ру':' · ру → гр';return t;}
@@ -332,9 +333,10 @@ function prepareItem(){
   if(session.mode==='quiz'){
     var ansKey=session.dir==='gr'?'ru':'gr';
     var correct=w[ansKey];
-    var pool=session.set.words.filter(function(x){return x!==w&&norm(x[ansKey],true)!==norm(correct,true);}).map(function(x){return x[ansKey];});
-    var seen={};pool=pool.filter(function(p){var k=norm(p,true);if(seen[k])return false;seen[k]=true;return true;});
-    shuffle(pool);
+    var seen={};seen[norm(correct,true)]=true;
+    var poolFrom=function(list){var out=list.filter(function(x){return x!==w;}).map(function(x){return x[ansKey];}).filter(function(p){var k=norm(p,true);if(seen[k])return false;seen[k]=true;return true;});return shuffle(out);};
+    var pool=poolFrom(session.scopeWords||session.set.words);
+    if(pool.length<3)pool=pool.concat(poolFrom(session.set.words));
     session.options=shuffle([correct].concat(pool.slice(0,3)));
     session.correctOpt=correct;
   }
