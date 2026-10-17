@@ -389,7 +389,7 @@ function renderTiles(w){
   if(session.state==='ask'){
     foot='<button class="btn ghost" data-action="undo" aria-label="Удалить последнюю букву"'+(session.picked.length?'':' disabled')+'>⌫</button>'+
       '<button class="btn" data-action="reset-tiles"'+(session.picked.length?'':' disabled')+'>Сбросить</button>';
-  }else{foot='<button class="btn primary" data-action="next">Далее</button>';}
+  }else{foot=doneFoot();}
   return{html:h,foot:foot};
 }
 
@@ -399,7 +399,7 @@ function renderType(w){
   h+='<form id="typeForm" style="margin-top:16px"><input type="text" id="typeInput" class="big" lang="el" inputmode="text" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" placeholder="греческое слово" value="'+esc(session.typed)+'"'+(session.state!=='ask'?' readonly':'')+'></form>';
   if(session.state==='ask'){h+='<p class="hint">Переключи клавиатуру на греческую. '+(store.settings.strictAccents?'Ударения учитываются.':'Без ударений ответ засчитается как «почти».')+'</p>';}
   h+=resultHtml(w);
-  var foot=session.state==='ask'?'<button class="btn primary" data-action="check">Проверить</button>':'<button class="btn primary" data-action="next">Далее</button>';
+  var foot=session.state==='ask'?'<button class="btn primary" data-action="check">Проверить</button>':doneFoot();
   return{html:h,foot:foot};
 }
 
@@ -414,8 +414,7 @@ function renderQuiz(w){
     return '<button class="'+cls+'" data-action="opt" data-k="'+k+'"'+(session.state!=='ask'?' disabled':'')+'>'+esc(o)+'</button>';
   }).join('')+'</div>';
   var foot='';
-  if(session.state!=='ask'&&session.grade!=='exact'){foot='<button class="btn primary" data-action="next">Далее</button>';}
-  else if(session.state!=='ask'){foot='<button class="btn primary" data-action="next">Далее</button>';}
+  if(session.state!=='ask'){foot=doneFoot();}
   return{html:h,foot:foot};
 }
 
@@ -430,8 +429,10 @@ function resultHtml(w){
 function finishItem(grade,given){
   session.grade=grade;session.state='done';
   var ok=grade==='exact'||(grade==='accent'&&!store.settings.strictAccents);
-  session.results[session.i]={word:cur(),ok:ok,grade:grade,given:given};
+  if(!session.results[session.i])session.results[session.i]={word:cur(),ok:ok,grade:grade,given:given};
 }
+function doneFoot(){var wrong=session.grade==='wrong';
+  return (wrong?'<button class="btn" data-action="retry">Ещё раз</button>':'')+'<button class="btn primary" data-action="next">Далее</button>';}
 function next(){
   if(session.i+1>=session.words.length){view.name='end';render();return;}
   session.i++;prepareItem();render();
@@ -552,6 +553,7 @@ document.addEventListener('click',function(ev){
     case 'undo':if(session.picked.length){var last=session.picked.pop();session.tiles[last].used=false;render();}break;
     case 'reset-tiles':session.picked=[];session.tiles.forEach(function(t){t.used=false;});render();break;
     case 'check':checkTyped();break;
+    case 'retry':prepareItem();render();break;
     case 'next':next();break;
     case 'opt':{
       if(session.state!=='ask')break;
