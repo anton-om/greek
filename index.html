@@ -144,6 +144,9 @@ input[type=text].big{font-family:var(--display);font-size:24px;text-align:center
 .result .body .ans{font-family:var(--display);font-size:24px;color:var(--fg);overflow-wrap:anywhere}
 
 .options{display:grid;gap:10px;margin-top:16px}
+.optrow{display:flex;gap:8px;align-items:stretch;min-width:0}
+.optrow .opt{flex:1;min-width:0}
+.optrow .chip{flex:0 0 auto;align-self:center}
 .opt{text-align:left;padding:14px 16px;border-radius:12px;border:1px solid var(--line);background:var(--surface);font:inherit;font-size:18px;color:inherit;cursor:pointer;font-family:var(--display);overflow-wrap:anywhere}
 .opt.correct{border-color:var(--good);background:var(--good-soft)}
 .opt.wrong{border-color:var(--bad);background:var(--bad-soft)}
@@ -396,7 +399,7 @@ function renderType(w){
   var h=progressHtml();
   h+='<div class="prompt"><div class="lang">Русский</div><div class="word ru">'+esc(w.ru)+'</div></div>';
   h+='<form id="typeForm" style="margin-top:16px"><input type="text" id="typeInput" class="big" lang="el" inputmode="text" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" placeholder="греческое слово" value="'+esc(session.typed)+'"'+(session.state!=='ask'?' readonly':'')+'></form>';
-  if(session.state==='ask'){h+='<p class="hint">Переключи клавиатуру на греческую. '+(store.settings.strictAccents?'Ударения учитываются.':'Без ударений ответ засчитается как «почти».')+'</p>';}
+  if(session.state==='ask'){h+='<p class="hint">Переключи клавиатуру на греческую. Ударения учитываются.</p>';}
   h+=resultHtml(w);
   var foot=session.state==='ask'?'<button class="btn primary" data-action="check">Проверить</button>':doneFoot();
   return{html:h,foot:foot};
@@ -410,7 +413,9 @@ function renderQuiz(w){
   h+='<div class="options">'+session.options.map(function(o,k){
     var cls='opt';
     if(session.state!=='ask'){if(o===session.correctOpt)cls+=' correct';else if(k===session.pickedOpt)cls+=' wrong';}
-    return '<button class="'+cls+'" data-action="opt" data-k="'+k+'"'+(session.state!=='ask'?' disabled':'')+'>'+esc(o)+'</button>';
+    var b='<button class="'+cls+'" data-action="opt" data-k="'+k+'"'+(session.state!=='ask'?' disabled':'')+'>'+esc(o)+'</button>';
+    if(!qGr&&canSpeak)b='<div class="optrow">'+b+'<button class="chip" data-action="speak" data-text="'+esc(o)+'" aria-label="Озвучить">🔊</button></div>';
+    return b;
   }).join('')+'</div>';
   var foot='';
   if(session.state!=='ask'){foot=doneFoot();}
@@ -421,21 +426,28 @@ function resultHtml(w){
   if(session.state==='ask')return '';
   var g=session.grade;var full=(session.mode==='tiles'||session.mode==='type')?lowerGr(primaryTarget(w.gr)):primaryTarget(w.gr);
   if(g==='exact')return '<div class="result ok" role="status"><span class="mark">✓</span><div class="body"><div>Верно!</div></div>'+(canSpeak?'<button class="chip" data-action="speak" data-text="'+esc(w.gr)+'">🔊</button>':'')+'</div>';
-  if(g==='accent')return '<div class="result almost" role="status"><span class="mark">✓</span><div class="body"><div>Почти: проверь ударения</div><div class="ans">'+esc(full)+'</div></div>'+(canSpeak?'<button class="chip" data-action="speak" data-text="'+esc(w.gr)+'">🔊</button>':'')+'</div>';
+  if(g==='accent')return '<div class="result bad" role="status"><span class="mark">✗</span><div class="body"><div>Неверное ударение. Правильно:</div><div class="ans">'+esc(full)+'</div><div class="small muted">Слово вернётся через несколько вопросов.</div></div>'+(canSpeak?'<button class="chip" data-action="speak" data-text="'+esc(w.gr)+'">🔊</button>':'')+'</div>';
   return '<div class="result bad" role="status"><span class="mark">✗</span><div class="body"><div>Неверно. Правильно:</div><div class="ans">'+esc(full)+'</div><div class="small muted">Слово вернётся через несколько вопросов.</div></div>'+(canSpeak?'<button class="chip" data-action="speak" data-text="'+esc(w.gr)+'">🔊</button>':'')+'</div>';
 }
 
 function finishItem(grade,given){
   session.grade=grade;session.state='done';
-  var ok=grade==='exact'||(grade==='accent'&&!store.settings.strictAccents);
+  var ok=grade==='exact';
   if(!session.results[session.i]){
     session.results[session.i]={word:cur(),ok:ok,grade:grade,given:given};
     if(!ok){var pos=Math.min(session.i+3,session.words.length);session.words.splice(pos,0,cur());session.requeued=true;}
   }
 }
+function learnedUpdates(){
+  var set=session.set,dir=session.dir;var wrongW=firstWrong().map(function(r){return r.word;});
+  var unlearn=wrongW.filter(function(w){return isLearned(set,dir,w);});
+  var okW=uniqWords(session.words).filter(function(w){return wrongW.indexOf(w)<0&&session.results.some(function(r){return r&&r.word===w&&r.ok;});});
+  var learn=okW.filter(function(w){return !isLearned(set,dir,w);});
+  return{unlearn:unlearn,learn:learn};
+}
 function uniqWords(list){var seen={};return list.filter(function(w){if(seen[w.gr])return false;seen[w.gr]=true;return true;});}
 function firstWrong(){var seen={};return session.results.filter(Boolean).filter(function(r){if(seen[r.word.gr])return false;seen[r.word.gr]=true;return !r.ok;});}
-function doneFoot(){var wrong=session.grade==='wrong';
+function doneFoot(){var wrong=session.grade!=='exact';
   return (wrong?'<button class="btn" data-action="retry">Ещё раз</button>':'')+'<button class="btn primary" data-action="next">Далее</button>';}
 function next(){
   if(session.i+1>=session.words.length){view.name='end';render();return;}
@@ -462,6 +474,16 @@ function renderEnd(){
     h+='<p class="muted">'+(wrong.length?(fixed===wrong.length?'Все ошибки исправлены в этом сеансе.':'Исправлено при повторе: '+fixed+' из '+wrong.length+'.'):'Без ошибок. Отлично!')+'</p>';
     if(wrong.length){h+='<h3 style="margin-top:6px">Ошибки</h3><div class="mistakes">'+wrong.map(function(r){return '<div class="mistake"><span class="g">'+esc(r.word.gr)+'</span><span class="r">'+esc(r.word.ru)+(r.given?'<br><s class="small">'+esc(r.given)+'</s>':'')+'</span></div>';}).join('')+'</div>';}
     h+='</div>';
+    if(session.mode==='tiles'||session.mode==='type'){
+      var upd=learnedUpdates();
+      if(upd.unlearn.length||upd.learn.length){
+        h+='<h3 style="margin-top:14px">Список изученных</h3><div class="stack" style="gap:8px">';
+        if(upd.unlearn.length)h+='<button class="btn" data-action="unlearn-wrong">Снять «изучено» с ошибок ('+upd.unlearn.length+')</button>';
+        if(upd.learn.length)h+='<button class="btn" data-action="learn-correct">Отметить верные как изученные ('+upd.learn.length+')</button>';
+        h+='<p class="small muted">Изученность в направлении «русский → греческий».</p></div>';
+      }
+      if(session.endMsg)h+='<p class="notice" style="margin-top:10px">'+esc(session.endMsg)+'</p>';
+    }
     foot=(wrong.length?'<button class="btn primary" data-action="retry-wrong">Повторить ошибки</button>':'')+'<button class="btn" data-action="restart">Ещё раз</button><button class="btn ghost" data-action="home">⌂</button>';
   }
   return{html:h,foot:foot};
@@ -474,7 +496,6 @@ function renderSettings(){
   var h='<div class="stack" style="margin-top:8px">';
   if(settingsMsg){h+='<p class="notice '+(settingsMsg.indexOf('Ошибка')===0?'bad':'ok')+'">'+esc(settingsMsg)+'</p>';}
   h+='<h3>Проверка ответов</h3>';
-  h+='<label class="check"><input type="checkbox" data-action="set-strict"'+(s.strictAccents?' checked':'')+'><span class="lbl">Строго с ударениями<div class="small muted">Иначе ответ без ударений засчитывается как верный, но показывается правильная форма</div></span></label>';
   h+='<label class="check"><input type="checkbox" data-action="set-autospeak"'+(s.autoSpeak?' checked':'')+'><span class="lbl">Озвучивать греческое слово при показе карточки</span></label>';
   h+='<h3>Прогресс набора «'+esc(set.title)+'»</h3>';
   h+='<p class="small muted">Изучено: греческий → русский '+learnedCount(set,'gr')+' / '+set.words.length+', русский → греческий '+learnedCount(set,'ru')+' / '+set.words.length+'.</p>';
@@ -568,6 +589,8 @@ document.addEventListener('click',function(ev){
       break;
     }
     case 'retry-learning':{var ws=session.results.filter(function(r){return r&&!r.known;}).map(function(r){return r.word;});startSession(ws);break;}
+    case 'unlearn-wrong':{var u1=learnedUpdates().unlearn;u1.forEach(function(w){setLearned(session.set,session.dir,w,false);});session.endMsg='Снята отметка «изучено»: '+u1.length+' '+plural(u1.length,'слово','слова','слов')+'.';render();break;}
+    case 'learn-correct':{var u2=learnedUpdates().learn;u2.forEach(function(w){setLearned(session.set,session.dir,w,true);});session.endMsg='Отмечено изученными: '+u2.length+' '+plural(u2.length,'слово','слова','слов')+'.';render();break;}
     case 'retry-wrong':{var ww=firstWrong().map(function(r){return r.word;});startSession(ww);break;}
     case 'restart':{var all=uniqWords(session.words);if(view.shuffle)shuffle(all);startSession(all);break;}
     case 'reset-progress':confirmReset=true;render();break;
@@ -590,7 +613,6 @@ document.addEventListener('change',function(ev){
   if(a==='set-dir'){view.dir=el.value;render();}
   else if(a==='set-scope'){view.scope=el.value;render();}
   else if(a==='set-shuffle'){view.shuffle=el.checked;}
-  else if(a==='set-strict'){store.settings.strictAccents=el.checked;save();}
   else if(a==='set-autospeak'){store.settings.autoSpeak=el.checked;save();}
 });
 document.addEventListener('input',function(ev){
