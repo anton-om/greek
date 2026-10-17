@@ -239,7 +239,8 @@ var MODE_LIST=[
   {key:'flash-ru',mode:'flash',dir:'ru',t:'Карточки: русский → греческий',d:'Тот же режим в обратную сторону'},
   {key:'tiles',mode:'tiles',dir:'ru',t:'Учимся писать',d:'Собери слово из букв вразброс'},
   {key:'type',mode:'type',dir:'ru',t:'Пишем сами',d:'Введи греческое слово с клавиатуры'},
-  {key:'quiz',mode:'quiz',dir:'gr',t:'Варианты ответа',d:'Выбери перевод из четырёх, в обе стороны'}
+  {key:'quiz-gr',mode:'quiz',dir:'gr',t:'Варианты ответа: греческий → русский',d:'Выбери перевод из четырёх'},
+  {key:'quiz-ru',mode:'quiz',dir:'ru',t:'Варианты ответа: русский → греческий',d:'Выбери греческое слово из четырёх'}
 ];
 var MODE_TITLE={flash:'Карточки',tiles:'Учимся писать',type:'Пишем сами',quiz:'Варианты ответа'};
 
@@ -291,11 +292,6 @@ function renderSetup(){
   var h='<div class="stack" style="margin-top:8px">';
   var meta=MODE_LIST.filter(function(m){return m.key===view.key;})[0];
   h+='<p class="muted">'+esc(meta?meta.d:'')+'</p>';
-  if(view.mode==='quiz'){
-    h+='<h3>Направление</h3><div class="seg">'+
-      '<label class="'+(view.dir==='gr'?'on':'')+'"><input type="radio" name="dir" value="gr" data-action="set-dir"'+(view.dir==='gr'?' checked':'')+'>Греческий → русский</label>'+
-      '<label class="'+(view.dir==='ru'?'on':'')+'"><input type="radio" name="dir" value="ru" data-action="set-dir"'+(view.dir==='ru'?' checked':'')+'>Русский → греческий</label></div>';
-  }
   dirLabel=view.dir==='gr'?'греческий → русский':'русский → греческий';
   if(view.scope==='new'&&!sc.fresh)view.scope='all';
   h+='<h3>Какие слова</h3><div class="seg">'+
