@@ -423,14 +423,19 @@ function resultHtml(w){
   var g=session.grade;var full=(session.mode==='tiles'||session.mode==='type')?lowerGr(primaryTarget(w.gr)):primaryTarget(w.gr);
   if(g==='exact')return '<div class="result ok" role="status"><span class="mark">✓</span><div class="body"><div>Верно!</div></div>'+(canSpeak?'<button class="chip" data-action="speak" data-text="'+esc(w.gr)+'">🔊</button>':'')+'</div>';
   if(g==='accent')return '<div class="result almost" role="status"><span class="mark">✓</span><div class="body"><div>Почти: проверь ударения</div><div class="ans">'+esc(full)+'</div></div>'+(canSpeak?'<button class="chip" data-action="speak" data-text="'+esc(w.gr)+'">🔊</button>':'')+'</div>';
-  return '<div class="result bad" role="status"><span class="mark">✗</span><div class="body"><div>Неверно. Правильно:</div><div class="ans">'+esc(full)+'</div></div>'+(canSpeak?'<button class="chip" data-action="speak" data-text="'+esc(w.gr)+'">🔊</button>':'')+'</div>';
+  return '<div class="result bad" role="status"><span class="mark">✗</span><div class="body"><div>Неверно. Правильно:</div><div class="ans">'+esc(full)+'</div><div class="small muted">Слово вернётся через несколько вопросов.</div></div>'+(canSpeak?'<button class="chip" data-action="speak" data-text="'+esc(w.gr)+'">🔊</button>':'')+'</div>';
 }
 
 function finishItem(grade,given){
   session.grade=grade;session.state='done';
   var ok=grade==='exact'||(grade==='accent'&&!store.settings.strictAccents);
-  if(!session.results[session.i])session.results[session.i]={word:cur(),ok:ok,grade:grade,given:given};
+  if(!session.results[session.i]){
+    session.results[session.i]={word:cur(),ok:ok,grade:grade,given:given};
+    if(!ok){var pos=Math.min(session.i+3,session.words.length);session.words.splice(pos,0,cur());session.requeued=true;}
+  }
 }
+function uniqWords(list){var seen={};return list.filter(function(w){if(seen[w.gr])return false;seen[w.gr]=true;return true;});}
+function firstWrong(){var seen={};return session.results.filter(Boolean).filter(function(r){if(seen[r.word.gr])return false;seen[r.word.gr]=true;return !r.ok;});}
 function doneFoot(){var wrong=session.grade==='wrong';
   return (wrong?'<button class="btn" data-action="retry">Ещё раз</button>':'')+'<button class="btn primary" data-action="next">Далее</button>';}
 function next(){
@@ -452,10 +457,10 @@ function renderEnd(){
     foot=(learning.length?'<button class="btn primary" data-action="retry-learning">Повторить те, что учу</button>':'')+'<button class="btn" data-action="restart">Сначала</button><button class="btn ghost" data-action="home">⌂</button>';
   }else{
     var res=session.results.filter(Boolean);
-    var correct=res.filter(function(r){return r.ok;}).length;
-    var wrong=res.filter(function(r){return !r.ok;});
-    h+='<div class="summary"><div class="score">'+correct+'<small> / '+res.length+' верно</small></div>';
-    h+='<p class="muted">'+(wrong.length?'Ошибки стоит повторить ещё раз.':'Без ошибок. Отлично!')+'</p>';
+    var wrong=firstWrong();var total=uniqWords(session.words).length;var correct=total-wrong.length;
+    var fixed=wrong.filter(function(r){return res.some(function(x){return x.word===r.word&&x.ok;});}).length;
+    h+='<div class="summary"><div class="score">'+correct+'<small> / '+total+' с первой попытки</small></div>';
+    h+='<p class="muted">'+(wrong.length?(fixed===wrong.length?'Все ошибки исправлены в этом сеансе.':'Исправлено при повторе: '+fixed+' из '+wrong.length+'.'):'Без ошибок. Отлично!')+'</p>';
     if(wrong.length){h+='<h3 style="margin-top:6px">Ошибки</h3><div class="mistakes">'+wrong.map(function(r){return '<div class="mistake"><span class="g">'+esc(r.word.gr)+'</span><span class="r">'+esc(r.word.ru)+(r.given?'<br><s class="small">'+esc(r.given)+'</s>':'')+'</span></div>';}).join('')+'</div>';}
     h+='</div>';
     foot=(wrong.length?'<button class="btn primary" data-action="retry-wrong">Повторить ошибки</button>':'')+'<button class="btn" data-action="restart">Ещё раз</button><button class="btn ghost" data-action="home">⌂</button>';
@@ -564,8 +569,8 @@ document.addEventListener('click',function(ev){
       break;
     }
     case 'retry-learning':{var ws=session.results.filter(function(r){return r&&!r.known;}).map(function(r){return r.word;});startSession(ws);break;}
-    case 'retry-wrong':{var ww=session.results.filter(function(r){return r&&!r.ok;}).map(function(r){return r.word;});startSession(ww);break;}
-    case 'restart':{var all=session.words.slice();if(view.shuffle)shuffle(all);startSession(all);break;}
+    case 'retry-wrong':{var ww=firstWrong().map(function(r){return r.word;});startSession(ww);break;}
+    case 'restart':{var all=uniqWords(session.words);if(view.shuffle)shuffle(all);startSession(all);break;}
     case 'reset-progress':confirmReset=true;render();break;
     case 'reset-progress-no':confirmReset=false;render();break;
     case 'reset-progress-yes':{var s=currentSet();store.progress[s.id]={gr:[],ru:[]};save();confirmReset=false;settingsMsg='Прогресс набора «'+s.title+'» сброшен.';render();break;}
