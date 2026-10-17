@@ -212,6 +212,7 @@ function norm(s,keepAccents){
 }
 function variants(gr){return String(gr).split('/').map(function(v){return v.replace(/\([^)]*\)/g,'').trim();}).filter(Boolean);}
 function primaryTarget(gr){var v=variants(gr);return (v[0]||gr).normalize('NFC');}
+function lowerGr(s){return String(s).toLocaleLowerCase('el').replace(/σ(?=$|[\s;,.!?·:»"])/g,'ς');}
 function grade(answer,gr){
   var vs=variants(gr);var i;
   for(i=0;i<vs.length;i++){if(norm(answer,true)===norm(vs[i],true))return 'exact';}
@@ -322,7 +323,7 @@ function prepareItem(){
   session.flipped=false;session.state='ask';session.picked=[];session.typed='';session.grade=null;session.pickedOpt=null;
   var w=cur();if(!w)return;
   if(session.mode==='tiles'){
-    var target=primaryTarget(w.gr).replace(/[;?!.,·…:«»"]+$/,'').trim();
+    var target=lowerGr(primaryTarget(w.gr).replace(/[;?!.,·…:«»"]+$/,'').trim());
     session.target=target;
     var chars=Array.from(target).filter(function(c){return c!==' ';});
     var tiles=chars.map(function(c,k){return{ch:c,used:false,k:k};});
@@ -420,7 +421,7 @@ function renderQuiz(w){
 
 function resultHtml(w){
   if(session.state==='ask')return '';
-  var g=session.grade;var full=primaryTarget(w.gr);
+  var g=session.grade;var full=(session.mode==='tiles'||session.mode==='type')?lowerGr(primaryTarget(w.gr)):primaryTarget(w.gr);
   if(g==='exact')return '<div class="result ok" role="status"><span class="mark">✓</span><div class="body"><div>Верно!</div></div>'+(canSpeak?'<button class="chip" data-action="speak" data-text="'+esc(w.gr)+'">🔊</button>':'')+'</div>';
   if(g==='accent')return '<div class="result almost" role="status"><span class="mark">✓</span><div class="body"><div>Почти: проверь ударения</div><div class="ans">'+esc(full)+'</div></div>'+(canSpeak?'<button class="chip" data-action="speak" data-text="'+esc(w.gr)+'">🔊</button>':'')+'</div>';
   return '<div class="result bad" role="status"><span class="mark">✗</span><div class="body"><div>Неверно. Правильно:</div><div class="ans">'+esc(full)+'</div></div>'+(canSpeak?'<button class="chip" data-action="speak" data-text="'+esc(w.gr)+'">🔊</button>':'')+'</div>';
