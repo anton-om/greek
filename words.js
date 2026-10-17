@@ -6,6 +6,8 @@ window.WORD_SETS = [
     title: "Урок 1.1",
     source: "https://quizlet.com/935250132/11-flash-cards/",
     words: [
+      { gr: "η οικογένεια", ru: "семья" },
+      { gr: "ο πατέρας", ru: "отец" },
       { gr: "η μητέρα", ru: "мать" },
       { gr: "ο γιος", ru: "сын" },
       { gr: "η κόρη", ru: "дочь" },
