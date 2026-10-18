@@ -43,6 +43,7 @@ html,body{height:100%}
 body{margin:0;background:var(--bg);color:var(--fg);font-family:var(--ui);font-size:16px;line-height:1.4;-webkit-text-size-adjust:100%;-webkit-tap-highlight-color:transparent}
 [hidden]{display:none!important}
 #app{height:100%;display:flex;flex-direction:column;max-width:520px;margin:0 auto}
+#app.vv{height:var(--vvh)}
 .top{display:flex;align-items:center;gap:8px;flex:0 0 auto;padding-block:10px;
   padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));
   position:sticky;top:env(safe-area-inset-top,0px);background:var(--bg);z-index:2}
@@ -247,6 +248,11 @@ function grade(answer,gr){
 
 /* ---------- speech ---------- */
 var canSpeak=('speechSynthesis' in window)&&('SpeechSynthesisUtterance' in window);
+(function(){var vv=window.visualViewport;if(!vv)return;var app=document.getElementById('app');
+  function fit(){var h=Math.round(vv.height);var full=Math.round(window.innerHeight);
+    if(full-h>80){document.documentElement.style.setProperty('--vvh',h+'px');app.classList.add('vv');window.scrollTo(0,0);}
+    else{app.classList.remove('vv');}}
+  vv.addEventListener('resize',fit);vv.addEventListener('scroll',fit);})();
 function speak(text){
   if(!canSpeak)return;
   try{
@@ -422,10 +428,10 @@ function renderTiles(w){
 function renderType(w){
   var h=progressHtml();
   h+='<div class="prompt"><div class="lang">Русский</div><div class="word ru">'+esc(w.ru)+'</div></div>';
-  h+='<form id="typeForm" style="margin-top:16px"><input type="text" id="typeInput" class="big" lang="el" inputmode="text" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" placeholder="греческое слово" value="'+esc(session.typed)+'"'+(session.state!=='ask'?' readonly':'')+'></form>';
+  h+='<form id="typeForm" style="margin-top:16px"><input type="text" id="typeInput" class="big" lang="el" inputmode="text" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" placeholder="греческое слово" value="'+esc(session.typed)+'"'+(session.state!=='ask'?' readonly':'')+'>'+(session.state==='ask'?'<button type="submit" class="btn primary" style="width:100%;margin-top:10px" data-action="check">Проверить</button>':'')+'</form>';
   if(session.state==='ask'){h+='<p class="hint">Переключи клавиатуру на греческую. Ударения учитываются.</p>';}
   h+=resultHtml(w);
-  var foot=session.state==='ask'?'<button class="btn primary" data-action="check">Проверить</button>':doneFoot();
+  var foot=session.state==='ask'?'':doneFoot();
   return{html:h,foot:foot};
 }
 
