@@ -50,7 +50,7 @@ body{margin:0;background:var(--bg);color:var(--fg);font-family:var(--ui);font-si
 .top-title{flex:1;min-width:0;font-weight:600;font-size:17px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .icon-btn{appearance:none;border:0;background:transparent;color:var(--fg);font:inherit;font-size:20px;width:40px;height:40px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;flex:0 0 auto}
 .icon-btn:active{background:var(--accent-soft)}
-main{flex:1;min-height:0;overflow-y:auto;padding-block:6px 24px;
+main{flex:1;min-height:0;overflow-y:auto;padding-block:6px 24px;touch-action:pan-y;
   padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
 footer#actions{flex:0 0 auto;display:flex;gap:10px;padding-block:10px 12px;background:var(--bg);border-top:1px solid var(--line);
   padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
@@ -113,6 +113,7 @@ input[type=text].big{font-family:var(--display);font-size:24px;text-align:center
 .card{position:relative;height:min(46vh,340px);min-height:220px;transform-style:preserve-3d;transition:transform .4s;cursor:pointer;touch-action:pan-y;user-select:none;-webkit-user-select:none}
 .card.flipped{transform:rotateY(180deg)}
 .card.drag{transition:none}
+.swipe-wrap{transition:transform .2s}.swipe-wrap.drag{transition:none}
 .face{position:absolute;inset:0;backface-visibility:hidden;-webkit-backface-visibility:hidden;background:var(--surface);border:1px solid var(--line);border-radius:20px;box-shadow:var(--shadow);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:28px 20px;text-align:center}
 .face.back{transform:rotateY(180deg)}
 .face .lang{position:absolute;top:14px;left:16px;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
@@ -202,7 +203,7 @@ input[type=text].big{font-family:var(--display);font-size:24px;text-align:center
   <main id="screen"></main>
   <footer id="actions"></footer>
 </div>
-<script src="words.js?v=2026-10-19-3"></script>
+<script src="words.js?v=2026-10-19-4"></script>
 <script>
 (function(){
 'use strict';
@@ -290,7 +291,7 @@ function render(){
   settingsBtn.hidden=(view.name!=='home');
   if(view.name==='home'){html=renderHome();}
   else if(view.name==='setup'){title=setupTitle();html=renderSetup();foot=setupFooter();}
-  else if(view.name==='session'){title=sessionTitle();var r=renderSession();html=r.html;foot=r.foot;}
+  else if(view.name==='session'){title=sessionTitle();var r=renderSession();html='<div class="swipe-wrap">'+r.html+'</div>';foot=r.foot;}
   else if(view.name==='end'){title=sessionTitle();var e=renderEnd();html=e.html;foot=e.foot;}
   else if(view.name==='settings'){title='Настройки';html=renderSettings();}
   else if(view.name==='cheat'){title='Шпаргалка';html=renderCheat();}
@@ -407,7 +408,7 @@ function renderFlash(w){
   h+='<div class="card-wrap"><div class="card'+(session.flipped?' flipped':'')+'" id="card" tabindex="0" role="button" aria-label="Карточка, нажмите чтобы перевернуть">'+
     '<div class="face front">'+mark+front+'</div><div class="face back">'+mark+back+'</div></div></div>';
   h+='<div class="card-tools">'+speakBtn(w.gr)+'<button class="chip'+(learned?' on':'')+'" data-action="toggle-learned">'+(learned?'✓ Изучено':'☆ Отметить изученным')+'</button></div>';
-  h+='<div class="hint">Нажми на карточку, чтобы перевернуть. Свайп вправо — знаю, влево — ещё учу.</div>';
+  h+='<div class="hint">Нажми на карточку, чтобы перевернуть. Свайп влево — следующее слово, вправо — предыдущее.</div>';
   var foot='<button class="btn ghost" data-action="prev" aria-label="Предыдущая"'+(session.i?'':' disabled')+'>←</button>'+
     '<button class="btn outline-bad" data-action="learning">Ещё учу</button>'+
     '<button class="btn good" data-action="know">Знаю ✓</button>';
@@ -741,30 +742,52 @@ function flip(){
   if(store.settings.autoSpeak){var showsGr=(session.dir==='gr')!==session.flipped;if(showsGr)speak(cur().gr);}
 }
 
-/* swipe / tap on card */
-var drag=null;
+/* swipe: влево — следующее слово, вправо — предыдущее; тап по карточке — перевернуть */
+var drag=null,suppressClick=false;
+function swipeTarget(ev){
+  if(view.name!=='session'||!session)return null;
+  var c=ev.target.closest('#card');if(c)return{el:c,card:true};
+  if(ev.target.closest('input,textarea,select'))return null;
+  return{el:screen.firstElementChild,card:false};
+}
+function swipeNext(){
+  if(session.mode==='flash'){next();return true;}
+  if(session.state!=='ask'){next();return true;}
+  return false;
+}
+function swipePrev(){
+  if(session.i>0){session.i--;prepareItem();render();return true;}
+  return false;
+}
 screen.addEventListener('pointerdown',function(ev){
-  var c=ev.target.closest('#card');if(!c)return;
-  drag={x:ev.clientX,y:ev.clientY,dx:0,el:c,id:ev.pointerId};
-  try{c.setPointerCapture(ev.pointerId);}catch(e){}
+  if(ev.pointerType==='mouse'&&ev.button!==0)return;
+  var t=swipeTarget(ev);if(!t)return;
+  drag={x:ev.clientX,y:ev.clientY,dx:0,el:t.el,card:t.card,id:ev.pointerId,moved:false};
+  try{screen.setPointerCapture(ev.pointerId);}catch(e){}
 });
 screen.addEventListener('pointermove',function(ev){
   if(!drag||ev.pointerId!==drag.id)return;
   drag.dx=ev.clientX-drag.x;var dy=ev.clientY-drag.y;
-  if(Math.abs(drag.dx)>8&&Math.abs(drag.dx)>Math.abs(dy)){
-    drag.el.classList.add('drag');
-    drag.el.style.transform='translateX('+drag.dx+'px) rotate('+(drag.dx/25)+'deg)'+(session.flipped?' rotateY(180deg)':'');
-  }
+  if(!drag.moved&&Math.abs(drag.dx)>8&&Math.abs(drag.dx)>Math.abs(dy))drag.moved=true;
+  if(!drag.moved||!drag.el)return;
+  var dx=drag.dx;
+  if((dx<0&&session.mode!=='flash'&&session.state==='ask')||(dx>0&&session.i===0))dx=dx/4;
+  if(drag.card){drag.el.classList.add('drag');drag.el.style.transform='translateX('+dx+'px) rotate('+(dx/25)+'deg)'+(session.flipped?' rotateY(180deg)':'');}
+  else{drag.el.classList.add('drag');drag.el.style.transform='translateX('+(dx/2)+'px)';}
 });
 function endDrag(ev){
   if(!drag||ev.pointerId!==drag.id)return;
-  var el=drag.el,dx=drag.dx;drag=null;
-  el.classList.remove('drag');el.style.transform='';
-  if(Math.abs(dx)>70){flashAnswer(dx>0);}
-  else if(Math.abs(dx)<8){flip();}
+  var el=drag.el,dx=drag.dx,moved=drag.moved,card=drag.card;drag=null;
+  try{screen.releasePointerCapture(ev.pointerId);}catch(e){}
+  if(el){el.classList.remove('drag');el.style.transform='';}
+  if(moved){
+    suppressClick=true;setTimeout(function(){suppressClick=false;},350);
+    if(Math.abs(dx)>70){if(dx<0)swipeNext();else swipePrev();}
+  }else if(card&&Math.abs(dx)<8){flip();}
 }
 screen.addEventListener('pointerup',endDrag);
-screen.addEventListener('pointercancel',function(ev){if(drag&&ev.pointerId===drag.id){drag.el.classList.remove('drag');drag.el.style.transform='';drag=null;}});
+screen.addEventListener('pointercancel',function(ev){if(drag&&ev.pointerId===drag.id){if(drag.el){drag.el.classList.remove('drag');drag.el.style.transform='';}drag=null;}});
+document.addEventListener('click',function(ev){if(suppressClick){ev.stopPropagation();ev.preventDefault();}},true);
 
 function doImport(){
   var title=(document.getElementById('importTitle')||{}).value||'';var text=(document.getElementById('importText')||{}).value||'';
