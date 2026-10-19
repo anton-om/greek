@@ -202,7 +202,7 @@ input[type=text].big{font-family:var(--display);font-size:24px;text-align:center
   <main id="screen"></main>
   <footer id="actions"></footer>
 </div>
-<script src="words.js?v=2026-10-17-4"></script>
+<script src="words.js?v=2026-10-19-1"></script>
 <script>
 (function(){
 'use strict';
@@ -210,7 +210,7 @@ var LS_KEY='greek-words:v1';
 var BUILTIN=(window.WORD_SETS||[]).map(function(s){return Object.assign({},s,{builtin:true});});
 
 function loadStore(){
-  var base={setId:null,progress:{},custom:[],settings:{strictAccents:false,autoSpeak:false}};
+  var base={setId:null,progress:{},custom:[],settings:{strictAccents:false,autoSpeak:false,useExtra:false,limit30:false}};
   try{var raw=localStorage.getItem(LS_KEY);if(raw){var d=JSON.parse(raw);base=Object.assign(base,d);base.settings=Object.assign({strictAccents:false,autoSpeak:false},d.settings||{});}}catch(e){}
   return base;
 }
@@ -220,9 +220,11 @@ var store=loadStore();
 function allSets(){return BUILTIN.concat(store.custom||[]);}
 function currentSet(){var sets=allSets();return sets.filter(function(s){return s.id===store.setId;})[0]||sets[0]||{id:'empty',title:'Нет наборов',words:[]};}
 function progressFor(setId){if(!store.progress[setId])store.progress[setId]={gr:[],ru:[]};var p=store.progress[setId];if(!p.gr)p.gr=[];if(!p.ru)p.ru=[];return p;}
+function extraOf(set){return (set.extra||[]).slice();}
+function poolWords(set,withExtra){return set.words.concat(withExtra?extraOf(set):[]);}
 function isLearned(set,dir,word){return progressFor(set.id)[dir].indexOf(word.gr)>=0;}
 function setLearned(set,dir,word,val){var arr=progressFor(set.id)[dir];var i=arr.indexOf(word.gr);if(val&&i<0)arr.push(word.gr);if(!val&&i>=0)arr.splice(i,1);save();}
-function learnedCount(set,dir){var p=progressFor(set.id);var keys=set.words.map(function(w){return w.gr;});return p[dir].filter(function(k){return keys.indexOf(k)>=0;}).length;}
+function learnedCount(set,dir,words){var p=progressFor(set.id);var keys=(words||set.words).map(function(w){return w.gr;});return p[dir].filter(function(k){return keys.indexOf(k)>=0;}).length;}
 
 function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
 function shuffle(a){for(var i=a.length-1;i>0;i--){var j=Math.floor(Math.random()*(i+1));var t=a[i];a[i]=a[j];a[j]=t;}return a;}
@@ -309,6 +311,7 @@ function renderHome(){
   h+='<div class="row"><select id="setSelect" aria-label="Набор слов">'+sets.map(function(s){return '<option value="'+esc(s.id)+'"'+(s.id===set.id?' selected':'')+'>'+esc(s.title)+' ('+s.words.length+')</option>';}).join('')+'</select></div>';
   h+='<div class="prog"><div class="lab"><span>Греческий → русский</span><b>'+lg+' / '+n+'</b></div><div class="bar"><i style="width:'+pct(lg,n)+'%"></i></div></div>';
   h+='<div class="prog"><div class="lab"><span>Русский → греческий</span><b>'+lr+' / '+n+'</b></div><div class="bar"><i style="width:'+pct(lr,n)+'%"></i></div></div>';
+  var ex=extraOf(set);if(ex.length){h+='<p class="small muted" style="margin:0">Дополнительные слова ('+ex.length+'): греческий → русский '+learnedCount(set,'gr',ex)+', русский → греческий '+learnedCount(set,'ru',ex)+'. Включаются на экране тренировки.</p>';}
   h+='</div>';
   h+='<h3>Режимы</h3><div class="modes">'+MODE_LIST.map(function(m,i){
     return '<button class="mode" data-action="pick-mode" data-key="'+m.key+'"><span class="num">'+(i+1)+'</span><span class="txt"><div class="t">'+esc(m.t)+'</div><div class="d">'+esc(m.d)+'</div></span><span class="arr">›</span></button>';
@@ -319,7 +322,7 @@ function renderHome(){
 
 /* ---------- setup ---------- */
 function setupTitle(){return MODE_TITLE[view.mode]||'Режим';}
-function setupScope(){var set=currentSet();var dir=view.dir;var total=set.words.length;var fresh=set.words.filter(function(w){return !isLearned(set,dir,w);}).length;return{total:total,fresh:fresh};}
+function setupScope(){var set=currentSet();var dir=view.dir;var pool=poolWords(set,view.extra);var total=pool.length;var fresh=pool.filter(function(w){return !isLearned(set,dir,w);}).length;var n=view.scope==='new'?fresh:total;var count=view.limit30?Math.min(30,n):n;return{total:total,fresh:fresh,count:count,extra:extraOf(set).length};}
 function renderSetup(){
   var sc=setupScope();var dirLabel;
   var h='<div class="stack" style="margin-top:8px">';
@@ -331,12 +334,17 @@ function renderSetup(){
     '<label class="'+(view.scope==='all'?'on':'')+'"><input type="radio" name="scope" value="all" data-action="set-scope"'+(view.scope==='all'?' checked':'')+'>Все ('+sc.total+')</label>'+
     '<label class="'+(view.scope==='new'?'on':'')+(sc.fresh?'':' off-dis')+'"><input type="radio" name="scope" value="new" data-action="set-scope"'+(view.scope==='new'?' checked':'')+(sc.fresh?'':' disabled')+'>Неизученные ('+sc.fresh+')</label></div>';
   h+='<p class="small muted">Изученность считается по направлению «'+dirLabel+'».'+(sc.fresh?'':' Все слова уже отмечены как изученные.')+'</p>';
+  if(sc.extra){h+='<label class="check" style="margin-top:12px"><input type="checkbox" data-action="set-extra"'+(view.extra?' checked':'')+'><span class="lbl">Включить дополнительные слова (+'+sc.extra+')</span></label>';}
+  h+='<h3>Сколько слов</h3><div class="seg">'+
+    '<label class="'+(!view.limit30?'on':'')+'"><input type="radio" name="limit" value="all" data-action="set-limit"'+(!view.limit30?' checked':'')+'>Все</label>'+
+    '<label class="'+(view.limit30?'on':'')+'"><input type="radio" name="limit" value="30" data-action="set-limit"'+(view.limit30?' checked':'')+'>Случайные 30</label></div>';
+  if(view.limit30){var avail=view.scope==='new'?sc.fresh:sc.total;h+='<p class="small muted">'+(avail>30?'Каждый раз берётся 30 случайных слов из '+avail+'.':'Доступно только '+avail+' '+plural(avail,'слово','слова','слов')+', будут взяты все.')+'</p>';}
   h+='<label class="check" style="margin-top:12px"><input type="checkbox" id="shuffleChk" data-action="set-shuffle"'+(view.shuffle?' checked':'')+'><span class="lbl">Перемешать порядок</span></label>';
   h+='</div>';
   return h;
 }
 function setupFooter(){
-  var sc=setupScope();var n=view.scope==='new'?sc.fresh:sc.total;
+  var sc=setupScope();var n=sc.count;
   return '<button class="btn primary" data-action="start"'+(n?'':' disabled')+'>Начать'+(n?' · '+n+' '+plural(n,'слово','слова','слов'):'')+'</button>';
 }
 function plural(n,a,b,c){var m10=n%10,m100=n%100;if(m10===1&&m100!==11)return a;if(m10>=2&&m10<=4&&(m100<10||m100>=20))return b;return c;}
@@ -344,9 +352,10 @@ function plural(n,a,b,c){var m10=n%10,m100=n%100;if(m10===1&&m100!==11)return a;
 /* ---------- session ---------- */
 function startSession(words){
   var set=currentSet();
-  if(!words){words=set.words.slice();if(view.scope==='new')words=words.filter(function(w){return !isLearned(set,view.dir,w);});if(view.shuffle)shuffle(words);}
-  var scopeWords=set.words.slice();if(view.scope==='new')scopeWords=scopeWords.filter(function(w){return !isLearned(set,view.dir,w);});
-  session={mode:view.mode,dir:view.dir,set:set,words:words,scopeWords:scopeWords,i:0,results:[],flipped:false,state:'ask',picked:[],tiles:null,options:null,typed:''};
+  var pool=poolWords(set,view.extra);
+  var scopeWords=pool.slice();if(view.scope==='new')scopeWords=scopeWords.filter(function(w){return !isLearned(set,view.dir,w);});
+  if(!words){words=scopeWords.slice();if(view.limit30&&words.length>30){shuffle(words);words=words.slice(0,30);if(!view.shuffle)words.sort(function(a,b){return pool.indexOf(a)-pool.indexOf(b);});}else if(view.shuffle)shuffle(words);}
+  session={mode:view.mode,dir:view.dir,set:set,pool:pool,words:words,scopeWords:scopeWords,i:0,results:[],flipped:false,state:'ask',picked:[],tiles:null,options:null,typed:''};
   view.name='session';prepareItem();render();
 }
 function sessionTitle(){var t=MODE_TITLE[session.mode];if(session.mode==='flash'||session.mode==='quiz')t+=session.dir==='gr'?' · гр → ру':' · ру → гр';return t;}
@@ -492,7 +501,7 @@ function renderEnd(){
     var learning=session.results.filter(function(r){return r&&!r.known;}).map(function(r){return r.word;});
     var total=session.words.length;
     h+='<div class="summary"><div class="score">'+known+'<small> / '+total+' знаю</small></div>';
-    h+='<p class="muted">Изучено в этом направлении: '+learnedCount(session.set,session.dir)+' из '+session.set.words.length+'.</p>';
+    h+='<p class="muted">Изучено в этом направлении: '+learnedCount(session.set,session.dir,session.pool)+' из '+session.pool.length+'.</p>';
     if(learning.length){h+='<h3 style="margin-top:6px">Ещё учу</h3><div class="mistakes">'+learning.map(function(w){return '<div class="mistake"><span class="g">'+esc(w.gr)+'</span><span class="r">'+esc(w.ru)+'</span></div>';}).join('')+'</div>';}
     h+='</div>';
     foot=(learning.length?'<button class="btn primary" data-action="retry-learning">Повторить те, что учу</button>':'')+'<button class="btn" data-action="restart">Сначала</button><button class="btn ghost" data-action="home">⌂</button>';
@@ -618,7 +627,7 @@ function parseImport(text){
 function goHome(){view={name:'home'};session=null;render();}
 function openSetup(key){
   var m=MODE_LIST.filter(function(x){return x.key===key;})[0];if(!m)return;
-  view={name:'setup',key:key,mode:m.mode,dir:m.dir,scope:'all',shuffle:m.mode!=='flash'};
+  view={name:'setup',key:key,mode:m.mode,dir:m.dir,scope:'all',shuffle:m.mode!=='flash',extra:!!store.settings.useExtra,limit30:!!store.settings.limit30};
   var sc=setupScope();if(sc.fresh&&sc.fresh<sc.total)view.scope='new';
   render();
 }
@@ -631,7 +640,7 @@ document.addEventListener('click',function(ev){
     case 'back':
       if(view.name==='settings'){settingsMsg='';confirmReset=false;confirmDelete=null;goHome();}
       else if(view.name==='setup')goHome();
-      else if(view.name==='session'||view.name==='end'){view={name:'setup',key:view.key,mode:session.mode,dir:session.dir,scope:view.scope,shuffle:view.shuffle};render();}
+      else if(view.name==='session'||view.name==='end'){view={name:'setup',key:view.key,mode:session.mode,dir:session.dir,scope:view.scope,shuffle:view.shuffle,extra:view.extra,limit30:view.limit30};render();}
       else goHome();
       break;
     case 'settings':view={name:'settings'};settingsMsg='';render();break;
@@ -694,6 +703,8 @@ document.addEventListener('change',function(ev){
   if(a==='set-dir'){view.dir=el.value;render();}
   else if(a==='set-scope'){view.scope=el.value;render();}
   else if(a==='set-shuffle'){view.shuffle=el.checked;}
+  else if(a==='set-extra'){view.extra=el.checked;store.settings.useExtra=el.checked;save();render();}
+  else if(a==='set-limit'){view.limit30=el.value==='30';store.settings.limit30=view.limit30;save();render();}
   else if(a==='set-autospeak'){store.settings.autoSpeak=el.checked;save();}
 });
 document.addEventListener('input',function(ev){
