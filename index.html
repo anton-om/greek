@@ -2,11 +2,11 @@
 <html lang="ru">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <title>Греческие слова</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <meta name="theme-color" content="#1f5fa8">
-<meta name="build" content="2026-10-19-5">
+<meta name="build" content="2026-10-20-1">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap">
@@ -51,6 +51,8 @@ body{margin:0;background:var(--bg);color:var(--fg);font-family:var(--ui);font-si
 .top-title{flex:1;min-width:0;font-weight:600;font-size:17px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .icon-btn{appearance:none;border:0;background:transparent;color:var(--fg);font:inherit;font-size:20px;width:40px;height:40px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;flex:0 0 auto}
 .icon-btn:active{background:var(--accent-soft)}
+html{touch-action:manipulation}
+button,label,.btn,.tile,.icon-btn{touch-action:manipulation}
 main{flex:1;min-height:0;overflow-y:auto;padding-block:6px 24px;touch-action:pan-y;
   padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
 footer#actions{flex:0 0 auto;display:flex;gap:10px;padding-block:10px 12px;background:var(--bg);border-top:1px solid var(--line);
@@ -204,7 +206,7 @@ input[type=text].big{font-family:var(--display);font-size:24px;text-align:center
   <main id="screen"></main>
   <footer id="actions"></footer>
 </div>
-<script src="words.js?v=2026-10-19-5"></script>
+<script src="words.js?v=2026-10-20-1"></script>
 <script>
 (function(){
 'use strict';
@@ -212,8 +214,8 @@ var LS_KEY='greek-words:v1';
 var BUILTIN=(window.WORD_SETS||[]).map(function(s){return Object.assign({},s,{builtin:true});});
 
 function loadStore(){
-  var base={setId:null,progress:{},custom:[],settings:{strictAccents:false,autoSpeak:false,useExtra:false,limit30:false}};
-  try{var raw=localStorage.getItem(LS_KEY);if(raw){var d=JSON.parse(raw);base=Object.assign(base,d);base.settings=Object.assign({strictAccents:false,autoSpeak:false},d.settings||{});}}catch(e){}
+  var base={setId:null,progress:{},custom:[],settings:{strictAccents:false,autoSpeak:false,extraMode:'none',limit30:false}};
+  try{var raw=localStorage.getItem(LS_KEY);if(raw){var d=JSON.parse(raw);base=Object.assign(base,d);base.settings=Object.assign({strictAccents:false,autoSpeak:false},d.settings||{});if(!base.settings.extraMode)base.settings.extraMode=base.settings.useExtra?'with':'none';}}catch(e){}
   return base;
 }
 function save(){try{localStorage.setItem(LS_KEY,JSON.stringify(store));}catch(e){}}
@@ -223,7 +225,8 @@ function allSets(){return BUILTIN.concat(store.custom||[]);}
 function currentSet(){var sets=allSets();return sets.filter(function(s){return s.id===store.setId;})[0]||sets[0]||{id:'empty',title:'Нет наборов',words:[]};}
 function progressFor(setId){if(!store.progress[setId])store.progress[setId]={gr:[],ru:[]};var p=store.progress[setId];if(!p.gr)p.gr=[];if(!p.ru)p.ru=[];return p;}
 function extraOf(set){return (set.extra||[]).slice();}
-function poolWords(set,withExtra){return set.words.concat(withExtra?extraOf(set):[]);}
+/* extraMode: 'none' — только основные, 'with' — основные + дополнительные, 'only' — только дополнительные */
+function poolWords(set,extraMode){if(extraMode==='only')return extraOf(set);return set.words.concat(extraMode==='with'?extraOf(set):[]);}
 function isLearned(set,dir,word){return progressFor(set.id)[dir].indexOf(word.gr)>=0;}
 function setLearned(set,dir,word,val){var arr=progressFor(set.id)[dir];var i=arr.indexOf(word.gr);if(val&&i<0)arr.push(word.gr);if(!val&&i>=0)arr.splice(i,1);save();}
 function learnedCount(set,dir,words){var p=progressFor(set.id);var keys=(words||set.words).map(function(w){return w.gr;});return p[dir].filter(function(k){return keys.indexOf(k)>=0;}).length;}
@@ -337,7 +340,13 @@ function renderSetup(){
     '<label class="'+(view.scope==='all'?'on':'')+'"><input type="radio" name="scope" value="all" data-action="set-scope"'+(view.scope==='all'?' checked':'')+'>Все ('+sc.total+')</label>'+
     '<label class="'+(view.scope==='new'?'on':'')+(sc.fresh?'':' off-dis')+'"><input type="radio" name="scope" value="new" data-action="set-scope"'+(view.scope==='new'?' checked':'')+(sc.fresh?'':' disabled')+'>Неизученные ('+sc.fresh+')</label></div>';
   h+='<p class="small muted">Изученность считается по направлению «'+dirLabel+'».'+(sc.fresh?'':' Все слова уже отмечены как изученные.')+'</p>';
-  if(sc.extra){h+='<label class="check" style="margin-top:12px"><input type="checkbox" data-action="set-extra"'+(view.extra?' checked':'')+'><span class="lbl">Включить дополнительные слова (+'+sc.extra+')</span></label>';}
+  if(sc.extra){
+    h+='<h3>Лексика</h3><div class="seg">'+
+      '<label class="'+(view.extra==='none'?'on':'')+'"><input type="radio" name="extra" value="none" data-action="set-extra"'+(view.extra==='none'?' checked':'')+'>Основная</label>'+
+      '<label class="'+(view.extra==='with'?'on':'')+'"><input type="radio" name="extra" value="with" data-action="set-extra"'+(view.extra==='with'?' checked':'')+'>Вся</label>'+
+      '<label class="'+(view.extra==='only'?'on':'')+'"><input type="radio" name="extra" value="only" data-action="set-extra"'+(view.extra==='only'?' checked':'')+'>Только дополнительная</label></div>';
+    h+='<p class="small muted">Основных слов: '+currentSet().words.length+', дополнительных: '+sc.extra+'. «Вся» — основная вместе с дополнительной.</p>';
+  }else if(view.extra==='only'){view.extra='none';}
   h+='<h3>Сколько слов</h3><div class="seg">'+
     '<label class="'+(!view.limit30?'on':'')+'"><input type="radio" name="limit" value="all" data-action="set-limit"'+(!view.limit30?' checked':'')+'>Все</label>'+
     '<label class="'+(view.limit30?'on':'')+'"><input type="radio" name="limit" value="30" data-action="set-limit"'+(view.limit30?' checked':'')+'>Случайные 30</label></div>';
@@ -631,7 +640,7 @@ function parseImport(text){
 function goHome(){view={name:'home'};session=null;render();}
 function openSetup(key){
   var m=MODE_LIST.filter(function(x){return x.key===key;})[0];if(!m)return;
-  view={name:'setup',key:key,mode:m.mode,dir:m.dir,scope:'all',shuffle:m.mode!=='flash',extra:!!store.settings.useExtra,limit30:!!store.settings.limit30};
+  view={name:'setup',key:key,mode:m.mode,dir:m.dir,scope:'all',shuffle:m.mode!=='flash',extra:store.settings.extraMode||'none',limit30:!!store.settings.limit30};
   var sc=setupScope();if(sc.fresh&&sc.fresh<sc.total)view.scope='new';
   render();
 }
@@ -708,7 +717,7 @@ document.addEventListener('change',function(ev){
   if(a==='set-dir'){view.dir=el.value;render();}
   else if(a==='set-scope'){view.scope=el.value;render();}
   else if(a==='set-shuffle'){view.shuffle=el.checked;}
-  else if(a==='set-extra'){view.extra=el.checked;store.settings.useExtra=el.checked;save();render();}
+  else if(a==='set-extra'){view.extra=el.value;store.settings.extraMode=el.value;save();render();}
   else if(a==='set-limit'){view.limit30=el.value==='30';store.settings.limit30=view.limit30;save();render();}
   else if(a==='set-autospeak'){store.settings.autoSpeak=el.checked;save();}
 });
