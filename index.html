@@ -6,7 +6,7 @@
 <title>Греческие слова</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <meta name="theme-color" content="#1f5fa8">
-<meta name="build" content="2026-10-21-1">
+<meta name="build" content="2026-10-21-2">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap">
@@ -206,7 +206,7 @@ input[type=text].big{font-family:var(--display);font-size:24px;text-align:center
   <main id="screen"></main>
   <footer id="actions"></footer>
 </div>
-<script src="words.js?v=2026-10-21-1"></script>
+<script src="words.js?v=2026-10-21-2"></script>
 <script>
 (function(){
 'use strict';
@@ -268,8 +268,30 @@ function greekVoices(){
   try{var vs=speechSynthesis.getVoices();if(vs&&vs.length)voiceCache=vs;}catch(e){}
   return voiceCache.filter(function(v){return /^el([-_]|$)/i.test(v.lang);});
 }
+/* iOS: синтез речи подчиняется боковому переключателю беззвучного режима. Если перед
+   озвучкой проиграть беззвучный аудиофайл, WebKit переводит звуковую сессию в режим
+   воспроизведения (как у видео), и речь слышна даже с включённым переключателем. */
+var isIOS=/iPad|iPhone|iPod/.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
+var silentAudio=null;
+function silentWavUrl(){
+  var rate=8000,len=rate,buf=new ArrayBuffer(44+len),v=new DataView(buf),i;
+  function str(o,t){for(var k=0;k<t.length;k++)v.setUint8(o+k,t.charCodeAt(k));}
+  str(0,'RIFF');v.setUint32(4,36+len,true);str(8,'WAVE');str(12,'fmt ');v.setUint32(16,16,true);
+  v.setUint16(20,1,true);v.setUint16(22,1,true);v.setUint32(24,rate,true);v.setUint32(28,rate,true);
+  v.setUint16(32,1,true);v.setUint16(34,8,true);str(36,'data');v.setUint32(40,len,true);
+  for(i=0;i<len;i++)v.setUint8(44+i,128);
+  return URL.createObjectURL(new Blob([buf],{type:'audio/wav'}));
+}
+function unlockAudioSession(){
+  if(!isIOS)return;
+  try{
+    if(!silentAudio){silentAudio=new Audio(silentWavUrl());silentAudio.setAttribute('playsinline','');silentAudio.preload='auto';}
+    silentAudio.currentTime=0;var p=silentAudio.play();if(p&&p.catch)p.catch(function(){});
+  }catch(e){}
+}
 function speak(text){
   if(!canSpeak)return;
+  unlockAudioSession();
   try{
     var u=new SpeechSynthesisUtterance(primaryTarget(text));u.lang='el-GR';u.rate=0.9;u.volume=1;
     try{var v=greekVoices()[0];if(v)u.voice=v;}catch(e){}
@@ -795,8 +817,10 @@ function swipePrev(){
 screen.addEventListener('pointerdown',function(ev){
   if(ev.pointerType==='mouse'&&ev.button!==0)return;
   var t=swipeTarget(ev);if(!t)return;
+  /* Без setPointerCapture: в Chrome при захвате click уходит на захвативший элемент,
+     и кнопки внутри упражнения перестают срабатывать от мыши. Касания и так захватываются
+     неявно, а pointerup ловим на document. */
   drag={x:ev.clientX,y:ev.clientY,dx:0,el:t.el,card:t.card,id:ev.pointerId,moved:false};
-  try{screen.setPointerCapture(ev.pointerId);}catch(e){}
 });
 screen.addEventListener('pointermove',function(ev){
   if(!drag||ev.pointerId!==drag.id)return;
@@ -811,26 +835,66 @@ screen.addEventListener('pointermove',function(ev){
 function endDrag(ev){
   if(!drag||ev.pointerId!==drag.id)return;
   var el=drag.el,dx=drag.dx,moved=drag.moved,card=drag.card;drag=null;
-  try{screen.releasePointerCapture(ev.pointerId);}catch(e){}
   if(el){el.classList.remove('drag');el.style.transform='';}
   if(moved){
     suppressClick=true;setTimeout(function(){suppressClick=false;},350);
     if(Math.abs(dx)>70){if(dx<0)swipeNext();else swipePrev();}
   }else if(card&&Math.abs(dx)<8){flip();}
 }
-screen.addEventListener('pointerup',endDrag);
-screen.addEventListener('pointercancel',function(ev){if(drag&&ev.pointerId===drag.id){if(drag.el){drag.el.classList.remove('drag');drag.el.style.transform='';}drag=null;}});
+document.addEventListener('pointerup',endDrag);
+document.addEventListener('pointercancel',function(ev){if(drag&&ev.pointerId===drag.id){if(drag.el){drag.el.classList.remove('drag');drag.el.style.transform='';}drag=null;}});
 document.addEventListener('click',function(ev){if(suppressClick){ev.stopPropagation();ev.preventDefault();}},true);
 
-/* автообновление: сверяем сборку с сервером, при расхождении перезагружаем страницу */
+/* автообновление: сверяем сборку с сервером, при расхождении перезагружаем страницу.
+   Перед перезагрузкой состояние экрана и текущего упражнения сохраняется в sessionStorage
+   и восстанавливается после неё, чтобы обновление не сбивало процесс. */
+var RESUME_KEY='greek-words:resume';
+function saveResume(){
+  try{
+    var data={view:view,setId:currentSet().id};
+    if(session&&(view.name==='session'||view.name==='end')){
+      var s=session;
+      data.session={mode:s.mode,dir:s.dir,i:s.i,requeued:!!s.requeued,flipped:!!s.flipped,state:s.state,picked:s.picked||[],typed:s.typed||'',
+        grade:s.grade,pickedOpt:s.pickedOpt,tiles:s.tiles,options:s.options,correctOpt:s.correctOpt,target:s.target,
+        words:s.words.map(function(w){return w.gr;}),scopeWords:(s.scopeWords||[]).map(function(w){return w.gr;}),
+        results:Array.prototype.map.call(s.results,function(r){return r?Object.assign({},r,{word:r.word.gr}):null;})};
+    }
+    sessionStorage.setItem(RESUME_KEY,JSON.stringify(data));
+  }catch(e){}
+}
+function restoreResume(){
+  var raw=null;try{raw=sessionStorage.getItem(RESUME_KEY);sessionStorage.removeItem(RESUME_KEY);}catch(e){}
+  if(!raw)return false;
+  try{
+    var d=JSON.parse(raw);if(!d||!d.view||!d.view.name)return false;
+    if(d.setId&&d.setId!==currentSet().id){if(!allSets().some(function(x){return x.id===d.setId;}))return false;store.setId=d.setId;}
+    var v=d.view,set=currentSet();
+    if(v.name==='session'||v.name==='end'){
+      var sv=d.session;if(!sv)return false;
+      var byGr={};set.words.concat(extraOf(set)).forEach(function(w){byGr[w.gr]=w;});
+      var res=function(k){var w=byGr[k];if(!w)throw new Error('missing word '+k);return w;};
+      session={mode:sv.mode,dir:sv.dir,set:set,pool:poolWords(set,v.extra),words:sv.words.map(res),scopeWords:sv.scopeWords.map(res),i:sv.i,
+        results:sv.results.map(function(r){return r?Object.assign({},r,{word:res(r.word)}):null;}),requeued:sv.requeued,
+        flipped:sv.flipped,state:sv.state,picked:sv.picked,typed:sv.typed,grade:sv.grade,pickedOpt:sv.pickedOpt,tiles:sv.tiles,options:sv.options,correctOpt:sv.correctOpt,target:sv.target};
+      if(v.name==='session'&&!session.words[session.i])throw new Error('bad index');
+    }
+    view=v;return true;
+  }catch(e){session=null;view={name:'home'};return false;}
+}
+function reloadForUpdate(remote,manual){
+  var key='greek-words:reload:'+remote;
+  if(!manual&&sessionStorage.getItem(key))return false;
+  try{sessionStorage.setItem(key,'1');}catch(e){}
+  if(!manual)saveResume();
+  location.reload();return true;
+}
 function checkUpdate(manual){
   if(!window.fetch||!APP_BUILD){if(manual){settingsMsg='Проверка недоступна.';render();}return;}
   var url=location.pathname.replace(/[^\/]*$/,'')+'index.html?u='+Date.now();
   fetch(url,{cache:'no-store'}).then(function(r){return r.text();}).then(function(t){
     var m=t.match(/<meta name="build" content="([^"]+)"/);var remote=m?m[1]:'';
     if(remote&&remote!==APP_BUILD){
-      var key='greek-words:reload:'+remote;
-      if(manual||!sessionStorage.getItem(key)){try{sessionStorage.setItem(key,'1');}catch(e){}location.reload();return;}
+      if(reloadForUpdate(remote,manual))return;
     }
     if(manual){settingsMsg=remote===APP_BUILD?'У вас последняя версия.':'Не удалось сравнить версии.';render();}
   }).catch(function(){if(manual){settingsMsg='Ошибка: нет связи с сервером.';render();}});
@@ -850,6 +914,7 @@ function doImport(){
   settingsMsg='Импортировано слов: '+words.length+'. Набор «'+title+'» выбран.';render();
 }
 
+restoreResume();
 render();
 })();
 </script>
