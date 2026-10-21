@@ -6,7 +6,7 @@
 <title>Греческие слова</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <meta name="theme-color" content="#1f5fa8">
-<meta name="build" content="2026-10-20-1">
+<meta name="build" content="2026-10-21-1">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap">
@@ -206,7 +206,7 @@ input[type=text].big{font-family:var(--display);font-size:24px;text-align:center
   <main id="screen"></main>
   <footer id="actions"></footer>
 </div>
-<script src="words.js?v=2026-10-20-1"></script>
+<script src="words.js?v=2026-10-21-1"></script>
 <script>
 (function(){
 'use strict';
@@ -260,15 +260,32 @@ var canSpeak=('speechSynthesis' in window)&&('SpeechSynthesisUtterance' in windo
     if(full-h>80){document.documentElement.style.setProperty('--vvh',h+'px');app.classList.add('vv');window.scrollTo(0,0);}
     else{app.classList.remove('vv');}}
   vv.addEventListener('resize',fit);vv.addEventListener('scroll',fit);})();
+/* Голоса: iOS/Chrome отдают пустой список до события voiceschanged, поэтому кешируем.
+   cancel() вызываем только когда что-то звучит: cancel()+speak() подряд на iOS и Android глушат фразу.
+   Ссылку на utterance держим, иначе Chrome может собрать её сборщиком мусора до конца озвучки. */
+var voiceCache=[],lastUtter=null;
+function greekVoices(){
+  try{var vs=speechSynthesis.getVoices();if(vs&&vs.length)voiceCache=vs;}catch(e){}
+  return voiceCache.filter(function(v){return /^el([-_]|$)/i.test(v.lang);});
+}
 function speak(text){
   if(!canSpeak)return;
   try{
-    var u=new SpeechSynthesisUtterance(primaryTarget(text));u.lang='el-GR';u.rate=0.9;
-    var v=speechSynthesis.getVoices().filter(function(v){return /^el/i.test(v.lang);})[0];if(v)u.voice=v;
-    speechSynthesis.cancel();speechSynthesis.speak(u);
+    var u=new SpeechSynthesisUtterance(primaryTarget(text));u.lang='el-GR';u.rate=0.9;u.volume=1;
+    try{var v=greekVoices()[0];if(v)u.voice=v;}catch(e){}
+    lastUtter=u;
+    if(speechSynthesis.speaking||speechSynthesis.pending)speechSynthesis.cancel();
+    if(speechSynthesis.paused)speechSynthesis.resume();
+    speechSynthesis.speak(u);
   }catch(e){}
 }
-if(canSpeak){try{speechSynthesis.getVoices();}catch(e){}}
+if(canSpeak){try{greekVoices();speechSynthesis.addEventListener('voiceschanged',greekVoices);}catch(e){}}
+function speechStatus(){
+  if(!canSpeak)return 'Ошибка: браузер не поддерживает синтез речи.';
+  var g=greekVoices();
+  if(g.length)return 'Греческий голос: '+g[0].name+'. Если слово не прозвучало, проверьте переключатель беззвучного режима на телефоне.';
+  return 'Ошибка: греческий голос не найден (всего голосов: '+voiceCache.length+'). На iPhone: Настройки → Универсальный доступ → Устный контент → Голоса → Греческий. На Android: настройки синтеза речи Google → установить греческий.';
+}
 
 /* ---------- views ---------- */
 var view={name:'home'};
@@ -375,6 +392,7 @@ function cur(){return session.words[session.i];}
 function prepareItem(){
   session.flipped=false;session.state='ask';session.picked=[];session.typed='';session.grade=null;session.pickedOpt=null;
   var w=cur();if(!w)return;
+  if(session.mode==='flash'&&session.dir==='gr'&&store.settings.autoSpeak)speak(w.gr);
   if(session.mode==='tiles'){
     var target=lowerGr(primaryTarget(w.gr).replace(/[;?!.,·…:«»"]+$/,'').trim());
     session.target=target;
@@ -597,8 +615,9 @@ function renderSettings(){
   var h='<div class="stack" style="margin-top:8px">';
   if(settingsMsg){h+='<p class="notice '+(settingsMsg.indexOf('Ошибка')===0?'bad':'ok')+'">'+esc(settingsMsg)+'</p>';}
   h+='<h3>Версия</h3><p class="small muted">Сборка '+esc(APP_BUILD)+'. Приложение само проверяет обновления при каждом открытии.</p><div class="row"><button class="btn" data-action="check-update">Проверить обновление</button></div>';
-  h+='<h3>Проверка ответов</h3>';
+  h+='<h3>Озвучка</h3>';
   h+='<label class="check"><input type="checkbox" data-action="set-autospeak"'+(s.autoSpeak?' checked':'')+'><span class="lbl">Озвучивать греческое слово при показе карточки</span></label>';
+  h+='<div class="row"><button class="btn" data-action="test-speech">🔊 Проверить озвучку</button></div>';
   h+='<h3>Прогресс набора «'+esc(set.title)+'»</h3>';
   h+='<p class="small muted">Изучено: греческий → русский '+learnedCount(set,'gr')+' / '+set.words.length+', русский → греческий '+learnedCount(set,'ru')+' / '+set.words.length+'.</p>';
   if(confirmReset){h+='<div class="row"><button class="btn bad" data-action="reset-progress-yes">Да, сбросить</button><button class="btn" data-action="reset-progress-no">Отмена</button></div>';}
@@ -658,6 +677,7 @@ document.addEventListener('click',function(ev){
       break;
     case 'settings':view={name:'settings'};settingsMsg='';render();break;
     case 'check-update':checkUpdate(true);break;
+    case 'test-speech':speak('Καλημέρα');settingsMsg=speechStatus();render();break;
     case 'cheat':view={name:'cheat'};render();break;
     case 'home':goHome();break;
     case 'pick-mode':openSetup(el.getAttribute('data-key'));break;
