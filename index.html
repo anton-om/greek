@@ -6,7 +6,7 @@
 <title>Греческие слова</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <meta name="theme-color" content="#1f5fa8">
-<meta name="build" content="2026-10-22-1">
+<meta name="build" content="2026-10-22-2">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap">
@@ -206,7 +206,7 @@ input[type=text].big{font-family:var(--display);font-size:24px;text-align:center
   <main id="screen"></main>
   <footer id="actions"></footer>
 </div>
-<script src="words.js?v=2026-10-22-1"></script>
+<script src="words.js?v=2026-10-22-2"></script>
 <script>
 (function(){
 'use strict';
@@ -260,10 +260,16 @@ var canSpeak=('speechSynthesis' in window)&&('SpeechSynthesisUtterance' in windo
     if(full-h>80){document.documentElement.style.setProperty('--vvh',h+'px');app.classList.add('vv');window.scrollTo(0,0);}
     else{app.classList.remove('vv');}}
   vv.addEventListener('resize',fit);vv.addEventListener('scroll',fit);})();
-/* Озвучка намеренно в исходном виде первой версии: cancel() и сразу speak(),
-   без предварительного проигрывания аудио (оно давало задержку на iOS). */
+/* Озвучка в исходном виде первой версии: cancel() и сразу speak(), без проигрывания
+   аудио перед речью (оно давало задержку на iOS). Audio Session API (iOS 17+): тип
+   «playback» переводит звук страницы на медиа-канал, который боковой переключатель
+   беззвучного режима не глушит. Побочный эффект: музыка других приложений ставится на паузу. */
+function claimPlaybackSession(){
+  try{if(navigator.audioSession&&navigator.audioSession.type!=='playback')navigator.audioSession.type='playback';}catch(e){}
+}
 function speak(text){
   if(!canSpeak)return;
+  claimPlaybackSession();
   try{
     var u=new SpeechSynthesisUtterance(primaryTarget(text));u.lang='el-GR';u.rate=0.9;
     var v=speechSynthesis.getVoices().filter(function(v){return /^el/i.test(v.lang);})[0];if(v)u.voice=v;
