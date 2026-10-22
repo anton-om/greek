@@ -6,7 +6,7 @@
 <title>Греческие слова</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <meta name="theme-color" content="#1f5fa8">
-<meta name="build" content="2026-10-22-5">
+<meta name="build" content="2026-10-22-6">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap">
@@ -193,6 +193,7 @@ input[type=text].big{font-family:var(--display);font-size:24px;text-align:center
 .art>span{padding:6px 0;border-top:1px solid var(--line);min-width:0}
 .art>span.h{border-top:0;font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);padding-bottom:2px}
 .art .A{font-size:21px;font-weight:600;color:var(--accent);text-align:center;min-width:2.2em}
+.art .A.E{font-size:16px;text-align:left;white-space:nowrap}
 .notice.ok{background:var(--good-soft);color:var(--good)}
 .notice.bad{background:var(--bad-soft);color:var(--bad)}
 .danger-zone{display:flex;flex-direction:column;gap:10px}
@@ -212,7 +213,7 @@ input[type=text].big{font-family:var(--display);font-size:24px;text-align:center
   <main id="screen"></main>
   <footer id="actions"></footer>
 </div>
-<script src="words.js?v=2026-10-22-5"></script>
+<script src="words.js?v=2026-10-22-6"></script>
 <script>
 (function(){
 'use strict';
@@ -328,7 +329,7 @@ function renderHome(){
   var lg=learnedCount(set,'gr'),lr=learnedCount(set,'ru');
   var sets=allSets();
   var h='<div class="hero"><h2>Греческие слова</h2><p class="muted small">Карточки, письмо и тесты по наборам слов.</p></div>';
-  h+='<h3>Справка</h3><button class="mode" data-action="cheat"><span class="num">Αα</span><span class="txt"><div class="t">Шпаргалка</div><div class="d">Алфавит, сочетания букв, дифтонги, артикли, ударение</div></span><span class="arr">›</span></button>';
+  h+='<h3>Справка</h3><button class="mode" data-action="cheat"><span class="num">Αα</span><span class="txt"><div class="t">Шпаргалка</div><div class="d">Алфавит, сочетания букв, артикли, окончания, ударение</div></span><span class="arr">›</span></button>';
   h+='<h3>Набор слов</h3>'+'<div class="setbox">';
   h+='<div class="row"><select id="setSelect" aria-label="Набор слов">'+sets.map(function(s){return '<option value="'+esc(s.id)+'"'+(s.id===set.id?' selected':'')+'>'+esc(s.title)+' ('+s.words.length+')</option>';}).join('')+'</select></div>';
   h+='<div class="prog"><div class="lab"><span>Греческий → русский</span><b>'+lg+' / '+n+'</b></div><div class="bar"><i style="width:'+pct(lg,n)+'%"></i></div></div>';
@@ -609,6 +610,21 @@ function articlesHtml(){
   h+='<p class="note">Средний род чаще у названий предметов и идей.<br><span class="muted">'+grHtml('το σπίτι','дом')+', '+grHtml('το πρόβλημα','проблема')+'</span></p>';
   return h;
 }
+/* Окончания существительных по родам: по презентации к третьему уроку */
+var ENDINGS=[
+  ['Мужской','-ος, -ας, -ης','-οι, -ες, -ες',[['ο φίλος','друг','οι φίλοι','друзья'],['ο άντρας','мужчина','οι άντρες','мужчины'],['ο μαθητής','ученик','οι μαθητές','ученики']]],
+  ['Женский','-α, -η','-ες, -ες',[['η γυναίκα','женщина','οι γυναίκες','женщины'],['η φίλη','подруга','οι φίλες','подруги']]],
+  ['Средний','-ο, -ι, -μα','-α, -ια, -ματα',[['το βιβλίο','книга','τα βιβλία','книги'],['το παιδί','ребёнок','τα παιδιά','дети'],['το πρόβλημα','проблема','τα προβλήματα','проблемы']]]
+];
+function endingsHtml(){
+  var h='<p class="note">По окончанию слова видно его род, а при переходе во множественное число окончание меняется вместе с артиклем.</p>';
+  h+='<div class="art c3"><span class="h">Род</span><span class="h">Ед. ч.</span><span class="h">Мн. ч.</span>';
+  h+=ENDINGS.map(function(r){return '<span>'+esc(r[0])+'</span><span class="A E">'+esc(r[1])+'</span><span class="A E">'+esc(r[2])+'</span>';}).join('')+'</div>';
+  h+=ENDINGS.map(function(r){
+    return '<p class="sub">'+esc(r[0])+' род</p>'+r[3].map(function(e){return '<p class="note"><span class="muted">'+grHtml(e[0],e[1])+' → '+grHtml(e[2],e[3])+'</span></p>';}).join('');
+  }).join('');
+  return h;
+}
 function rulesHtml(rows){return rows.map(function(r){return '<div class="rule"><span class="k">'+esc(r[0])+'</span><span class="v">'+esc(r[1])+'</span><span class="e">'+exHtml(r[2],r[3],r[4])+'</span></div>';}).join('');}
 function renderCheat(){
   var h='<div class="cheat">';
@@ -619,6 +635,7 @@ function renderCheat(){
   h+='<details class="sec"><summary>Сочетания согласных</summary><div class="body">'+rulesHtml(CHEAT_CONS)+'</div></details>';
   h+='<details class="sec"><summary>Дифтонги αυ, ευ</summary><div class="body">'+rulesHtml(CHEAT_DIPH)+'</div></details>';
   h+='<details class="sec"><summary>Артикли</summary><div class="body">'+articlesHtml()+'</div></details>';
+  h+='<details class="sec"><summary>Окончания существительных</summary><div class="body">'+endingsHtml()+'</div></details>';
   h+='<details class="sec"><summary>Чтение и ударение</summary><div class="body">'+CHEAT_NOTES.map(function(n){
     var ex=exHtml(n[1],n[2],n[3]);if(n[4])ex+=', но '+exHtml(n[4],n[5],n[6]);
     return '<p class="note">'+esc(n[0])+'<br><span class="muted">'+ex+'</span></p>';}).join('')+'</div></details>';
