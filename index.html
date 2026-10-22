@@ -6,7 +6,7 @@
 <title>Греческие слова</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <meta name="theme-color" content="#1f5fa8">
-<meta name="build" content="2026-10-22-3">
+<meta name="build" content="2026-10-22-4">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap">
@@ -187,6 +187,12 @@ input[type=text].big{font-family:var(--display);font-size:24px;text-align:center
 .ex{color:var(--fg);font-weight:500;cursor:pointer;border-bottom:1px dotted var(--muted)}
 .cheat p.note{margin:0;padding:7px 0;border-top:1px solid var(--line);font-size:14px}
 .cheat p.note:first-child{border-top:0}
+.cheat .sub{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin:14px 0 2px}
+.art{display:grid;gap:0 14px;align-items:baseline;font-size:14px}
+.art.c3{grid-template-columns:1fr auto auto}.art.c2{grid-template-columns:1fr auto}
+.art>span{padding:6px 0;border-top:1px solid var(--line);min-width:0}
+.art>span.h{border-top:0;font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);padding-bottom:2px}
+.art .A{font-size:21px;font-weight:600;color:var(--accent);text-align:center;min-width:2.2em}
 .notice.ok{background:var(--good-soft);color:var(--good)}
 .notice.bad{background:var(--bad-soft);color:var(--bad)}
 .danger-zone{display:flex;flex-direction:column;gap:10px}
@@ -206,7 +212,7 @@ input[type=text].big{font-family:var(--display);font-size:24px;text-align:center
   <main id="screen"></main>
   <footer id="actions"></footer>
 </div>
-<script src="words.js?v=2026-10-22-3"></script>
+<script src="words.js?v=2026-10-22-4"></script>
 <script>
 (function(){
 'use strict';
@@ -322,7 +328,7 @@ function renderHome(){
   var lg=learnedCount(set,'gr'),lr=learnedCount(set,'ru');
   var sets=allSets();
   var h='<div class="hero"><h2>Греческие слова</h2><p class="muted small">Карточки, письмо и тесты по наборам слов.</p></div>';
-  h+='<h3>Справка</h3><button class="mode" data-action="cheat"><span class="num">Αα</span><span class="txt"><div class="t">Шпаргалка</div><div class="d">Алфавит, сочетания букв, дифтонги, ударение</div></span><span class="arr">›</span></button>';
+  h+='<h3>Справка</h3><button class="mode" data-action="cheat"><span class="num">Αα</span><span class="txt"><div class="t">Шпаргалка</div><div class="d">Алфавит, сочетания букв, дифтонги, артикли, ударение</div></span><span class="arr">›</span></button>';
   h+='<h3>Набор слов</h3>'+'<div class="setbox">';
   h+='<div class="row"><select id="setSelect" aria-label="Набор слов">'+sets.map(function(s){return '<option value="'+esc(s.id)+'"'+(s.id===set.id?' selected':'')+'>'+esc(s.title)+' ('+s.words.length+')</option>';}).join('')+'</select></div>';
   h+='<div class="prog"><div class="lab"><span>Греческий → русский</span><b>'+lg+' / '+n+'</b></div><div class="bar"><i style="width:'+pct(lg,n)+'%"></i></div></div>';
@@ -585,6 +591,24 @@ var CHEAT_NOTES=[
   ['Сигма пишется σ в начале и середине слова, ς — в конце.','κόσμος','мир','кОсмос']
 ];
 function exHtml(gr,ru,tr){return '<span class="ex" data-action="speak" data-text="'+esc(gr)+'">'+esc(gr)+'</span> ('+esc(ru)+') — ['+esc(tr)+']';}
+/* Артикли: по презентации ко второму уроку */
+var ART_DEF=[['Мужской','ο','οι','ο άντρας','мужчина','οι άντρες','мужчины'],['Женский','η','οι','η πόρτα','дверь','οι πόρτες','двери'],['Средний','το','τα','το βιβλίο','книга','τα βιβλία','книги']];
+var ART_INDEF=[['Мужской','ένας','ένας δάσκαλος','какой-то учитель'],['Женский','μία','μία γυναίκα','какая-то женщина'],['Средний','ένα','ένα βιβλίο','какая-то книга']];
+function grHtml(gr,ru){return '<span class="ex" data-action="speak" data-text="'+esc(gr)+'">'+esc(gr)+'</span> ('+esc(ru)+')';}
+function articlesHtml(){
+  var h='<p class="note">Три рода: мужской (αρσενικό), женский (θηλυκό), средний (ουδέτερο). Артикль показывает род и число, поэтому слово учим вместе с ним.</p>';
+  h+='<p class="sub">Определённый артикль</p><div class="art c3"><span class="h">Род</span><span class="h">Ед. ч.</span><span class="h">Мн. ч.</span>';
+  h+=ART_DEF.map(function(r){return '<span>'+esc(r[0])+'</span><span class="A">'+esc(r[1])+'</span><span class="A">'+esc(r[2])+'</span>';}).join('')+'</div>';
+  h+=ART_DEF.map(function(r){return '<p class="note"><span class="muted">'+grHtml(r[3],r[4])+' → '+grHtml(r[5],r[6])+'</span></p>';}).join('');
+  h+='<p class="sub">Неопределённый артикль</p><div class="art c2"><span class="h">Род</span><span class="h">Ед. ч.</span>';
+  h+=ART_INDEF.map(function(r){return '<span>'+esc(r[0])+'</span><span class="A">'+esc(r[1])+'</span>';}).join('')+'</div>';
+  h+='<p class="note"><span class="muted">'+ART_INDEF.map(function(r){return grHtml(r[2],r[3]);}).join(', ')+'</span></p>';
+  h+='<p class="sub">Особенности</p>';
+  h+='<p class="note">Неопределённый артикль — о чём-то неопределённом или упомянутом впервые. Множественного числа у него нет.</p>';
+  h+='<p class="note">Во множественном числе у мужского и женского рода артикль один: <b>οι</b>.</p>';
+  h+='<p class="note">Средний род чаще у названий предметов и идей.<br><span class="muted">'+grHtml('το σπίτι','дом')+', '+grHtml('το πρόβλημα','проблема')+'</span></p>';
+  return h;
+}
 function rulesHtml(rows){return rows.map(function(r){return '<div class="rule"><span class="k">'+esc(r[0])+'</span><span class="v">'+esc(r[1])+'</span><span class="e">'+exHtml(r[2],r[3],r[4])+'</span></div>';}).join('');}
 function renderCheat(){
   var h='<div class="cheat">';
@@ -594,6 +618,7 @@ function renderCheat(){
   h+='<details class="sec"><summary>Сочетания гласных</summary><div class="body">'+rulesHtml(CHEAT_VOWELS)+'</div></details>';
   h+='<details class="sec"><summary>Сочетания согласных</summary><div class="body">'+rulesHtml(CHEAT_CONS)+'</div></details>';
   h+='<details class="sec"><summary>Дифтонги αυ, ευ</summary><div class="body">'+rulesHtml(CHEAT_DIPH)+'</div></details>';
+  h+='<details class="sec"><summary>Артикли</summary><div class="body">'+articlesHtml()+'</div></details>';
   h+='<details class="sec"><summary>Чтение и ударение</summary><div class="body">'+CHEAT_NOTES.map(function(n){
     var ex=exHtml(n[1],n[2],n[3]);if(n[4])ex+=', но '+exHtml(n[4],n[5],n[6]);
     return '<p class="note">'+esc(n[0])+'<br><span class="muted">'+ex+'</span></p>';}).join('')+'</div></details>';
