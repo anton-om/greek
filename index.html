@@ -6,7 +6,7 @@
 <title>Греческие слова</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <meta name="theme-color" content="#1f5fa8">
-<meta name="build" content="2026-10-21-2">
+<meta name="build" content="2026-10-22-1">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap">
@@ -206,7 +206,7 @@ input[type=text].big{font-family:var(--display);font-size:24px;text-align:center
   <main id="screen"></main>
   <footer id="actions"></footer>
 </div>
-<script src="words.js?v=2026-10-21-2"></script>
+<script src="words.js?v=2026-10-22-1"></script>
 <script>
 (function(){
 'use strict';
@@ -260,53 +260,23 @@ var canSpeak=('speechSynthesis' in window)&&('SpeechSynthesisUtterance' in windo
     if(full-h>80){document.documentElement.style.setProperty('--vvh',h+'px');app.classList.add('vv');window.scrollTo(0,0);}
     else{app.classList.remove('vv');}}
   vv.addEventListener('resize',fit);vv.addEventListener('scroll',fit);})();
-/* Голоса: iOS/Chrome отдают пустой список до события voiceschanged, поэтому кешируем.
-   cancel() вызываем только когда что-то звучит: cancel()+speak() подряд на iOS и Android глушат фразу.
-   Ссылку на utterance держим, иначе Chrome может собрать её сборщиком мусора до конца озвучки. */
-var voiceCache=[],lastUtter=null;
-function greekVoices(){
-  try{var vs=speechSynthesis.getVoices();if(vs&&vs.length)voiceCache=vs;}catch(e){}
-  return voiceCache.filter(function(v){return /^el([-_]|$)/i.test(v.lang);});
-}
-/* iOS: синтез речи подчиняется боковому переключателю беззвучного режима. Если перед
-   озвучкой проиграть беззвучный аудиофайл, WebKit переводит звуковую сессию в режим
-   воспроизведения (как у видео), и речь слышна даже с включённым переключателем. */
-var isIOS=/iPad|iPhone|iPod/.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
-var silentAudio=null;
-function silentWavUrl(){
-  var rate=8000,len=rate,buf=new ArrayBuffer(44+len),v=new DataView(buf),i;
-  function str(o,t){for(var k=0;k<t.length;k++)v.setUint8(o+k,t.charCodeAt(k));}
-  str(0,'RIFF');v.setUint32(4,36+len,true);str(8,'WAVE');str(12,'fmt ');v.setUint32(16,16,true);
-  v.setUint16(20,1,true);v.setUint16(22,1,true);v.setUint32(24,rate,true);v.setUint32(28,rate,true);
-  v.setUint16(32,1,true);v.setUint16(34,8,true);str(36,'data');v.setUint32(40,len,true);
-  for(i=0;i<len;i++)v.setUint8(44+i,128);
-  return URL.createObjectURL(new Blob([buf],{type:'audio/wav'}));
-}
-function unlockAudioSession(){
-  if(!isIOS)return;
-  try{
-    if(!silentAudio){silentAudio=new Audio(silentWavUrl());silentAudio.setAttribute('playsinline','');silentAudio.preload='auto';}
-    silentAudio.currentTime=0;var p=silentAudio.play();if(p&&p.catch)p.catch(function(){});
-  }catch(e){}
-}
+/* Озвучка намеренно в исходном виде первой версии: cancel() и сразу speak(),
+   без предварительного проигрывания аудио (оно давало задержку на iOS). */
 function speak(text){
   if(!canSpeak)return;
-  unlockAudioSession();
   try{
-    var u=new SpeechSynthesisUtterance(primaryTarget(text));u.lang='el-GR';u.rate=0.9;u.volume=1;
-    try{var v=greekVoices()[0];if(v)u.voice=v;}catch(e){}
-    lastUtter=u;
-    if(speechSynthesis.speaking||speechSynthesis.pending)speechSynthesis.cancel();
-    if(speechSynthesis.paused)speechSynthesis.resume();
-    speechSynthesis.speak(u);
+    var u=new SpeechSynthesisUtterance(primaryTarget(text));u.lang='el-GR';u.rate=0.9;
+    var v=speechSynthesis.getVoices().filter(function(v){return /^el/i.test(v.lang);})[0];if(v)u.voice=v;
+    speechSynthesis.cancel();speechSynthesis.speak(u);
   }catch(e){}
 }
-if(canSpeak){try{greekVoices();speechSynthesis.addEventListener('voiceschanged',greekVoices);}catch(e){}}
+if(canSpeak){try{speechSynthesis.getVoices();}catch(e){}}
+function greekVoices(){var vs=[];try{vs=speechSynthesis.getVoices()||[];}catch(e){}return vs.filter(function(v){return /^el/i.test(v.lang);});}
 function speechStatus(){
   if(!canSpeak)return 'Ошибка: браузер не поддерживает синтез речи.';
-  var g=greekVoices();
+  var g=greekVoices(),all=[];try{all=speechSynthesis.getVoices()||[];}catch(e){}
   if(g.length)return 'Греческий голос: '+g[0].name+'. Если слово не прозвучало, проверьте переключатель беззвучного режима на телефоне.';
-  return 'Ошибка: греческий голос не найден (всего голосов: '+voiceCache.length+'). На iPhone: Настройки → Универсальный доступ → Устный контент → Голоса → Греческий. На Android: настройки синтеза речи Google → установить греческий.';
+  return 'Ошибка: греческий голос не найден (всего голосов: '+all.length+'). На iPhone: Настройки → Универсальный доступ → Устный контент → Голоса → Греческий. На Android: настройки синтеза речи Google → установить греческий.';
 }
 
 /* ---------- views ---------- */
