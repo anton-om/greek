@@ -12,7 +12,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Греческий">
-<meta name="build" content="2026-10-23-12">
+<meta name="build" content="2026-10-23-13">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap">
@@ -225,7 +225,7 @@ input[type=text].big{font-family:var(--display);font-size:24px;text-align:center
   <main id="screen"></main>
   <footer id="actions"></footer>
 </div>
-<script src="words.js?v=2026-10-23-12"></script>
+<script src="words.js?v=2026-10-23-13"></script>
 <script>
 (function(){
 'use strict';
@@ -397,7 +397,7 @@ function renderHome(){
   var set=currentSet();var pool=poolWords(set);var n=pool.length;
   var lg=learnedCount(set,null,pool);
   var sets=allSets();
-  var h='<div class="hero"><h2>Греческие слова</h2><p class="muted small">Карточки, письмо и тесты по наборам слов.</p></div>';
+  var h=installHtml()+'<div class="hero"><h2>Греческие слова</h2><p class="muted small">Карточки, письмо и тесты по наборам слов.</p></div>';
   h+='<h3>Справка</h3><button class="mode" data-action="cheat"><span class="num">Αα</span><span class="txt"><div class="t">Шпаргалка</div><div class="d">Алфавит, сочетания букв, артикли, окончания, ударение</div></span><span class="arr">›</span></button>';
   h+='<h3>Набор слов</h3>'+'<div class="setbox">';
   h+='<div class="row"><select id="setSelect" aria-label="Набор слов">'+sets.map(function(s){return '<option value="'+esc(s.id)+'"'+(s.id===set.id?' selected':'')+'>'+esc(s.title)+' ('+s.words.length+')</option>';}).join('')
@@ -428,7 +428,6 @@ function renderHome(){
   h+='<h3>Режимы</h3><div class="modes">'+MODE_LIST.map(function(m,i){
     return '<button class="mode" data-action="pick-mode" data-key="'+m.key+'"><span class="num">'+(i+1)+'</span><span class="txt"><div class="t">'+esc(m.t)+'</div><div class="d">'+esc(m.d)+'</div></span><span class="arr">›</span></button>';
   }).join('')+'</div>';
-  h+=installHtml();
   if(!n){h+='<p class="notice" style="margin-top:16px">'+(set.mix?'Отметьте выше хотя бы один урок и хотя бы одну часть речи.':set.words.length?'Включите выше лексику и хотя бы одну часть речи.':'В этом наборе нет слов. Добавьте слова в words.js или импортируйте набор в настройках.')+'</p>';}
   return h;
 }
@@ -782,7 +781,7 @@ function canOfferInstall(){if(isStandalone())return false;try{if(localStorage.ge
 function hideInstall(){try{localStorage.setItem('greek-words:install-hidden','1');}catch(e){}installHelp=false;if(view.name==='home')render();}
 function installHtml(){
   if(!canOfferInstall())return '';
-  var h='<h3>Приложение</h3><div class="notice install">';
+  var h='<div class="notice install" style="margin-top:8px">';
   if(installHelp){
     h+='<p style="margin:0 0 8px"><b>Как добавить на iPhone</b></p><ol style="margin:0 0 10px;padding-left:20px"><li>Внизу Safari нажмите «Поделиться» (квадрат со стрелкой вверх).</li><li>Выберите «На экран „Домой“» и нажмите «Добавить».</li></ol>'+
       '<p class="small muted" style="margin:0 0 10px">Приложение откроется без адресной строки. Прогресс в нём ведётся отдельно от Safari.</p>'+
