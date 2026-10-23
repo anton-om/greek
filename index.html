@@ -6,7 +6,7 @@
 <title>Греческие слова</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <meta name="theme-color" content="#1f5fa8">
-<meta name="build" content="2026-10-23-2">
+<meta name="build" content="2026-10-23-3">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap">
@@ -218,7 +218,7 @@ input[type=text].big{font-family:var(--display);font-size:24px;text-align:center
   <main id="screen"></main>
   <footer id="actions"></footer>
 </div>
-<script src="words.js?v=2026-10-23-2"></script>
+<script src="words.js?v=2026-10-23-3"></script>
 <script>
 (function(){
 'use strict';
@@ -238,19 +238,27 @@ function allSets(){return BUILTIN.concat(store.custom||[]);}
    дополнительная лексика. Конфигурация в store.mix[setId]={w:bool,x:bool}. Виртуальный набор
    собирается на лету; прогресс по каждому слову хранится в его исходном уроке. */
 var MIX_ID='mix';
-var POS_LIST=[['n','Существительные'],['v','Глаголы'],['adj','Прилагательные']];
+var POS_LIST=[['n','Существительные'],['v','Глаголы'],['adj','Прилагательные'],['o','Остальное']];
+var POS_DEFAULT={n:true,v:true,adj:true,o:true};
 function mixCfg(id){var c=store.mix&&store.mix[id];return c||{w:false,x:false};}
-function mixPos(){return (store.mix&&store.mix._pos)||{};}
-/* Слово попадает в сборный набор, если включена его часть лексики в его уроке
-   или включена его часть речи (pos) — тогда из всех уроков, основная и дополнительная. */
-function mixSet(){
-  var words=[],origin={},pc=mixPos();
+function mixPos(){return Object.assign({},POS_DEFAULT,(store.mix&&store.mix._pos)||{});}
+function posOf(w){return w.pos||'o';}
+/* Уроки задают пул слов (основная и/или дополнительная лексика каждого), части речи
+   его фильтруют (пересечение). По умолчанию включены все части речи; слова без pos —
+   наречия, местоимения, фразы — относятся к «Остальное». */
+function mixPool(){
+  var words=[],origin={};
   allSets().forEach(function(s){var c=mixCfg(s.id);
-    s.words.concat(extraOf(s)).forEach(function(w,i){var on=(i<s.words.length?c.w:c.x)||(w.pos&&pc[w.pos]);if(!on)return;
+    s.words.concat(extraOf(s)).forEach(function(w,i){if(!(i<s.words.length?c.w:c.x))return;
       var k=w.gr.toLowerCase();if(origin[k])return;origin[k]=s.id;words.push(w);});});
-  return {id:MIX_ID,title:'Custom',words:words,extra:[],mix:true,origin:origin};
+  return {words:words,origin:origin};
 }
-function posCount(p){var seen={},n=0;allSets().forEach(function(s){s.words.concat(extraOf(s)).forEach(function(w){var k=w.gr.toLowerCase();if(w.pos===p&&!seen[k]){seen[k]=1;n++;}});});return n;}
+function mixSet(){
+  var pool=mixPool(),pc=mixPos();
+  var words=pool.words.filter(function(w){return pc[posOf(w)];});
+  return {id:MIX_ID,title:'Custom',words:words,extra:[],mix:true,origin:pool.origin};
+}
+function posCount(p){return mixPool().words.filter(function(w){return posOf(w)===p;}).length;}
 function currentSet(){if(store.setId===MIX_ID)return mixSet();var sets=allSets();return sets.filter(function(s){return s.id===store.setId;})[0]||sets[0]||{id:'empty',title:'Нет наборов',words:[]};}
 function progressFor(setId){if(!store.progress[setId])store.progress[setId]={gr:[],ru:[]};var p=store.progress[setId];if(!p.gr)p.gr=[];if(!p.ru)p.ru=[];return p;}
 function progressOf(set,word){return progressFor(set.mix?(set.origin[word.gr.toLowerCase()]||set.id):set.id);}
@@ -357,13 +365,13 @@ function renderHome(){
   h+='<div class="row"><select id="setSelect" aria-label="Набор слов">'+sets.map(function(s){return '<option value="'+esc(s.id)+'"'+(s.id===set.id?' selected':'')+'>'+esc(s.title)+' ('+s.words.length+')</option>';}).join('')
     +'<option value="'+MIX_ID+'"'+(set.mix?' selected':'')+'>Custom: свой выбор уроков'+(set.mix?' ('+n+')':'')+'</option></select></div>';
   if(set.mix){
-    h+='<div class="mixcfg"><p class="small muted" style="margin:0 0 4px">Какие слова включить. Прогресс по каждому слову хранится в его уроке.</p>';
-    var pc=mixPos();
-    h+='<div class="mixrow"><span class="t">По частям речи, из всех уроков</span>'+POS_LIST.map(function(q){return '<label><input type="checkbox" data-action="mix-pos" data-part="'+q[0]+'"'+(pc[q[0]]?' checked':'')+'>'+q[1]+' ('+posCount(q[0])+')</label>';}).join('')+'</div>';
+    h+='<div class="mixcfg"><p class="small muted" style="margin:0 0 4px">Отметьте уроки и лексику, при желании сузьте до частей речи. Прогресс по каждому слову хранится в его уроке.</p>';
     h+=sets.map(function(s){var c=mixCfg(s.id);var ex=extraOf(s).length;
       return '<div class="mixrow"><span class="t">'+esc(s.title)+'</span>'+
         '<label><input type="checkbox" data-action="mix-toggle" data-id="'+esc(s.id)+'" data-part="w"'+(c.w?' checked':'')+'>Основная ('+s.words.length+')</label>'+
         (ex?'<label><input type="checkbox" data-action="mix-toggle" data-id="'+esc(s.id)+'" data-part="x"'+(c.x?' checked':'')+'>Дополнительная ('+ex+')</label>':'')+'</div>';}).join('');
+    var pc=mixPos();
+    h+='<div class="mixrow"><span class="t">Части речи</span>'+POS_LIST.map(function(q){return '<label><input type="checkbox" data-action="mix-pos" data-part="'+q[0]+'"'+(pc[q[0]]?' checked':'')+'>'+q[1]+' ('+posCount(q[0])+')</label>';}).join('')+'</div>';
     h+='</div>';
   }
   h+='<div class="prog"><div class="lab"><span>Греческий → русский</span><b>'+lg+' / '+n+'</b></div><div class="bar"><i style="width:'+pct(lg,n)+'%"></i></div></div>';
@@ -373,7 +381,7 @@ function renderHome(){
   h+='<h3>Режимы</h3><div class="modes">'+MODE_LIST.map(function(m,i){
     return '<button class="mode" data-action="pick-mode" data-key="'+m.key+'"><span class="num">'+(i+1)+'</span><span class="txt"><div class="t">'+esc(m.t)+'</div><div class="d">'+esc(m.d)+'</div></span><span class="arr">›</span></button>';
   }).join('')+'</div>';
-  if(!n){h+='<p class="notice" style="margin-top:16px">'+(set.mix?'Отметьте хотя бы один урок выше.':'В этом наборе нет слов. Добавьте слова в words.js или импортируйте набор в настройках.')+'</p>';}
+  if(!n){h+='<p class="notice" style="margin-top:16px">'+(set.mix?'Отметьте выше хотя бы один урок и хотя бы одну часть речи.':'В этом наборе нет слов. Добавьте слова в words.js или импортируйте набор в настройках.')+'</p>';}
   return h;
 }
 
@@ -803,9 +811,9 @@ document.addEventListener('click',function(ev){
 document.addEventListener('change',function(ev){
   var el=ev.target;
   if(el.id==='setSelect'){store.setId=el.value;
-    if(el.value===MIX_ID&&!Object.keys(store.mix||{}).length){store.mix={};allSets().forEach(function(s){store.mix[s.id]={w:true,x:false};});}
+    if(el.value===MIX_ID&&!Object.keys(store.mix||{}).length){store.mix={_pos:Object.assign({},POS_DEFAULT)};allSets().forEach(function(s){store.mix[s.id]={w:true,x:false};});}
     save();render();return;}
-  if(el.getAttribute('data-action')==='mix-pos'){if(!store.mix)store.mix={};if(!store.mix._pos)store.mix._pos={};store.mix._pos[el.getAttribute('data-part')]=el.checked;save();render();return;}
+  if(el.getAttribute('data-action')==='mix-pos'){if(!store.mix)store.mix={};store.mix._pos=mixPos();store.mix._pos[el.getAttribute('data-part')]=el.checked;save();render();return;}
   if(el.getAttribute('data-action')==='mix-toggle'){var mid=el.getAttribute('data-id'),part=el.getAttribute('data-part');
     if(!store.mix)store.mix={};if(!store.mix[mid])store.mix[mid]={w:false,x:false};store.mix[mid][part]=el.checked;save();render();return;}
   var a=el.getAttribute('data-action');if(!a)return;
