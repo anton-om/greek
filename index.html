@@ -6,7 +6,7 @@
 <title>Греческие слова</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <meta name="theme-color" content="#1f5fa8">
-<meta name="build" content="2026-10-23-5">
+<meta name="build" content="2026-10-23-6">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap">
@@ -218,7 +218,7 @@ input[type=text].big{font-family:var(--display);font-size:24px;text-align:center
   <main id="screen"></main>
   <footer id="actions"></footer>
 </div>
-<script src="words.js?v=2026-10-23-5"></script>
+<script src="words.js?v=2026-10-23-6"></script>
 <script>
 (function(){
 'use strict';
@@ -262,15 +262,19 @@ function mixSet(){
 }
 function posCount(p){return mixPool().words.filter(function(w){return posOf(w)===p;}).length;}
 function currentSet(){if(store.setId===MIX_ID)return mixSet();var sets=allSets();return sets.filter(function(s){return s.id===store.setId;})[0]||sets[0]||{id:'empty',title:'Нет наборов',words:[]};}
-function progressFor(setId){if(!store.progress[setId])store.progress[setId]={gr:[],ru:[]};var p=store.progress[setId];if(!p.gr)p.gr=[];if(!p.ru)p.ru=[];return p;}
+/* Отметка «изучено» едина для слова, без направления: progress[setId].all=[gr...].
+   Старый формат {gr:[],ru:[]} объединяется при первом обращении. */
+function progressFor(setId){if(!store.progress[setId])store.progress[setId]={all:[]};var p=store.progress[setId];
+  if(!p.all){p.all=[];(p.gr||[]).concat(p.ru||[]).forEach(function(k){if(p.all.indexOf(k)<0)p.all.push(k);});delete p.gr;delete p.ru;}
+  return p;}
 function progressOf(set,word){return progressFor(set.mix?(set.origin[word.gr.toLowerCase()]||set.id):set.id);}
 function extraOf(set){return (set.extra||[]).slice();}
 /* Лексика набора выбирается на главном экране: store.lex[setId]={w:основная,x:дополнительная}.
    По умолчанию — как старая настройка extraMode (основная без дополнительной). */
 function lexCfg(set){var c=store.lex&&store.lex[set.id];if(c)return c;var m=store.settings.extraMode||'none';return {w:m!=='only',x:m!=='none'};}
 function poolWords(set){if(set.mix)return set.words;var c=lexCfg(set);return (c.w?set.words:[]).concat(c.x?extraOf(set):[]);}
-function isLearned(set,dir,word){return progressOf(set,word)[dir].indexOf(word.gr)>=0;}
-function setLearned(set,dir,word,val){var arr=progressOf(set,word)[dir];var i=arr.indexOf(word.gr);if(val&&i<0)arr.push(word.gr);if(!val&&i>=0)arr.splice(i,1);save();}
+function isLearned(set,dir,word){return progressOf(set,word).all.indexOf(word.gr)>=0;}
+function setLearned(set,dir,word,val){var arr=progressOf(set,word).all;var i=arr.indexOf(word.gr);if(val&&i<0)arr.push(word.gr);if(!val&&i>=0)arr.splice(i,1);save();}
 function learnedCount(set,dir,words){return (words||set.words).filter(function(w){return isLearned(set,dir,w);}).length;}
 
 function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
@@ -360,7 +364,7 @@ function render(){
 /* ---------- home ---------- */
 function renderHome(){
   var set=currentSet();var pool=poolWords(set);var n=pool.length;
-  var lg=learnedCount(set,'gr',pool),lr=learnedCount(set,'ru',pool);
+  var lg=learnedCount(set,null,pool);
   var sets=allSets();
   var h='<div class="hero"><h2>Греческие слова</h2><p class="muted small">Карточки, письмо и тесты по наборам слов.</p></div>';
   h+='<h3>Справка</h3><button class="mode" data-action="cheat"><span class="num">Αα</span><span class="txt"><div class="t">Шпаргалка</div><div class="d">Алфавит, сочетания букв, артикли, окончания, ударение</div></span><span class="arr">›</span></button>';
@@ -383,14 +387,12 @@ function renderHome(){
       (lx?'<label><input type="checkbox" data-action="lex-toggle" data-part="x"'+(lc.x?' checked':'')+'>Дополнительная ('+lx+')</label>':'')+'</div></div>';
   }
   var scope=store.settings.scope==='new'?'new':'all',shuf=store.settings.shuffle!==false;
-  var fg=n-lg,fr=n-lr;
   h+='<div class="seg">'+
     '<label class="'+(scope==='all'?'on':'')+'"><input type="radio" name="scope" value="all" data-action="set-scope"'+(scope==='all'?' checked':'')+'>Все слова</label>'+
     '<label class="'+(scope==='new'?'on':'')+'"><input type="radio" name="scope" value="new" data-action="set-scope"'+(scope==='new'?' checked':'')+'>Неизученные</label></div>';
-  if(scope==='new')h+='<p class="small muted" style="margin:-4px 0 0">Неизученных: греческий → русский '+fg+', русский → греческий '+fr+'. Если их нет, берутся все слова.</p>';
+  if(scope==='new')h+='<p class="small muted" style="margin:-4px 0 0">Неизученных: '+(n-lg)+'. Если их нет, берутся все слова.</p>';
   h+='<label class="check"><input type="checkbox" data-action="set-shuffle"'+(shuf?' checked':'')+'><span class="lbl">Перемешать порядок</span></label>';
-  h+='<div class="prog"><div class="lab"><span>Греческий → русский</span><b>'+lg+' / '+n+'</b></div><div class="bar"><i style="width:'+pct(lg,n)+'%"></i></div></div>';
-  h+='<div class="prog"><div class="lab"><span>Русский → греческий</span><b>'+lr+' / '+n+'</b></div><div class="bar"><i style="width:'+pct(lr,n)+'%"></i></div></div>';
+  h+='<div class="prog"><div class="lab"><span>Изучено</span><b>'+lg+' / '+n+'</b></div><div class="bar"><i style="width:'+pct(lg,n)+'%"></i></div></div>';
   h+='</div>';
   h+='<h3>Режимы</h3><div class="modes">'+MODE_LIST.map(function(m,i){
     return '<button class="mode" data-action="pick-mode" data-key="'+m.key+'"><span class="num">'+(i+1)+'</span><span class="txt"><div class="t">'+esc(m.t)+'</div><div class="d">'+esc(m.d)+'</div></span><span class="arr">›</span></button>';
@@ -402,12 +404,12 @@ function renderHome(){
 /* ---------- запуск режима ----------
    Настройки тренировки живут на главном экране: лексика, «все / неизученные», перемешивание.
    Нажатие на режим сразу запускает тренировку. */
-function freshCount(set,dir){return poolWords(set).filter(function(w){return !isLearned(set,dir,w);}).length;}
+function freshCount(set){return poolWords(set).filter(function(w){return !isLearned(set,null,w);}).length;}
 function startMode(key){
   var m=MODE_LIST.filter(function(x){return x.key===key;})[0];if(!m)return;
   var set=currentSet();if(!poolWords(set).length)return;
   var scope=store.settings.scope==='new'?'new':'all';
-  if(scope==='new'&&!freshCount(set,m.dir))scope='all';
+  if(scope==='new'&&!freshCount(set))scope='all';
   view={name:'session',key:key,mode:m.mode,dir:m.dir,scope:scope,shuffle:store.settings.shuffle!==false};
   startSession();
 }
@@ -567,7 +569,7 @@ function renderEnd(){
     var learning=session.results.filter(function(r){return r&&!r.known;}).map(function(r){return r.word;});
     var total=session.words.length;
     h+='<div class="summary"><div class="score">'+known+'<small> / '+total+' знаю</small></div>';
-    h+='<p class="muted">Изучено в этом направлении: '+learnedCount(session.set,session.dir,session.pool)+' из '+session.pool.length+'.</p>';
+    h+='<p class="muted">Изучено: '+learnedCount(session.set,null,session.pool)+' из '+session.pool.length+'.</p>';
     if(learning.length){h+='<h3 style="margin-top:6px">Ещё учу</h3><div class="mistakes">'+learning.map(function(w){return '<div class="mistake"><span class="g">'+esc(w.gr)+'</span><span class="r">'+esc(w.ru)+'</span></div>';}).join('')+'</div>';}
     h+='</div>';
     foot=(learning.length?'<button class="btn primary" data-action="retry-learning">Повторить те, что учу</button>':'')+'<button class="btn" data-action="restart">Сначала</button><button class="btn ghost" data-action="home">⌂</button>';
@@ -585,7 +587,7 @@ function renderEnd(){
         h+='<h3 style="margin-top:14px">Список изученных</h3><div class="stack" style="gap:8px">';
         if(upd.unlearn.length)h+='<button class="btn" data-action="unlearn-wrong">Снять «изучено» с ошибок ('+upd.unlearn.length+')</button>';
         if(upd.learn.length)h+='<button class="btn" data-action="learn-correct">Отметить верные как изученные ('+upd.learn.length+')</button>';
-        h+='<p class="small muted">Изученность в направлении «русский → греческий».</p></div>';
+        h+='</div>';
       }
       if(session.endMsg)h+='<p class="notice" style="margin-top:10px">'+esc(session.endMsg)+'</p>';
     }
@@ -690,7 +692,7 @@ function renderSettings(){
   h+='<label class="check"><input type="checkbox" data-action="set-autospeak"'+(s.autoSpeak?' checked':'')+'><span class="lbl">Озвучивать греческое слово при показе карточки</span></label>';
   h+='<div class="row"><button class="btn" data-action="test-speech">🔊 Проверить озвучку</button></div>';
   h+='<h3>Прогресс набора «'+esc(set.title)+'»</h3>';
-  h+='<p class="small muted">Изучено: греческий → русский '+learnedCount(set,'gr')+' / '+set.words.length+', русский → греческий '+learnedCount(set,'ru')+' / '+set.words.length+'.</p>';
+  h+='<p class="small muted">Изучено: '+learnedCount(set,null)+' / '+set.words.length+'. Отметка едина для обоих направлений.</p>';
   if(set.mix){h+='<p class="small muted">Сборный набор: прогресс хранится в уроках, из которых взяты слова. Сбрасывайте его по уроку, выбрав урок на главном экране.</p>';}
   else if(confirmReset){h+='<div class="row"><button class="btn bad" data-action="reset-progress-yes">Да, сбросить</button><button class="btn" data-action="reset-progress-no">Отмена</button></div>';}
   else{h+='<div class="row"><button class="btn outline-bad" data-action="reset-progress">Сбросить прогресс набора</button></div>';}
@@ -783,7 +785,7 @@ document.addEventListener('click',function(ev){
     case 'restart':{var all=uniqWords(session.words);if(view.shuffle)shuffle(all);startSession(all);break;}
     case 'reset-progress':confirmReset=true;render();break;
     case 'reset-progress-no':confirmReset=false;render();break;
-    case 'reset-progress-yes':{var s=currentSet();store.progress[s.id]={gr:[],ru:[]};save();confirmReset=false;settingsMsg='Прогресс набора «'+s.title+'» сброшен.';render();break;}
+    case 'reset-progress-yes':{var s=currentSet();store.progress[s.id]={all:[]};save();confirmReset=false;settingsMsg='Прогресс набора «'+s.title+'» сброшен.';render();break;}
     case 'import':doImport();break;
     case 'delete-set':confirmDelete=el.getAttribute('data-id');render();break;
     case 'delete-set-no':confirmDelete=null;render();break;
