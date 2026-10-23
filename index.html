@@ -6,7 +6,13 @@
 <title>Греческие слова</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <meta name="theme-color" content="#1f5fa8">
-<meta name="build" content="2026-10-23-11">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/icon-192.png" type="image/png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Греческий">
+<meta name="build" content="2026-10-23-12">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap">
@@ -170,6 +176,7 @@ input[type=text].big{font-family:var(--display);font-size:24px;text-align:center
 .mistake .g{font-family:var(--display);font-size:19px}
 .mistake .r{color:var(--muted);text-align:right}
 .notice{background:var(--accent-soft);border-radius:12px;padding:12px 14px;font-size:14px}
+.notice.install{font-size:15px}.notice.install .row{display:flex;gap:8px}.notice.install .btn{flex:1}.notice.install .btn.ghost{flex:0 0 auto}
 /* cheat sheet */
 .cheat{display:flex;flex-direction:column;gap:10px;margin-top:8px}
 .sec{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);overflow:hidden}
@@ -218,7 +225,7 @@ input[type=text].big{font-family:var(--display);font-size:24px;text-align:center
   <main id="screen"></main>
   <footer id="actions"></footer>
 </div>
-<script src="words.js?v=2026-10-23-11"></script>
+<script src="words.js?v=2026-10-23-12"></script>
 <script>
 (function(){
 'use strict';
@@ -421,6 +428,7 @@ function renderHome(){
   h+='<h3>Режимы</h3><div class="modes">'+MODE_LIST.map(function(m,i){
     return '<button class="mode" data-action="pick-mode" data-key="'+m.key+'"><span class="num">'+(i+1)+'</span><span class="txt"><div class="t">'+esc(m.t)+'</div><div class="d">'+esc(m.d)+'</div></span><span class="arr">›</span></button>';
   }).join('')+'</div>';
+  h+=installHtml();
   if(!n){h+='<p class="notice" style="margin-top:16px">'+(set.mix?'Отметьте выше хотя бы один урок и хотя бы одну часть речи.':set.words.length?'Включите выше лексику и хотя бы одну часть речи.':'В этом наборе нет слов. Добавьте слова в words.js или импортируйте набор в настройках.')+'</p>';}
   return h;
 }
@@ -761,6 +769,36 @@ function parseImport(text){
 /* ---------- actions ---------- */
 function goHome(){view={name:'home'};session=null;render();}
 
+/* ---------- установка на экран «Домой» ----------
+   Android/Chrome: системный диалог через beforeinstallprompt. iPhone: API нет, показываем
+   инструкцию (Поделиться → На экран «Домой»). Кнопка не показывается внутри установленного
+   приложения (standalone) и после «Скрыть». Узнать из Safari, добавлено ли уже приложение, нельзя. */
+var installPrompt=null,installHelp=false;
+window.addEventListener('beforeinstallprompt',function(e){e.preventDefault();installPrompt=e;if(view.name==='home')render();});
+window.addEventListener('appinstalled',function(){installPrompt=null;hideInstall();});
+function isStandalone(){return window.navigator.standalone===true||!!(window.matchMedia&&window.matchMedia('(display-mode: standalone)').matches);}
+function isIOSDevice(){return /iPad|iPhone|iPod/.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);}
+function canOfferInstall(){if(isStandalone())return false;try{if(localStorage.getItem('greek-words:install-hidden'))return false;}catch(e){}return !!installPrompt||isIOSDevice();}
+function hideInstall(){try{localStorage.setItem('greek-words:install-hidden','1');}catch(e){}installHelp=false;if(view.name==='home')render();}
+function installHtml(){
+  if(!canOfferInstall())return '';
+  var h='<h3>Приложение</h3><div class="notice install">';
+  if(installHelp){
+    h+='<p style="margin:0 0 8px"><b>Как добавить на iPhone</b></p><ol style="margin:0 0 10px;padding-left:20px"><li>Внизу Safari нажмите «Поделиться» (квадрат со стрелкой вверх).</li><li>Выберите «На экран „Домой“» и нажмите «Добавить».</li></ol>'+
+      '<p class="small muted" style="margin:0 0 10px">Приложение откроется без адресной строки. Прогресс в нём ведётся отдельно от Safari.</p>'+
+      '<div class="row"><button class="btn" data-action="install-hide">Скрыть кнопку</button><button class="btn ghost" data-action="install-close">Закрыть</button></div>';
+  }else{
+    h+='<p style="margin:0 0 10px">Добавьте приложение на экран «Домой»: иконка Gr, без адресной строки.</p>'+
+      '<div class="row"><button class="btn primary" data-action="install">Добавить приложение</button><button class="btn ghost" data-action="install-hide" aria-label="Скрыть">Скрыть</button></div>';
+  }
+  return h+'</div>';
+}
+function doInstall(){
+  trackEvent('install-click','Добавить приложение');
+  if(installPrompt){var p=installPrompt;installPrompt=null;try{p.prompt();}catch(e){}return;}
+  installHelp=true;render();
+}
+
 document.addEventListener('click',function(ev){
   var el=ev.target.closest('[data-action]');if(!el)return;
   var a=el.getAttribute('data-action');
@@ -776,6 +814,9 @@ document.addEventListener('click',function(ev){
     case 'test-speech':speak('Καλημέρα');settingsMsg=speechStatus();render();break;
     case 'cheat':view={name:'cheat'};trackEvent('cheat','Шпаргалка');render();break;
     case 'home':goHome();break;
+    case 'install':doInstall();break;
+    case 'install-hide':hideInstall();break;
+    case 'install-close':installHelp=false;render();break;
     case 'pick-mode':startMode(el.getAttribute('data-key'));break;
     case 'speak':speak(el.getAttribute('data-text'));break;
     case 'toggle-learned':{var w=cur();setLearned(session.set,session.dir,w,!isLearned(session.set,session.dir,w));render();break;}
