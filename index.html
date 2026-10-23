@@ -6,7 +6,7 @@
 <title>Греческие слова</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <meta name="theme-color" content="#1f5fa8">
-<meta name="build" content="2026-10-23-6">
+<meta name="build" content="2026-10-23-7">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap">
@@ -218,7 +218,7 @@ input[type=text].big{font-family:var(--display);font-size:24px;text-align:center
   <main id="screen"></main>
   <footer id="actions"></footer>
 </div>
-<script src="words.js?v=2026-10-23-6"></script>
+<script src="words.js?v=2026-10-23-7"></script>
 <script>
 (function(){
 'use strict';
@@ -445,8 +445,12 @@ function prepareItem(){
     var correct=w[ansKey];
     var seen={};seen[norm(correct,true)]=true;
     var poolFrom=function(list){var out=list.filter(function(x){return x!==w;}).map(function(x){return x[ansKey];}).filter(function(p){var k=norm(p,true);if(seen[k])return false;seen[k]=true;return true;});return shuffle(out);};
-    var pool=poolFrom(session.scopeWords||session.set.words);
-    if(pool.length<3)pool=pool.concat(poolFrom(session.set.words));
+    /* Дистракторы той же части речи, что и слово: из слов тренировки, затем из набора,
+       затем из всех уроков. Любые слова — только если одной части речи не хватило. */
+    var samePos=function(list){return list.filter(function(x){return posOf(x)===posOf(w);});};
+    var everything=[];allSets().forEach(function(t){everything=everything.concat(t.words,extraOf(t));});
+    var tiers=[samePos(session.scopeWords||session.set.words),samePos(session.set.words),samePos(everything),session.scopeWords||session.set.words,session.set.words];
+    var pool=[];for(var ti=0;ti<tiers.length&&pool.length<3;ti++)pool=pool.concat(poolFrom(tiers[ti]));
     session.options=shuffle([correct].concat(pool.slice(0,3)));
     session.correctOpt=correct;
   }
