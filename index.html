@@ -6,7 +6,7 @@
 <title>Греческие слова</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <meta name="theme-color" content="#1f5fa8">
-<meta name="build" content="2026-10-23-10">
+<meta name="build" content="2026-10-23-11">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap">
@@ -218,7 +218,7 @@ input[type=text].big{font-family:var(--display);font-size:24px;text-align:center
   <main id="screen"></main>
   <footer id="actions"></footer>
 </div>
-<script src="words.js?v=2026-10-23-10"></script>
+<script src="words.js?v=2026-10-23-11"></script>
 <script>
 (function(){
 'use strict';
@@ -348,10 +348,19 @@ var APP_BUILD=(document.querySelector('meta[name=build]')||{}).content||'';
    ANALYTICS_CODE — код сайта из аккаунта GoatCounter (панель на https://<код>.goatcounter.com).
    Пустой код — ничего не подключается и не отправляется. На localhost счётчик не работает.
    Кроме просмотров страницы отправляются события: запуск режима (mode/<режим>), завершение
-   тренировки (done/<режим>) и открытие шпаргалки (cheat). */
+   тренировки (done/<режим>), открытие шпаргалки (cheat) и первое открытие на устройстве (new-device). */
 var ANALYTICS_CODE='learn-greek';
 function trackEvent(path,title){try{if(window.goatcounter&&window.goatcounter.count)window.goatcounter.count({path:path,title:title||path,event:true});}catch(e){}}
-if(ANALYTICS_CODE){var gcs=document.createElement('script');gcs.async=true;gcs.src='https://gc.zgo.at/count.js';gcs.setAttribute('data-goatcounter','https://'+ANALYTICS_CODE+'.goatcounter.com/count');document.head.appendChild(gcs);}
+/* «Новое устройство»: событие new-device уходит один раз на браузер (отметка в localStorage),
+   чтобы считать устройства накопительно; GoatCounter сам уникальность помнит только в пределах дня. */
+function trackNewDevice(){
+  var k='greek-words:device-counted';
+  try{if(localStorage.getItem(k))return;}catch(e){return;}
+  var tries=0,t=setInterval(function(){
+    if(window.goatcounter&&window.goatcounter.count){clearInterval(t);trackEvent('new-device','Новое устройство');try{localStorage.setItem(k,String(Date.now()));}catch(e){}}
+    else if(++tries>50)clearInterval(t);},200);
+}
+if(ANALYTICS_CODE){var gcs=document.createElement('script');gcs.async=true;gcs.src='https://gc.zgo.at/count.js';gcs.setAttribute('data-goatcounter','https://'+ANALYTICS_CODE+'.goatcounter.com/count');document.head.appendChild(gcs);trackNewDevice();}
 var actions=document.getElementById('actions');
 var topTitle=document.getElementById('topTitle');
 var backBtn=document.getElementById('backBtn');
