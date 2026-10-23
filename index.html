@@ -6,7 +6,7 @@
 <title>Греческие слова</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <meta name="theme-color" content="#1f5fa8">
-<meta name="build" content="2026-10-23-4">
+<meta name="build" content="2026-10-23-5">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap">
@@ -218,7 +218,7 @@ input[type=text].big{font-family:var(--display);font-size:24px;text-align:center
   <main id="screen"></main>
   <footer id="actions"></footer>
 </div>
-<script src="words.js?v=2026-10-23-4"></script>
+<script src="words.js?v=2026-10-23-5"></script>
 <script>
 (function(){
 'use strict';
@@ -227,7 +227,9 @@ var BUILTIN=(window.WORD_SETS||[]).map(function(s){return Object.assign({},s,{bu
 
 function loadStore(){
   var base={setId:null,progress:{},custom:[],mix:{},lex:{},settings:{strictAccents:false,autoSpeak:false,extraMode:'none',scope:'all',shuffle:true}};
-  try{var raw=localStorage.getItem(LS_KEY);if(raw){var d=JSON.parse(raw);base=Object.assign(base,d);base.settings=Object.assign({strictAccents:false,autoSpeak:false},d.settings||{});if(!base.settings.extraMode)base.settings.extraMode=base.settings.useExtra?'with':'none';}}catch(e){}
+  try{var raw=localStorage.getItem(LS_KEY);if(raw){var d=JSON.parse(raw);base=Object.assign(base,d);base.settings=Object.assign({strictAccents:false,autoSpeak:false},d.settings||{});
+    /* Части речи в Custom до сборки 2026-10-23-3 были дополнением, а не фильтром: старые значения сбрасываем на «все включены». */
+    if(base.mix&&base.mix._posV!==2){delete base.mix._pos;base.mix._posV=2;}if(!base.settings.extraMode)base.settings.extraMode=base.settings.useExtra?'with':'none';}}catch(e){}
   return base;
 }
 function save(){try{localStorage.setItem(LS_KEY,JSON.stringify(store));}catch(e){}}
@@ -795,7 +797,7 @@ document.addEventListener('click',function(ev){
 document.addEventListener('change',function(ev){
   var el=ev.target;
   if(el.id==='setSelect'){store.setId=el.value;
-    if(el.value===MIX_ID&&!Object.keys(store.mix||{}).length){store.mix={_pos:Object.assign({},POS_DEFAULT)};allSets().forEach(function(s){store.mix[s.id]={w:true,x:false};});}
+    if(el.value===MIX_ID&&!allSets().some(function(x){return store.mix&&store.mix[x.id];})){store.mix={_pos:Object.assign({},POS_DEFAULT),_posV:2};allSets().forEach(function(s){store.mix[s.id]={w:true,x:false};});}
     save();render();return;}
   if(el.getAttribute('data-action')==='lex-toggle'){var cs=currentSet();if(!store.lex)store.lex={};store.lex[cs.id]=Object.assign({},lexCfg(cs));store.lex[cs.id][el.getAttribute('data-part')]=el.checked;save();render();return;}
   if(el.getAttribute('data-action')==='mix-pos'){if(!store.mix)store.mix={};store.mix._pos=mixPos();store.mix._pos[el.getAttribute('data-part')]=el.checked;save();render();return;}
