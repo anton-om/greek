@@ -6,7 +6,7 @@
 <title>Греческие слова</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <meta name="theme-color" content="#1f5fa8">
-<meta name="build" content="2026-10-23-8">
+<meta name="build" content="2026-10-23-9">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap">
@@ -218,7 +218,7 @@ input[type=text].big{font-family:var(--display);font-size:24px;text-align:center
   <main id="screen"></main>
   <footer id="actions"></footer>
 </div>
-<script src="words.js?v=2026-10-23-8"></script>
+<script src="words.js?v=2026-10-23-9"></script>
 <script>
 (function(){
 'use strict';
@@ -343,6 +343,15 @@ var MODE_TITLE={flash:'Карточки',tiles:'Учимся писать',type:
 
 var screen=document.getElementById('screen');
 var APP_BUILD=(document.querySelector('meta[name=build]')||{}).content||'';
+
+/* Метрики: GoatCounter (goatcounter.com) — без cookie, считает уникальных посетителей по дням.
+   ANALYTICS_CODE — код сайта из аккаунта GoatCounter (панель на https://<код>.goatcounter.com).
+   Пустой код — ничего не подключается и не отправляется. На localhost счётчик не работает.
+   Кроме просмотров страницы отправляются события: запуск режима (mode/<режим>), завершение
+   тренировки (done/<режим>) и открытие шпаргалки (cheat). */
+var ANALYTICS_CODE='';
+function trackEvent(path,title){try{if(window.goatcounter&&window.goatcounter.count)window.goatcounter.count({path:path,title:title||path,event:true});}catch(e){}}
+if(ANALYTICS_CODE){var gcs=document.createElement('script');gcs.async=true;gcs.src='https://gc.zgo.at/count.js';gcs.setAttribute('data-goatcounter','https://'+ANALYTICS_CODE+'.goatcounter.com/count');document.head.appendChild(gcs);}
 var actions=document.getElementById('actions');
 var topTitle=document.getElementById('topTitle');
 var backBtn=document.getElementById('backBtn');
@@ -417,6 +426,7 @@ function startMode(key){
   var scope=store.settings.scope==='new'?'new':'all';
   if(scope==='new'&&!freshCount(set))scope='all';
   view={name:'session',key:key,mode:m.mode,dir:m.dir,scope:scope,shuffle:store.settings.shuffle!==false};
+  trackEvent('mode/'+key,m.t);
   startSession();
 }
 function plural(n,a,b,c){var m10=n%10,m100=n%100;if(m10===1&&m100!==11)return a;if(m10>=2&&m10<=4&&(m100<10||m100>=20))return b;return c;}
@@ -567,7 +577,7 @@ function firstWrong(){var seen={};return session.results.filter(Boolean).filter(
 function doneFoot(){var wrong=session.grade!=='exact';
   return (wrong?'<button class="btn" data-action="retry">Ещё раз</button>':'')+'<button class="btn primary" data-action="next">Далее</button>';}
 function next(){
-  if(session.i+1>=session.words.length){view.name='end';render();return;}
+  if(session.i+1>=session.words.length){view.name='end';trackEvent('done/'+view.key,'Завершено: '+sessionTitle());render();return;}
   session.i++;prepareItem();render();
 }
 
@@ -755,7 +765,7 @@ document.addEventListener('click',function(ev){
     case 'settings':view={name:'settings'};settingsMsg='';render();break;
     case 'check-update':checkUpdate(true);break;
     case 'test-speech':speak('Καλημέρα');settingsMsg=speechStatus();render();break;
-    case 'cheat':view={name:'cheat'};render();break;
+    case 'cheat':view={name:'cheat'};trackEvent('cheat','Шпаргалка');render();break;
     case 'home':goHome();break;
     case 'pick-mode':startMode(el.getAttribute('data-key'));break;
     case 'speak':speak(el.getAttribute('data-text'));break;
