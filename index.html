@@ -6,7 +6,7 @@
 <title>Греческие слова</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <meta name="theme-color" content="#1f5fa8">
-<meta name="build" content="2026-10-23-9">
+<meta name="build" content="2026-10-23-10">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap">
@@ -218,7 +218,7 @@ input[type=text].big{font-family:var(--display);font-size:24px;text-align:center
   <main id="screen"></main>
   <footer id="actions"></footer>
 </div>
-<script src="words.js?v=2026-10-23-9"></script>
+<script src="words.js?v=2026-10-23-10"></script>
 <script>
 (function(){
 'use strict';
@@ -349,7 +349,7 @@ var APP_BUILD=(document.querySelector('meta[name=build]')||{}).content||'';
    Пустой код — ничего не подключается и не отправляется. На localhost счётчик не работает.
    Кроме просмотров страницы отправляются события: запуск режима (mode/<режим>), завершение
    тренировки (done/<режим>) и открытие шпаргалки (cheat). */
-var ANALYTICS_CODE='';
+var ANALYTICS_CODE='learn-greek';
 function trackEvent(path,title){try{if(window.goatcounter&&window.goatcounter.count)window.goatcounter.count({path:path,title:title||path,event:true});}catch(e){}}
 if(ANALYTICS_CODE){var gcs=document.createElement('script');gcs.async=true;gcs.src='https://gc.zgo.at/count.js';gcs.setAttribute('data-goatcounter','https://'+ANALYTICS_CODE+'.goatcounter.com/count');document.head.appendChild(gcs);}
 var actions=document.getElementById('actions');
