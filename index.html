@@ -6,7 +6,7 @@
 <title>Греческие слова</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <meta name="theme-color" content="#1f5fa8">
-<meta name="build" content="2026-10-23-1">
+<meta name="build" content="2026-10-23-2">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap">
@@ -93,6 +93,11 @@ input[type=text].big{font-family:var(--display);font-size:24px;text-align:center
 .hero{display:flex;flex-direction:column;gap:6px;margin-block:8px 6px}
 .hero h2{font-size:30px}
 .setbox{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:14px;display:flex;flex-direction:column;gap:12px}
+.mixcfg{display:flex;flex-direction:column}
+.mixrow{display:flex;flex-wrap:wrap;gap:6px 14px;align-items:center;padding:8px 0;border-top:1px solid var(--line)}
+.mixrow .t{flex:1 1 100%;font-weight:600}
+.mixrow label{display:flex;align-items:center;gap:7px;font-size:14px;cursor:pointer}
+.mixrow input{width:20px;height:20px;accent-color:var(--accent);margin:0}
 .prog{display:flex;flex-direction:column;gap:4px}
 .prog .lab{display:flex;justify-content:space-between;font-size:13.5px;color:var(--muted)}
 .prog .lab b{color:var(--fg);font-variant-numeric:tabular-nums}
@@ -213,7 +218,7 @@ input[type=text].big{font-family:var(--display);font-size:24px;text-align:center
   <main id="screen"></main>
   <footer id="actions"></footer>
 </div>
-<script src="words.js?v=2026-10-23-1"></script>
+<script src="words.js?v=2026-10-23-2"></script>
 <script>
 (function(){
 'use strict';
@@ -221,7 +226,7 @@ var LS_KEY='greek-words:v1';
 var BUILTIN=(window.WORD_SETS||[]).map(function(s){return Object.assign({},s,{builtin:true});});
 
 function loadStore(){
-  var base={setId:null,progress:{},custom:[],settings:{strictAccents:false,autoSpeak:false,extraMode:'none',limit30:false}};
+  var base={setId:null,progress:{},custom:[],mix:{},settings:{strictAccents:false,autoSpeak:false,extraMode:'none',limit30:false}};
   try{var raw=localStorage.getItem(LS_KEY);if(raw){var d=JSON.parse(raw);base=Object.assign(base,d);base.settings=Object.assign({strictAccents:false,autoSpeak:false},d.settings||{});if(!base.settings.extraMode)base.settings.extraMode=base.settings.useExtra?'with':'none';}}catch(e){}
   return base;
 }
@@ -229,14 +234,32 @@ function save(){try{localStorage.setItem(LS_KEY,JSON.stringify(store));}catch(e)
 var store=loadStore();
 
 function allSets(){return BUILTIN.concat(store.custom||[]);}
-function currentSet(){var sets=allSets();return sets.filter(function(s){return s.id===store.setId;})[0]||sets[0]||{id:'empty',title:'Нет наборов',words:[]};}
+/* Сборный набор (Custom): слова выбранных уроков, для каждого урока отдельно основная и
+   дополнительная лексика. Конфигурация в store.mix[setId]={w:bool,x:bool}. Виртуальный набор
+   собирается на лету; прогресс по каждому слову хранится в его исходном уроке. */
+var MIX_ID='mix';
+var POS_LIST=[['n','Существительные'],['v','Глаголы'],['adj','Прилагательные']];
+function mixCfg(id){var c=store.mix&&store.mix[id];return c||{w:false,x:false};}
+function mixPos(){return (store.mix&&store.mix._pos)||{};}
+/* Слово попадает в сборный набор, если включена его часть лексики в его уроке
+   или включена его часть речи (pos) — тогда из всех уроков, основная и дополнительная. */
+function mixSet(){
+  var words=[],origin={},pc=mixPos();
+  allSets().forEach(function(s){var c=mixCfg(s.id);
+    s.words.concat(extraOf(s)).forEach(function(w,i){var on=(i<s.words.length?c.w:c.x)||(w.pos&&pc[w.pos]);if(!on)return;
+      var k=w.gr.toLowerCase();if(origin[k])return;origin[k]=s.id;words.push(w);});});
+  return {id:MIX_ID,title:'Custom',words:words,extra:[],mix:true,origin:origin};
+}
+function posCount(p){var seen={},n=0;allSets().forEach(function(s){s.words.concat(extraOf(s)).forEach(function(w){var k=w.gr.toLowerCase();if(w.pos===p&&!seen[k]){seen[k]=1;n++;}});});return n;}
+function currentSet(){if(store.setId===MIX_ID)return mixSet();var sets=allSets();return sets.filter(function(s){return s.id===store.setId;})[0]||sets[0]||{id:'empty',title:'Нет наборов',words:[]};}
 function progressFor(setId){if(!store.progress[setId])store.progress[setId]={gr:[],ru:[]};var p=store.progress[setId];if(!p.gr)p.gr=[];if(!p.ru)p.ru=[];return p;}
+function progressOf(set,word){return progressFor(set.mix?(set.origin[word.gr.toLowerCase()]||set.id):set.id);}
 function extraOf(set){return (set.extra||[]).slice();}
 /* extraMode: 'none' — только основные, 'with' — основные + дополнительные, 'only' — только дополнительные */
 function poolWords(set,extraMode){if(extraMode==='only')return extraOf(set);return set.words.concat(extraMode==='with'?extraOf(set):[]);}
-function isLearned(set,dir,word){return progressFor(set.id)[dir].indexOf(word.gr)>=0;}
-function setLearned(set,dir,word,val){var arr=progressFor(set.id)[dir];var i=arr.indexOf(word.gr);if(val&&i<0)arr.push(word.gr);if(!val&&i>=0)arr.splice(i,1);save();}
-function learnedCount(set,dir,words){var p=progressFor(set.id);var keys=(words||set.words).map(function(w){return w.gr;});return p[dir].filter(function(k){return keys.indexOf(k)>=0;}).length;}
+function isLearned(set,dir,word){return progressOf(set,word)[dir].indexOf(word.gr)>=0;}
+function setLearned(set,dir,word,val){var arr=progressOf(set,word)[dir];var i=arr.indexOf(word.gr);if(val&&i<0)arr.push(word.gr);if(!val&&i>=0)arr.splice(i,1);save();}
+function learnedCount(set,dir,words){return (words||set.words).filter(function(w){return isLearned(set,dir,w);}).length;}
 
 function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
 function shuffle(a){for(var i=a.length-1;i>0;i--){var j=Math.floor(Math.random()*(i+1));var t=a[i];a[i]=a[j];a[j]=t;}return a;}
@@ -331,7 +354,18 @@ function renderHome(){
   var h='<div class="hero"><h2>Греческие слова</h2><p class="muted small">Карточки, письмо и тесты по наборам слов.</p></div>';
   h+='<h3>Справка</h3><button class="mode" data-action="cheat"><span class="num">Αα</span><span class="txt"><div class="t">Шпаргалка</div><div class="d">Алфавит, сочетания букв, артикли, окончания, ударение</div></span><span class="arr">›</span></button>';
   h+='<h3>Набор слов</h3>'+'<div class="setbox">';
-  h+='<div class="row"><select id="setSelect" aria-label="Набор слов">'+sets.map(function(s){return '<option value="'+esc(s.id)+'"'+(s.id===set.id?' selected':'')+'>'+esc(s.title)+' ('+s.words.length+')</option>';}).join('')+'</select></div>';
+  h+='<div class="row"><select id="setSelect" aria-label="Набор слов">'+sets.map(function(s){return '<option value="'+esc(s.id)+'"'+(s.id===set.id?' selected':'')+'>'+esc(s.title)+' ('+s.words.length+')</option>';}).join('')
+    +'<option value="'+MIX_ID+'"'+(set.mix?' selected':'')+'>Custom: свой выбор уроков'+(set.mix?' ('+n+')':'')+'</option></select></div>';
+  if(set.mix){
+    h+='<div class="mixcfg"><p class="small muted" style="margin:0 0 4px">Какие слова включить. Прогресс по каждому слову хранится в его уроке.</p>';
+    var pc=mixPos();
+    h+='<div class="mixrow"><span class="t">По частям речи, из всех уроков</span>'+POS_LIST.map(function(q){return '<label><input type="checkbox" data-action="mix-pos" data-part="'+q[0]+'"'+(pc[q[0]]?' checked':'')+'>'+q[1]+' ('+posCount(q[0])+')</label>';}).join('')+'</div>';
+    h+=sets.map(function(s){var c=mixCfg(s.id);var ex=extraOf(s).length;
+      return '<div class="mixrow"><span class="t">'+esc(s.title)+'</span>'+
+        '<label><input type="checkbox" data-action="mix-toggle" data-id="'+esc(s.id)+'" data-part="w"'+(c.w?' checked':'')+'>Основная ('+s.words.length+')</label>'+
+        (ex?'<label><input type="checkbox" data-action="mix-toggle" data-id="'+esc(s.id)+'" data-part="x"'+(c.x?' checked':'')+'>Дополнительная ('+ex+')</label>':'')+'</div>';}).join('');
+    h+='</div>';
+  }
   h+='<div class="prog"><div class="lab"><span>Греческий → русский</span><b>'+lg+' / '+n+'</b></div><div class="bar"><i style="width:'+pct(lg,n)+'%"></i></div></div>';
   h+='<div class="prog"><div class="lab"><span>Русский → греческий</span><b>'+lr+' / '+n+'</b></div><div class="bar"><i style="width:'+pct(lr,n)+'%"></i></div></div>';
   var ex=extraOf(set);if(ex.length){h+='<p class="small muted" style="margin:0">Дополнительные слова ('+ex.length+'): греческий → русский '+learnedCount(set,'gr',ex)+', русский → греческий '+learnedCount(set,'ru',ex)+'. Включаются на экране тренировки.</p>';}
@@ -339,7 +373,7 @@ function renderHome(){
   h+='<h3>Режимы</h3><div class="modes">'+MODE_LIST.map(function(m,i){
     return '<button class="mode" data-action="pick-mode" data-key="'+m.key+'"><span class="num">'+(i+1)+'</span><span class="txt"><div class="t">'+esc(m.t)+'</div><div class="d">'+esc(m.d)+'</div></span><span class="arr">›</span></button>';
   }).join('')+'</div>';
-  if(!n){h+='<p class="notice" style="margin-top:16px">В этом наборе нет слов. Добавьте слова в words.js или импортируйте набор в настройках.</p>';}
+  if(!n){h+='<p class="notice" style="margin-top:16px">'+(set.mix?'Отметьте хотя бы один урок выше.':'В этом наборе нет слов. Добавьте слова в words.js или импортируйте набор в настройках.')+'</p>';}
   return h;
 }
 
@@ -655,7 +689,8 @@ function renderSettings(){
   h+='<div class="row"><button class="btn" data-action="test-speech">🔊 Проверить озвучку</button></div>';
   h+='<h3>Прогресс набора «'+esc(set.title)+'»</h3>';
   h+='<p class="small muted">Изучено: греческий → русский '+learnedCount(set,'gr')+' / '+set.words.length+', русский → греческий '+learnedCount(set,'ru')+' / '+set.words.length+'.</p>';
-  if(confirmReset){h+='<div class="row"><button class="btn bad" data-action="reset-progress-yes">Да, сбросить</button><button class="btn" data-action="reset-progress-no">Отмена</button></div>';}
+  if(set.mix){h+='<p class="small muted">Сборный набор: прогресс хранится в уроках, из которых взяты слова. Сбрасывайте его по уроку, выбрав урок на главном экране.</p>';}
+  else if(confirmReset){h+='<div class="row"><button class="btn bad" data-action="reset-progress-yes">Да, сбросить</button><button class="btn" data-action="reset-progress-no">Отмена</button></div>';}
   else{h+='<div class="row"><button class="btn outline-bad" data-action="reset-progress">Сбросить прогресс набора</button></div>';}
   h+='<h3>Импорт набора</h3>';
   h+='<p class="small muted">Вставь список: по строке на слово, греческий и русский через табуляцию, « - » или «;».</p>';
@@ -767,7 +802,12 @@ document.addEventListener('click',function(ev){
 
 document.addEventListener('change',function(ev){
   var el=ev.target;
-  if(el.id==='setSelect'){store.setId=el.value;save();render();return;}
+  if(el.id==='setSelect'){store.setId=el.value;
+    if(el.value===MIX_ID&&!Object.keys(store.mix||{}).length){store.mix={};allSets().forEach(function(s){store.mix[s.id]={w:true,x:false};});}
+    save();render();return;}
+  if(el.getAttribute('data-action')==='mix-pos'){if(!store.mix)store.mix={};if(!store.mix._pos)store.mix._pos={};store.mix._pos[el.getAttribute('data-part')]=el.checked;save();render();return;}
+  if(el.getAttribute('data-action')==='mix-toggle'){var mid=el.getAttribute('data-id'),part=el.getAttribute('data-part');
+    if(!store.mix)store.mix={};if(!store.mix[mid])store.mix[mid]={w:false,x:false};store.mix[mid][part]=el.checked;save();render();return;}
   var a=el.getAttribute('data-action');if(!a)return;
   if(a==='set-dir'){view.dir=el.value;render();}
   else if(a==='set-scope'){view.scope=el.value;render();}
@@ -880,7 +920,7 @@ function restoreResume(){
   if(!raw)return false;
   try{
     var d=JSON.parse(raw);if(!d||!d.view||!d.view.name)return false;
-    if(d.setId&&d.setId!==currentSet().id){if(!allSets().some(function(x){return x.id===d.setId;}))return false;store.setId=d.setId;}
+    if(d.setId&&d.setId!==currentSet().id){if(d.setId!==MIX_ID&&!allSets().some(function(x){return x.id===d.setId;}))return false;store.setId=d.setId;}
     var v=d.view,set=currentSet();
     if(v.name==='session'||v.name==='end'){
       var sv=d.session;if(!sv)return false;
