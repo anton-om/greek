@@ -12,7 +12,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Греческий">
-<meta name="build" content="2026-10-25-3">
+<meta name="build" content="2026-10-25-4">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap">
@@ -225,7 +225,7 @@ input[type=text].big{font-family:var(--display);font-size:24px;text-align:center
   <main id="screen"></main>
   <footer id="actions"></footer>
 </div>
-<script src="words.js?v=2026-10-25-3"></script>
+<script src="words.js?v=2026-10-25-4"></script>
 <script>
 (function(){
 'use strict';
@@ -1017,7 +1017,9 @@ function reloadForUpdate(remote,manual){
   if(!manual&&sessionStorage.getItem(key))return false;
   try{sessionStorage.setItem(key,'1');}catch(e){}
   if(!manual)saveResume();
-  location.reload();return true;
+  /* Не reload(): Safari может отдать index.html из HTTP-кеша (max-age 600 у GitHub Pages).
+     Адрес с номером сборки в параметре кеш обойти не может. */
+  location.replace(location.pathname+'?b='+encodeURIComponent(remote));return true;
 }
 function checkUpdate(manual){
   if(!window.fetch||!APP_BUILD){if(manual){settingsMsg='Проверка недоступна.';render();}return;}
