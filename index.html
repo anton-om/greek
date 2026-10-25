@@ -12,7 +12,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Греческий">
-<meta name="build" content="2026-10-23-13">
+<meta name="build" content="2026-10-25-1">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap">
@@ -225,7 +225,7 @@ input[type=text].big{font-family:var(--display);font-size:24px;text-align:center
   <main id="screen"></main>
   <footer id="actions"></footer>
 </div>
-<script src="words.js?v=2026-10-23-13"></script>
+<script src="words.js?v=2026-10-25-1"></script>
 <script>
 (function(){
 'use strict';
@@ -460,7 +460,7 @@ function startSession(words){
 function sessionTitle(){var t=MODE_TITLE[session.mode];if(session.mode==='flash'||session.mode==='quiz')t+=session.dir==='gr'?' · гр → ру':' · ру → гр';return t;}
 function cur(){return session.words[session.i];}
 function prepareItem(){
-  session.flipped=false;session.state='ask';session.picked=[];session.typed='';session.grade=null;session.pickedOpt=null;
+  session.flipped=false;session.state='ask';session.picked=[];session.typed='';session.grade=null;session.pickedOpt=null;session.hinted=false;
   var w=cur();if(!w)return;
   if(session.mode==='flash'&&session.dir==='gr'&&store.settings.autoSpeak)speak(w.gr);
   if(session.mode==='tiles'){
@@ -518,9 +518,16 @@ function renderFlash(w){
   return{html:h,foot:foot};
 }
 
+/* Подсказка в режимах письма: прослушать греческое слово до ответа. Считается подсказкой:
+   верный ответ после неё засчитывается как ошибка и слово возвращается в очередь. */
+function promptRuHtml(w){
+  var h='<div class="prompt"><div class="lang">Русский</div><div class="word ru">'+esc(w.ru)+'</div>';
+  if(canSpeak&&session.state==='ask')h+='<div class="card-tools" style="margin-top:12px"><button class="chip'+(session.hinted?' on':'')+'" data-action="speak-hint" data-text="'+esc(w.gr)+'">🔊 '+(session.hinted?'Подсказка использована':'Послушать по-гречески')+'</button></div>';
+  return h+'</div>';
+}
 function renderTiles(w){
   var h=progressHtml();
-  h+='<div class="prompt"><div class="lang">Русский</div><div class="word ru">'+esc(w.ru)+'</div></div>';
+  h+=promptRuHtml(w);
   var tchars=Array.from(session.target);var p=0;var slots='';
   for(var i=0;i<tchars.length;i++){
     if(tchars[i]===' '){slots+='<span class="slot space"></span>';continue;}
@@ -540,7 +547,7 @@ function renderTiles(w){
 
 function renderType(w){
   var h=progressHtml();
-  h+='<div class="prompt"><div class="lang">Русский</div><div class="word ru">'+esc(w.ru)+'</div></div>';
+  h+=promptRuHtml(w);
   h+='<form id="typeForm" style="margin-top:16px"><input type="text" id="typeInput" class="big" lang="el" inputmode="text" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" placeholder="греческое слово" value="'+esc(session.typed)+'"'+(session.state!=='ask'?' readonly':'')+'>'+(session.state==='ask'?'<button type="submit" class="btn primary" style="width:100%;margin-top:10px" data-action="check">Проверить</button>':'')+'</form>';
   if(session.state==='ask'){h+='<p class="hint">Переключи клавиатуру на греческую. Ударения учитываются.</p>';}
   h+=resultHtml(w);
@@ -569,11 +576,13 @@ function resultHtml(w){
   if(session.state==='ask')return '';
   var g=session.grade;var full=(session.mode==='tiles'||session.mode==='type')?lowerGr(primaryTarget(w.gr)):primaryTarget(w.gr);
   if(g==='exact')return '<div class="result ok" role="status"><span class="mark">✓</span><div class="body"><div>Верно!</div></div>'+(canSpeak?'<button class="chip" data-action="speak" data-text="'+esc(w.gr)+'">🔊</button>':'')+'</div>';
+  if(g==='hint')return '<div class="result almost" role="status"><span class="mark">✓</span><div class="body"><div>Верно, но с подсказкой.</div><div class="ans">'+esc(full)+'</div><div class="small muted">Слово вернётся через несколько вопросов.</div></div>'+(canSpeak?'<button class="chip" data-action="speak" data-text="'+esc(w.gr)+'">🔊</button>':'')+'</div>';
   if(g==='accent')return '<div class="result bad" role="status"><span class="mark">✗</span><div class="body"><div>Неверное ударение. Правильно:</div><div class="ans">'+esc(full)+'</div><div class="small muted">Слово вернётся через несколько вопросов.</div></div>'+(canSpeak?'<button class="chip" data-action="speak" data-text="'+esc(w.gr)+'">🔊</button>':'')+'</div>';
   return '<div class="result bad" role="status"><span class="mark">✗</span><div class="body"><div>Неверно. Правильно:</div><div class="ans">'+esc(full)+'</div><div class="small muted">Слово вернётся через несколько вопросов.</div></div>'+(canSpeak?'<button class="chip" data-action="speak" data-text="'+esc(w.gr)+'">🔊</button>':'')+'</div>';
 }
 
 function finishItem(grade,given){
+  if(grade==='exact'&&session.hinted)grade='hint';
   session.grade=grade;session.state='done';
   var ok=grade==='exact';
   if(!session.results[session.i]){
@@ -818,6 +827,7 @@ document.addEventListener('click',function(ev){
     case 'install-close':installHelp=false;render();break;
     case 'pick-mode':startMode(el.getAttribute('data-key'));break;
     case 'speak':speak(el.getAttribute('data-text'));break;
+    case 'speak-hint':speak(el.getAttribute('data-text'));if(session&&!session.hinted){session.hinted=true;render();}break;
     case 'toggle-learned':{var w=cur();setLearned(session.set,session.dir,w,!isLearned(session.set,session.dir,w));render();break;}
     case 'know':flashAnswer(true);break;
     case 'learning':flashAnswer(false);break;
@@ -971,7 +981,7 @@ function saveResume(){
     var data={view:view,setId:currentSet().id};
     if(session&&(view.name==='session'||view.name==='end')){
       var s=session;
-      data.session={mode:s.mode,dir:s.dir,i:s.i,requeued:!!s.requeued,flipped:!!s.flipped,state:s.state,picked:s.picked||[],typed:s.typed||'',
+      data.session={mode:s.mode,dir:s.dir,i:s.i,requeued:!!s.requeued,hinted:!!s.hinted,flipped:!!s.flipped,state:s.state,picked:s.picked||[],typed:s.typed||'',
         grade:s.grade,pickedOpt:s.pickedOpt,tiles:s.tiles,options:s.options,correctOpt:s.correctOpt,target:s.target,
         words:s.words.map(function(w){return w.gr;}),scopeWords:(s.scopeWords||[]).map(function(w){return w.gr;}),
         results:Array.prototype.map.call(s.results,function(r){return r?Object.assign({},r,{word:r.word.gr}):null;})};
@@ -991,7 +1001,7 @@ function restoreResume(){
       var byGr={};set.words.concat(extraOf(set)).forEach(function(w){byGr[w.gr]=w;});
       var res=function(k){var w=byGr[k];if(!w)throw new Error('missing word '+k);return w;};
       session={mode:sv.mode,dir:sv.dir,set:set,pool:poolWords(set),words:sv.words.map(res),scopeWords:sv.scopeWords.map(res),i:sv.i,
-        results:sv.results.map(function(r){return r?Object.assign({},r,{word:res(r.word)}):null;}),requeued:sv.requeued,
+        results:sv.results.map(function(r){return r?Object.assign({},r,{word:res(r.word)}):null;}),requeued:sv.requeued,hinted:!!sv.hinted,
         flipped:sv.flipped,state:sv.state,picked:sv.picked,typed:sv.typed,grade:sv.grade,pickedOpt:sv.pickedOpt,tiles:sv.tiles,options:sv.options,correctOpt:sv.correctOpt,target:sv.target};
       if(v.name==='session'&&!session.words[session.i])throw new Error('bad index');
     }
