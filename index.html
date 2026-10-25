@@ -12,7 +12,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Греческий">
-<meta name="build" content="2026-10-25-1">
+<meta name="build" content="2026-10-25-2">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap">
@@ -225,7 +225,7 @@ input[type=text].big{font-family:var(--display);font-size:24px;text-align:center
   <main id="screen"></main>
   <footer id="actions"></footer>
 </div>
-<script src="words.js?v=2026-10-25-1"></script>
+<script src="words.js?v=2026-10-25-2"></script>
 <script>
 (function(){
 'use strict';
@@ -522,7 +522,10 @@ function renderFlash(w){
    верный ответ после неё засчитывается как ошибка и слово возвращается в очередь. */
 function promptRuHtml(w){
   var h='<div class="prompt"><div class="lang">Русский</div><div class="word ru">'+esc(w.ru)+'</div>';
-  if(canSpeak&&session.state==='ask')h+='<div class="card-tools" style="margin-top:12px"><button class="chip'+(session.hinted?' on':'')+'" data-action="speak-hint" data-text="'+esc(w.gr)+'">🔊 '+(session.hinted?'Подсказка использована':'Послушать по-гречески')+'</button></div>';
+  if(canSpeak){
+    if(session.state==='ask')h+='<div class="card-tools" style="margin-top:12px"><button class="chip'+(session.hinted?' on':'')+'" data-action="speak-hint" data-text="'+esc(w.gr)+'">🔊 '+(session.hinted?'Подсказка использована':'Послушать по-гречески')+'</button></div>';
+    else h+='<div class="card-tools" style="margin-top:12px"><button class="chip" data-action="speak" data-text="'+esc(w.gr)+'">🔊 Послушать по-гречески</button></div>';
+  }
   return h+'</div>';
 }
 function renderTiles(w){
@@ -574,11 +577,12 @@ function renderQuiz(w){
 
 function resultHtml(w){
   if(session.state==='ask')return '';
-  var g=session.grade;var full=(session.mode==='tiles'||session.mode==='type')?lowerGr(primaryTarget(w.gr)):primaryTarget(w.gr);
-  if(g==='exact')return '<div class="result ok" role="status"><span class="mark">✓</span><div class="body"><div>Верно!</div></div>'+(canSpeak?'<button class="chip" data-action="speak" data-text="'+esc(w.gr)+'">🔊</button>':'')+'</div>';
-  if(g==='hint')return '<div class="result almost" role="status"><span class="mark">✓</span><div class="body"><div>Верно, но с подсказкой.</div><div class="ans">'+esc(full)+'</div><div class="small muted">Слово вернётся через несколько вопросов.</div></div>'+(canSpeak?'<button class="chip" data-action="speak" data-text="'+esc(w.gr)+'">🔊</button>':'')+'</div>';
-  if(g==='accent')return '<div class="result bad" role="status"><span class="mark">✗</span><div class="body"><div>Неверное ударение. Правильно:</div><div class="ans">'+esc(full)+'</div><div class="small muted">Слово вернётся через несколько вопросов.</div></div>'+(canSpeak?'<button class="chip" data-action="speak" data-text="'+esc(w.gr)+'">🔊</button>':'')+'</div>';
-  return '<div class="result bad" role="status"><span class="mark">✗</span><div class="body"><div>Неверно. Правильно:</div><div class="ans">'+esc(full)+'</div><div class="small muted">Слово вернётся через несколько вопросов.</div></div>'+(canSpeak?'<button class="chip" data-action="speak" data-text="'+esc(w.gr)+'">🔊</button>':'')+'</div>';
+  var writing=(session.mode==='tiles'||session.mode==='type');var g=session.grade;var full=writing?lowerGr(primaryTarget(w.gr)):primaryTarget(w.gr);
+  var spk=(canSpeak&&!writing)?'<button class="chip" data-action="speak" data-text="'+esc(w.gr)+'">🔊</button>':'';
+  if(g==='exact')return '<div class="result ok" role="status"><span class="mark">✓</span><div class="body"><div>Верно!</div></div>'+spk+'</div>';
+  if(g==='hint')return '<div class="result almost" role="status"><span class="mark">✓</span><div class="body"><div>Верно, но с подсказкой.</div><div class="ans">'+esc(full)+'</div><div class="small muted">Слово вернётся через несколько вопросов.</div></div>'+spk+'</div>';
+  if(g==='accent')return '<div class="result bad" role="status"><span class="mark">✗</span><div class="body"><div>Неверное ударение. Правильно:</div><div class="ans">'+esc(full)+'</div><div class="small muted">Слово вернётся через несколько вопросов.</div></div>'+spk+'</div>';
+  return '<div class="result bad" role="status"><span class="mark">✗</span><div class="body"><div>Неверно. Правильно:</div><div class="ans">'+esc(full)+'</div><div class="small muted">Слово вернётся через несколько вопросов.</div></div>'+spk+'</div>';
 }
 
 function finishItem(grade,given){
