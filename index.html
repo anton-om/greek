@@ -12,7 +12,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Греческий">
-<meta name="build" content="2026-10-25-2">
+<meta name="build" content="2026-10-25-3">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap">
@@ -225,7 +225,7 @@ input[type=text].big{font-family:var(--display);font-size:24px;text-align:center
   <main id="screen"></main>
   <footer id="actions"></footer>
 </div>
-<script src="words.js?v=2026-10-25-2"></script>
+<script src="words.js?v=2026-10-25-3"></script>
 <script>
 (function(){
 'use strict';
@@ -523,8 +523,8 @@ function renderFlash(w){
 function promptRuHtml(w){
   var h='<div class="prompt"><div class="lang">Русский</div><div class="word ru">'+esc(w.ru)+'</div>';
   if(canSpeak){
-    if(session.state==='ask')h+='<div class="card-tools" style="margin-top:12px"><button class="chip'+(session.hinted?' on':'')+'" data-action="speak-hint" data-text="'+esc(w.gr)+'">🔊 '+(session.hinted?'Подсказка использована':'Послушать по-гречески')+'</button></div>';
-    else h+='<div class="card-tools" style="margin-top:12px"><button class="chip" data-action="speak" data-text="'+esc(w.gr)+'">🔊 Послушать по-гречески</button></div>';
+    if(session.state==='ask')h+='<div class="card-tools" style="margin-top:12px"><button class="chip'+(session.hinted?' on':'')+'" data-action="speak-hint" data-text="'+esc(w.gr)+'">🔊 '+(session.hinted?'Подсказка использована':'Подсказка звуком')+'</button></div>';
+    else h+='<div class="card-tools" style="margin-top:12px"><button class="chip" data-action="speak" data-text="'+esc(w.gr)+'">🔊 Озвучить</button></div>';
   }
   return h+'</div>';
 }
