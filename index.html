@@ -12,7 +12,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Греческий">
-<meta name="build" content="2026-10-26-5">
+<meta name="build" content="2026-10-26-6">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap">
@@ -188,8 +188,11 @@ input[type=text].big{font-family:var(--display);font-size:24px;text-align:center
 .grow{display:flex;align-items:center;gap:6px;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:10px 12px}
 .grow .lbl{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);width:46px;flex:0 0 auto}
 .grow .stem{font-size:22px;font-weight:600;white-space:nowrap}
-.gi{font:inherit;font-size:22px;border:1px solid var(--line);border-radius:8px;padding:6px 8px;background:var(--bg);color:var(--fg);min-width:0}
-.gi.art{width:3em;text-align:center}.gi.end{flex:1;width:4em}
+.gi{font:inherit;font-size:22px;border:1px solid var(--line);border-radius:8px;padding:6px 8px;background:var(--bg);color:var(--fg);min-width:0;width:100%}
+.grow .cell{display:flex;flex-direction:column;align-items:center;gap:2px;min-width:0}
+.grow .cell small{font-size:11px;color:var(--muted);line-height:1}
+.grow .cell.art{flex:0 0 3.4em}.grow .cell.end{flex:1}
+.grow .cell.art .gi{text-align:center}
 .gi:disabled{opacity:.7}
 .notice.install{font-size:15px}.notice.install .row{display:flex;gap:8px}.notice.install .btn{flex:1}.notice.install .btn.ghost{flex:0 0 auto}
 /* cheat sheet */
@@ -239,8 +242,8 @@ input[type=text].big{font-family:var(--display);font-size:24px;text-align:center
   <main id="screen"></main>
   <footer id="actions"></footer>
 </div>
-<script src="words.js?v=2026-10-26-5"></script>
-<script src="grammar.js?v=2026-10-26-5"></script>
+<script src="words.js?v=2026-10-26-6"></script>
+<script src="grammar.js?v=2026-10-26-6"></script>
 <script>
 (function(){
 'use strict';
@@ -659,15 +662,16 @@ function hintBtnHtml(text){
   if(session.state==='ask')return '<div class="card-tools" style="margin-top:12px"><button class="chip'+(session.hinted?' on':'')+'" data-action="speak-hint" data-text="'+esc(text)+'">🔊 '+(session.hinted?'Подсказка использована':'Подсказка звуком')+'</button></div>';
   return '<div class="card-tools" style="margin-top:12px"><button class="chip" data-action="speak" data-text="'+esc(text)+'">🔊 Озвучить</button></div>';
 }
-function gramInput(k,cls,val,ph){return '<input type="text" class="gi '+cls+'" data-k="'+k+'" lang="el" inputmode="text" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" placeholder="'+ph+'" value="'+esc(val||'')+'"'+(session.state==='ask'?'':' disabled')+'>';}
+/* Поле без примера-подсказки: что вписывать, подписано под полем. */
+function gramInput(k,cls,val,caption){return '<span class="cell '+cls+'"><input type="text" class="gi" data-k="'+k+'" lang="el" inputmode="text" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" aria-label="'+caption+'" value="'+esc(val||'')+'"'+(session.state==='ask'?'':' disabled')+'><small>'+caption+'</small></span>';}
 function renderPlural(w){
   var sp=stemSplit(w.gr,pluralOf(w)),P=session.parts||{};
   var h=progressHtml();
   h+='<div class="prompt"><div class="lang">Существительное</div><div class="word">'+esc(sp.stem1)+'<span class="muted">…</span></div><div class="muted" style="margin-top:4px">'+esc(w.ru)+'</div>'+hintBtnHtml(w.gr)+'</div>';
   h+='<form id="gramForm" class="gram">';
-  h+='<div class="grow"><span class="lbl">Ед. ч.</span>'+gramInput('a1','art',P.a1,'ο')+'<span class="stem">'+esc(sp.stem1)+'</span>'+gramInput('e1','end',P.e1,'-ος')+'</div>';
-  h+='<div class="grow"><span class="lbl">Мн. ч.</span>'+gramInput('a2','art',P.a2,'οι')+'<span class="stem">'+esc(sp.stem2)+'</span>'+gramInput('e2','end',P.e2,'-οι')+'</div>';
-  if(session.state==='ask')h+='<p class="hint">Впиши артикль и окончание. Ударения учитываются.</p><button type="submit" class="btn primary" style="width:100%">Проверить</button>';
+  h+='<div class="grow"><span class="lbl">Ед. ч.</span>'+gramInput('a1','art',P.a1,'артикль')+'<span class="stem">'+esc(sp.stem1)+'</span>'+gramInput('e1','end',P.e1,'окончание')+'</div>';
+  h+='<div class="grow"><span class="lbl">Мн. ч.</span>'+gramInput('a2','art',P.a2,'артикль')+'<span class="stem">'+esc(sp.stem2)+'</span>'+gramInput('e2','end',P.e2,'окончание')+'</div>';
+  if(session.state==='ask')h+='<p class="hint">Впиши артикль и окончание для единственного и множественного числа. Ударения учитываются.</p><button type="submit" class="btn primary" style="width:100%">Проверить</button>';
   h+='</form>';
   h+=gramResultHtml(w,sp.art1+' '+sp.stem1+sp.end1+' → '+sp.art2+' '+sp.stem2+sp.end2);
   return{html:h,foot:session.state==='ask'?'':doneFoot()};
