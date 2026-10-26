@@ -12,7 +12,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Греческий">
-<meta name="build" content="2026-10-26-3">
+<meta name="build" content="2026-10-26-4">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap">
@@ -109,6 +109,8 @@ input[type=text].big{font-family:var(--display);font-size:24px;text-align:center
 .mixrow .fold-h .sum{font-weight:400;color:var(--muted);font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
 .mixrow .fold-h i{font-style:normal}
 .mixrow .links{flex:1 1 100%;display:flex;gap:14px}
+.mixrow .subrow{flex:1 1 100%;display:flex;flex-wrap:wrap;gap:6px 14px;align-items:center}
+.mixrow .subrow .t{flex:1 1 100%;font-weight:500;font-size:14px;color:var(--muted)}
 .linkbtn{border:0;background:none;padding:0;font:inherit;font-size:14px;color:var(--accent);cursor:pointer;text-decoration:underline}
 .prog{display:flex;flex-direction:column;gap:4px}
 .prog .lab{display:flex;justify-content:space-between;font-size:13.5px;color:var(--muted)}
@@ -237,8 +239,8 @@ input[type=text].big{font-family:var(--display);font-size:24px;text-align:center
   <main id="screen"></main>
   <footer id="actions"></footer>
 </div>
-<script src="words.js?v=2026-10-26-3"></script>
-<script src="grammar.js?v=2026-10-26-3"></script>
+<script src="words.js?v=2026-10-26-4"></script>
+<script src="grammar.js?v=2026-10-26-4"></script>
 <script>
 (function(){
 'use strict';
@@ -264,6 +266,7 @@ var POS_LIST=[['n','Существительные'],['v','Глаголы'],['ad
 var POS_DEFAULT={n:true,v:true,adj:true,o:true};
 function mixCfg(id){var c=store.mix&&store.mix[id];return c||{w:false,x:false};}
 function mixPos(){return Object.assign({},POS_DEFAULT,(store.mix&&store.mix._pos)||{});}
+function mixTopics(){return (store.mix&&store.mix._tp)||{};}
 function posOf(w){return w.pos||'o';}
 /* Темы (поле t в words.js): по ним подбираются варианты в тестах и фильтруется лексика урока.
    store.lex[setId].tp={тема:false} — исключённые темы; остальные включены. */
@@ -272,6 +275,12 @@ function topicOf(w){return w.t||'other';}
 function topicName(k){var t=TOPIC_LIST.filter(function(q){return q[0]===k;})[0];return t?t[1]:'Без темы';}
 function lexTopics(set){return lexCfg(set).tp||{};}
 function topicOn(tp,k){return tp[k]!==false;}
+/* Сохранить исключённые темы для урока (target 'lex') или для Custom ('mix'). */
+function setTopics(target,tp){
+  if(target==='mix'){if(!store.mix)store.mix={};store.mix._tp=tp;}
+  else{var st=currentSet();if(!store.lex)store.lex={};var c=Object.assign({},lexCfg(st));c.tp=tp;store.lex[st.id]=c;}
+  save();
+}
 /* Уроки задают пул слов (основная и/или дополнительная лексика каждого), части речи
    его фильтруют (пересечение). По умолчанию включены все части речи; слова без pos —
    наречия, местоимения, фразы — относятся к «Остальное». */
@@ -283,8 +292,8 @@ function mixPool(){
   return {words:words,origin:origin};
 }
 function mixSet(){
-  var pool=mixPool(),pc=mixPos();
-  var words=pool.words.filter(function(w){return pc[posOf(w)];});
+  var pool=mixPool(),pc=mixPos(),tp=mixTopics();
+  var words=pool.words.filter(function(w){return pc[posOf(w)]&&topicOn(tp,topicOf(w));});
   return {id:MIX_ID,title:'Custom',words:words,extra:[],mix:true,origin:pool.origin};
 }
 function currentSet(){if(store.setId===MIX_ID)return mixSet();var sets=allSets();return sets.filter(function(s){return s.id===store.setId;})[0]||sets[0]||{id:'empty',title:'Нет наборов',words:[]};}
@@ -455,15 +464,15 @@ function posRowHtml(action,pc,pool){
     return '<label><input type="checkbox" data-action="'+action+'" data-part="'+q[0]+'"'+(pc[q[0]]?' checked':'')+'>'+q[1]+' ('+n+')</label>';}).join(''));
 }
 /* Темы урока: показываются только те, что есть в выбранной лексике (после фильтра частей речи). */
-function topicRowHtml(set){
-  var pool=lexPosPool(set),tp=lexTopics(set),counts={};
+function topicRowHtml(target,tp,pool){
+  var counts={};
   pool.forEach(function(w){var k=topicOf(w);counts[k]=(counts[k]||0)+1;});
   var list=TOPIC_LIST.filter(function(q){return counts[q[0]];});if(counts.other)list=list.concat([['other','Без темы']]);
   if(list.length<2)return '';
   var on=list.filter(function(q){return topicOn(tp,q[0]);}).length;
   var summary=on===list.length?'все ('+list.length+')':on+' из '+list.length;
-  return foldRowHtml('topics','Темы',summary,'<span class="links"><button class="linkbtn" data-action="topics-all">все</button><button class="linkbtn" data-action="topics-none">ни одной</button></span>'+
-    list.map(function(q){return '<label><input type="checkbox" data-action="lex-topic" data-part="'+q[0]+'"'+(topicOn(tp,q[0])?' checked':'')+'>'+esc(q[1])+' ('+counts[q[0]]+')</label>';}).join(''));
+  return foldRowHtml('topics-'+target,'Темы',summary,'<span class="links"><button class="linkbtn" data-action="topics-all" data-for="'+target+'">все</button><button class="linkbtn" data-action="topics-none" data-for="'+target+'">ни одной</button></span>'+
+    list.map(function(q){return '<label><input type="checkbox" data-action="topic" data-for="'+target+'" data-part="'+q[0]+'"'+(topicOn(tp,q[0])?' checked':'')+'>'+esc(q[1])+' ('+counts[q[0]]+')</label>';}).join(''));
 }
 function renderHome(){
   var set=currentSet();var pool=poolWords(set);var n=pool.length;
@@ -475,19 +484,22 @@ function renderHome(){
   h+='<div class="row"><select id="setSelect" aria-label="Набор слов">'+sets.map(function(s){return '<option value="'+esc(s.id)+'"'+(s.id===set.id?' selected':'')+'>'+esc(s.title)+' ('+s.words.length+')</option>';}).join('')
     +'<option value="'+MIX_ID+'"'+(set.mix?' selected':'')+'>Custom: свой выбор уроков'+(set.mix?' ('+n+')':'')+'</option></select></div>';
   if(set.mix){
-    h+='<div class="mixcfg"><p class="small muted" style="margin:0 0 4px">Отметьте уроки и лексику, при желании сузьте до частей речи. Прогресс по каждому слову хранится в его уроке.</p>';
-    h+=sets.map(function(s){var c=mixCfg(s.id);var ex=extraOf(s).length;
-      return '<div class="mixrow"><span class="t">'+esc(s.title)+'</span>'+
+    h+='<div class="mixcfg"><p class="small muted" style="margin:0 0 4px">Отметьте уроки и лексику, при желании сузьте до частей речи и тем. Прогресс по каждому слову хранится в его уроке.</p>';
+    var onSets=sets.filter(function(s){var c=mixCfg(s.id);return c.w||c.x;});
+    var lessonsSum=onSets.length===sets.length?'все':onSets.length?onSets.map(function(s){return s.title.replace(/^Урок /,'');}).join(', '):'ничего';
+    h+=foldRowHtml('mix-lessons','Уроки',lessonsSum,sets.map(function(s){var c=mixCfg(s.id);var ex=extraOf(s).length;
+      return '<div class="subrow"><span class="t">'+esc(s.title)+'</span>'+
         '<label><input type="checkbox" data-action="mix-toggle" data-id="'+esc(s.id)+'" data-part="w"'+(c.w?' checked':'')+'>Основная ('+s.words.length+')</label>'+
-        (ex?'<label><input type="checkbox" data-action="mix-toggle" data-id="'+esc(s.id)+'" data-part="x"'+(c.x?' checked':'')+'>Дополнительная ('+ex+')</label>':'')+'</div>';}).join('');
-    h+=posRowHtml('mix-pos',mixPos(),mixPool().words);
+        (ex?'<label><input type="checkbox" data-action="mix-toggle" data-id="'+esc(s.id)+'" data-part="x"'+(c.x?' checked':'')+'>Дополнительная ('+ex+')</label>':'')+'</div>';}).join(''));
+    var mp=mixPos(),mixPosPool=mixPool().words.filter(function(w){return mp[posOf(w)];});
+    h+=posRowHtml('mix-pos',mp,mixPool().words)+topicRowHtml('mix',mixTopics(),mixPosPool);
     h+='</div>';
   }else{
     var lc=lexCfg(set),lx=extraOf(set).length;
     h+='<div class="mixcfg"><div class="mixrow"><span class="t">Лексика</span>'+
       '<label><input type="checkbox" data-action="lex-toggle" data-part="w"'+(lc.w?' checked':'')+'>Основная ('+set.words.length+')</label>'+
       (lx?'<label><input type="checkbox" data-action="lex-toggle" data-part="x"'+(lc.x?' checked':'')+'>Дополнительная ('+lx+')</label>':'')+'</div>';
-    h+=posRowHtml('lex-pos',lexPos(set),lexPool(set))+topicRowHtml(set)+'</div>';
+    h+=posRowHtml('lex-pos',lexPos(set),lexPool(set))+topicRowHtml('lex',lexTopics(set),lexPosPool(set))+'</div>';
   }
   var scope=store.settings.scope==='new'?'new':'all',shuf=store.settings.shuffle!==false;
   h+='<div class="seg">'+
@@ -976,9 +988,8 @@ document.addEventListener('click',function(ev){
     case 'cheat':view={name:'cheat'};trackEvent('cheat','Шпаргалка');render();break;
     case 'fold':folds[el.getAttribute('data-key')]=!folds[el.getAttribute('data-key')];keepScroll=true;render();break;
     case 'topics-all':case 'topics-none':{
-      var ts=currentSet();if(!store.lex)store.lex={};var tl=Object.assign({},lexCfg(ts));tl.tp={};
-      if(a==='topics-none'){TOPIC_LIST.concat([['other']]).forEach(function(q){tl.tp[q[0]]=false;});}
-      store.lex[ts.id]=tl;save();keepScroll=true;render();break;
+      var tpAll={};if(a==='topics-none'){TOPIC_LIST.concat([['other']]).forEach(function(q){tpAll[q[0]]=false;});}
+      setTopics(el.getAttribute('data-for'),tpAll);keepScroll=true;render();break;
     }
     case 'home':goHome();break;
     case 'install':doInstall();break;
@@ -1041,10 +1052,11 @@ document.addEventListener('change',function(ev){
     save();render();return;}
   if(el.getAttribute('data-action')==='lex-toggle'){var cs=currentSet();if(!store.lex)store.lex={};store.lex[cs.id]=Object.assign({},lexCfg(cs));store.lex[cs.id][el.getAttribute('data-part')]=el.checked;save();render();return;}
   if(el.getAttribute('data-action')==='lex-pos'){var ps=currentSet();if(!store.lex)store.lex={};var lc2=Object.assign({},lexCfg(ps));lc2.pos=lexPos(ps);lc2.pos[el.getAttribute('data-part')]=el.checked;store.lex[ps.id]=lc2;save();keepScroll=true;render();return;}
-  if(el.getAttribute('data-action')==='lex-topic'){var pt=currentSet();if(!store.lex)store.lex={};var lc3=Object.assign({},lexCfg(pt));lc3.tp=Object.assign({},lexTopics(pt));if(el.checked)delete lc3.tp[el.getAttribute('data-part')];else lc3.tp[el.getAttribute('data-part')]=false;store.lex[pt.id]=lc3;save();keepScroll=true;render();return;}
+  if(el.getAttribute('data-action')==='topic'){var tgt=el.getAttribute('data-for'),tp3=Object.assign({},tgt==='mix'?mixTopics():lexTopics(currentSet()));
+    if(el.checked)delete tp3[el.getAttribute('data-part')];else tp3[el.getAttribute('data-part')]=false;setTopics(tgt,tp3);keepScroll=true;render();return;}
   if(el.getAttribute('data-action')==='mix-pos'){if(!store.mix)store.mix={};store.mix._pos=mixPos();store.mix._pos[el.getAttribute('data-part')]=el.checked;save();keepScroll=true;render();return;}
   if(el.getAttribute('data-action')==='mix-toggle'){var mid=el.getAttribute('data-id'),part=el.getAttribute('data-part');
-    if(!store.mix)store.mix={};if(!store.mix[mid])store.mix[mid]={w:false,x:false};store.mix[mid][part]=el.checked;save();render();return;}
+    if(!store.mix)store.mix={};if(!store.mix[mid])store.mix[mid]={w:false,x:false};store.mix[mid][part]=el.checked;save();keepScroll=true;render();return;}
   var a=el.getAttribute('data-action');if(!a)return;
   if(a==='set-scope'){store.settings.scope=el.value;save();render();}
   else if(a==='set-shuffle'){store.settings.shuffle=el.checked;save();}
