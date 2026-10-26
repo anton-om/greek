@@ -12,7 +12,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Греческий">
-<meta name="build" content="2026-10-25-4">
+<meta name="build" content="2026-10-26-1">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap">
@@ -176,6 +176,13 @@ input[type=text].big{font-family:var(--display);font-size:24px;text-align:center
 .mistake .g{font-family:var(--display);font-size:19px}
 .mistake .r{color:var(--muted);text-align:right}
 .notice{background:var(--accent-soft);border-radius:12px;padding:12px 14px;font-size:14px}
+.gram{display:flex;flex-direction:column;gap:12px;margin-top:16px}
+.grow{display:flex;align-items:center;gap:6px;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:10px 12px}
+.grow .lbl{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);width:46px;flex:0 0 auto}
+.grow .stem{font-size:22px;font-weight:600;white-space:nowrap}
+.gi{font:inherit;font-size:22px;border:1px solid var(--line);border-radius:8px;padding:6px 8px;background:var(--bg);color:var(--fg);min-width:0}
+.gi.art{width:3em;text-align:center}.gi.end{flex:1;width:4em}
+.gi:disabled{opacity:.7}
 .notice.install{font-size:15px}.notice.install .row{display:flex;gap:8px}.notice.install .btn{flex:1}.notice.install .btn.ghost{flex:0 0 auto}
 /* cheat sheet */
 .cheat{display:flex;flex-direction:column;gap:10px;margin-top:8px}
@@ -201,11 +208,11 @@ input[type=text].big{font-family:var(--display);font-size:24px;text-align:center
 .cheat p.note:first-child{border-top:0}
 .cheat .sub{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin:14px 0 2px}
 .art{display:grid;gap:0 14px;align-items:baseline;font-size:14px}
-.art.c3{grid-template-columns:1fr auto auto}.art.c2{grid-template-columns:1fr auto}
+.art.c3{grid-template-columns:1fr auto auto}.art.c2{grid-template-columns:1fr auto}.art.conj{grid-template-columns:auto 1fr 1fr;gap:0 10px}.art.conj .A.E{font-size:15px}
 .art>span{padding:6px 0;border-top:1px solid var(--line);min-width:0}
 .art>span.h{border-top:0;font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);padding-bottom:2px}
 .art .A{font-size:21px;font-weight:600;color:var(--accent);text-align:center;min-width:2.2em}
-.art .A.E{font-size:16px;text-align:left;white-space:nowrap}
+.art .A.E{font-size:16px;text-align:left;white-space:normal;overflow-wrap:anywhere}
 .notice.ok{background:var(--good-soft);color:var(--good)}
 .notice.bad{background:var(--bad-soft);color:var(--bad)}
 .danger-zone{display:flex;flex-direction:column;gap:10px}
@@ -225,7 +232,8 @@ input[type=text].big{font-family:var(--display);font-size:24px;text-align:center
   <main id="screen"></main>
   <footer id="actions"></footer>
 </div>
-<script src="words.js?v=2026-10-25-4"></script>
+<script src="words.js?v=2026-10-26-1"></script>
+<script src="grammar.js?v=2026-10-26-1"></script>
 <script>
 (function(){
 'use strict';
@@ -298,6 +306,37 @@ function norm(s,keepAccents){
   if(!keepAccents){t=t.normalize('NFD').replace(/[̀-ͯ]/g,'').normalize('NFC');}
   return t;
 }
+/* ---------- грамматика (grammar.js) ---------- */
+var GRAMMAR=window.GRAMMAR||{plural:{},verbs:{}};
+var SG_ENDINGS=['ούς','μα','ος','ας','ης','ής','άς','ές','α','ά','η','ή','ο','ό','ι','ί','υ','ύ','ω','ώ','ς'];
+var PERSONS_RU=['я','ты','он / она / оно','мы','вы','они'],PERSONS_GR=['εγώ','εσύ','αυτός','εμείς','εσείς','αυτοί'];
+function pluralOf(w){return GRAMMAR.plural[w.gr]||null;}
+function splitArt(s){var m=String(s).normalize('NFC').trim().match(/^(ο|η|το|οι|τα)\s+(.+)$/i);return m?{art:m[1].toLowerCase(),word:m[2]}:{art:'',word:String(s).trim()};}
+/* Разбиение «основа + окончание»: окончание ед. ч. берётся из списка известных, основа мн. ч. —
+   та же длина с поправкой на сдвиг ударения (сравнение без ударений). */
+function stemSplit(sg,pl){
+  var a=splitArt(sg),b=splitArt(pl),w=a.word,v=b.word,end='';
+  for(var i=0;i<SG_ENDINGS.length;i++){var e=SG_ENDINGS[i];if(w.length>e.length&&w.slice(-e.length)===e){end=e;break;}}
+  if(!end)end=w.slice(-1);
+  var stem=w.slice(0,w.length-end.length),stem2=v.slice(0,stem.length);
+  if(norm(stem2,false)!==norm(stem,false)){var k=0;while(k<w.length&&k<v.length&&norm(w[k],false)===norm(v[k],false))k++;k=Math.max(1,Math.min(k,w.length-1,v.length-1));stem=w.slice(0,k);end=w.slice(k);stem2=v.slice(0,k);}
+  return {art1:a.art,stem1:stem,end1:end,art2:b.art,stem2:stem2,end2:v.slice(stem2.length)};
+}
+function verbForms(w){
+  var e=GRAMMAR.verbs[w.gr];if(!e)return null;if(e.f)return e.f;
+  var g=w.gr;
+  if(e.c==='1'){var st=g.replace(/ω$/,'');return [st+'ω',st+'εις',st+'ει',st+'ουμε',st+'ετε',st+'ουν / '+st+'ουνε'];}
+  if(e.c==='2a'){var sa=g.replace(/(άω|ώ)$/,'');return [sa+'ώ / '+sa+'άω',sa+'άς',sa+'ά / '+sa+'άει',sa+'άμε / '+sa+'ούμε',sa+'άτε',sa+'άνε / '+sa+'ούν / '+sa+'ούνε'];}
+  if(e.c==='2b'){var sb=g.replace(/ώ$/,'');return [sb+'ώ',sb+'είς',sb+'εί',sb+'ούμε',sb+'είτε',sb+'ούν / '+sb+'ούνε'];}
+  return null;
+}
+function verbRu(w){var e=GRAMMAR.verbs[w.gr];return e&&e.ru;}
+/* Слова, пригодные для режима: существительные с формой мн. ч. или глаголы со спряжением. */
+function modePool(mode,pool){
+  if(mode==='plural')return pool.filter(function(w){return w.pos==='n'&&pluralOf(w);});
+  if(mode==='conj')return pool.filter(function(w){return w.pos==='v'&&verbForms(w);});
+  return pool;
+}
 function variants(gr){return String(gr).split('/').map(function(v){return v.replace(/\([^)]*\)/g,'').trim();}).filter(Boolean);}
 function primaryTarget(gr){var v=variants(gr);return (v[0]||gr).normalize('NFC');}
 function lowerGr(s){return String(s).toLocaleLowerCase('el').replace(/σ(?=$|[\s;,.!?·:»"])/g,'ς');}
@@ -344,9 +383,11 @@ var MODE_LIST=[
   {key:'quiz-gr',mode:'quiz',dir:'gr',t:'Варианты ответа: греческий → русский',d:'Выбери перевод из четырёх'},
   {key:'quiz-ru',mode:'quiz',dir:'ru',t:'Варианты ответа: русский → греческий',d:'Выбери греческое слово из четырёх'},
   {key:'tiles',mode:'tiles',dir:'ru',t:'Учимся писать',d:'Собери слово из букв вразброс'},
-  {key:'type',mode:'type',dir:'ru',t:'Пишем сами',d:'Введи греческое слово с клавиатуры'}
+  {key:'type',mode:'type',dir:'ru',t:'Пишем сами',d:'Введи греческое слово с клавиатуры'},
+  {key:'plural',mode:'plural',dir:'ru',t:'Множественное число',d:'Артикль и окончание в единственном и множественном числе'},
+  {key:'conj',mode:'conj',dir:'ru',t:'Спряжение глаголов',d:'Напиши форму глагола по русской подсказке'}
 ];
-var MODE_TITLE={flash:'Карточки',tiles:'Учимся писать',type:'Пишем сами',quiz:'Варианты ответа'};
+var MODE_TITLE={flash:'Карточки',tiles:'Учимся писать',type:'Пишем сами',quiz:'Варианты ответа',plural:'Множественное число',conj:'Спряжение глаголов'};
 
 var screen=document.getElementById('screen');
 var APP_BUILD=(document.querySelector('meta[name=build]')||{}).content||'';
@@ -398,7 +439,7 @@ function renderHome(){
   var lg=learnedCount(set,null,pool);
   var sets=allSets();
   var h=installHtml()+'<div class="hero"><h2>Греческие слова</h2><p class="muted small">Карточки, письмо и тесты по наборам слов.</p></div>';
-  h+='<h3>Справка</h3><button class="mode" data-action="cheat"><span class="num">Αα</span><span class="txt"><div class="t">Шпаргалка</div><div class="d">Алфавит, сочетания букв, артикли, окончания, ударение</div></span><span class="arr">›</span></button>';
+  h+='<h3>Справка</h3><button class="mode" data-action="cheat"><span class="num">Αα</span><span class="txt"><div class="t">Шпаргалка</div><div class="d">Алфавит, артикли, окончания, спряжение глаголов, ударение</div></span><span class="arr">›</span></button>';
   h+='<h3>Набор слов</h3>'+'<div class="setbox">';
   h+='<div class="row"><select id="setSelect" aria-label="Набор слов">'+sets.map(function(s){return '<option value="'+esc(s.id)+'"'+(s.id===set.id?' selected':'')+'>'+esc(s.title)+' ('+s.words.length+')</option>';}).join('')
     +'<option value="'+MIX_ID+'"'+(set.mix?' selected':'')+'>Custom: свой выбор уроков'+(set.mix?' ('+n+')':'')+'</option></select></div>';
@@ -425,7 +466,7 @@ function renderHome(){
   h+='<label class="check"><input type="checkbox" data-action="set-shuffle"'+(shuf?' checked':'')+'><span class="lbl">Перемешать порядок</span></label>';
   h+='<div class="prog"><div class="lab"><span>Изучено</span><b>'+lg+' / '+n+'</b></div><div class="bar"><i style="width:'+pct(lg,n)+'%"></i></div></div>';
   h+='</div>';
-  h+='<h3>Режимы</h3><div class="modes">'+MODE_LIST.map(function(m,i){
+  h+='<h3>Режимы</h3>'+(homeMsg?'<p class="notice bad" style="margin-bottom:10px">'+esc(homeMsg)+'</p>':'')+'<div class="modes">'+MODE_LIST.map(function(m,i){
     return '<button class="mode" data-action="pick-mode" data-key="'+m.key+'"><span class="num">'+(i+1)+'</span><span class="txt"><div class="t">'+esc(m.t)+'</div><div class="d">'+esc(m.d)+'</div></span><span class="arr">›</span></button>';
   }).join('')+'</div>';
   if(!n){h+='<p class="notice" style="margin-top:16px">'+(set.mix?'Отметьте выше хотя бы один урок и хотя бы одну часть речи.':set.words.length?'Включите выше лексику и хотя бы одну часть речи.':'В этом наборе нет слов. Добавьте слова в words.js или импортируйте набор в настройках.')+'</p>';}
@@ -439,6 +480,8 @@ function freshCount(set){return poolWords(set).filter(function(w){return !isLear
 function startMode(key){
   var m=MODE_LIST.filter(function(x){return x.key===key;})[0];if(!m)return;
   var set=currentSet();if(!poolWords(set).length)return;
+  if(!modePool(m.mode,poolWords(set)).length){homeMsg=m.mode==='plural'?'В выбранных словах нет существительных с формой множественного числа.':'В выбранных словах нет глаголов со спряжением.';render();return;}
+  homeMsg='';
   var scope=store.settings.scope==='new'?'new':'all';
   if(scope==='new'&&!freshCount(set))scope='all';
   view={name:'session',key:key,mode:m.mode,dir:m.dir,scope:scope,shuffle:store.settings.shuffle!==false};
@@ -450,7 +493,7 @@ function plural(n,a,b,c){var m10=n%10,m100=n%100;if(m10===1&&m100!==11)return a;
 /* ---------- session ---------- */
 function startSession(words){
   var set=currentSet();
-  var pool=poolWords(set);
+  var pool=modePool(view.mode,poolWords(set));
   var scopeWords=pool.slice();if(view.scope==='new')scopeWords=scopeWords.filter(function(w){return !isLearned(set,view.dir,w);});
   if(!words){words=scopeWords.slice();if(view.shuffle)shuffle(words);}
   if(!words.length){goHome();return;}
@@ -463,6 +506,8 @@ function prepareItem(){
   session.flipped=false;session.state='ask';session.picked=[];session.typed='';session.grade=null;session.pickedOpt=null;session.hinted=false;
   var w=cur();if(!w)return;
   if(session.mode==='flash'&&session.dir==='gr'&&store.settings.autoSpeak)speak(w.gr);
+  if(session.mode==='plural'){session.parts={a1:'',e1:'',a2:'',e2:''};}
+  if(session.mode==='conj'){session.persons=session.persons||{};if(session.persons[w.gr]==null)session.persons[w.gr]=Math.floor(Math.random()*6);session.person=session.persons[w.gr];}
   if(session.mode==='tiles'){
     var target=lowerGr(primaryTarget(w.gr).replace(/[;?!.,·…:«»"]+$/,'').trim());
     session.target=target;
@@ -498,6 +543,8 @@ function renderSession(){
   if(session.mode==='flash')return renderFlash(w);
   if(session.mode==='tiles')return renderTiles(w);
   if(session.mode==='type')return renderType(w);
+  if(session.mode==='plural')return renderPlural(w);
+  if(session.mode==='conj')return renderConj(w);
   return renderQuiz(w);
 }
 
@@ -558,6 +605,51 @@ function renderType(w){
   return{html:h,foot:foot};
 }
 
+function hintBtnHtml(text){
+  if(!canSpeak)return '';
+  if(session.state==='ask')return '<div class="card-tools" style="margin-top:12px"><button class="chip'+(session.hinted?' on':'')+'" data-action="speak-hint" data-text="'+esc(text)+'">🔊 '+(session.hinted?'Подсказка использована':'Подсказка звуком')+'</button></div>';
+  return '<div class="card-tools" style="margin-top:12px"><button class="chip" data-action="speak" data-text="'+esc(text)+'">🔊 Озвучить</button></div>';
+}
+function gramInput(k,cls,val,ph){return '<input type="text" class="gi '+cls+'" data-k="'+k+'" lang="el" inputmode="text" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" placeholder="'+ph+'" value="'+esc(val||'')+'"'+(session.state==='ask'?'':' disabled')+'>';}
+function renderPlural(w){
+  var sp=stemSplit(w.gr,pluralOf(w)),P=session.parts||{};
+  var h=progressHtml();
+  h+='<div class="prompt"><div class="lang">Существительное</div><div class="word">'+esc(sp.stem1)+'<span class="muted">…</span></div><div class="muted" style="margin-top:4px">'+esc(w.ru)+'</div>'+hintBtnHtml(w.gr)+'</div>';
+  h+='<form id="gramForm" class="gram">';
+  h+='<div class="grow"><span class="lbl">Ед. ч.</span>'+gramInput('a1','art',P.a1,'ο')+'<span class="stem">'+esc(sp.stem1)+'</span>'+gramInput('e1','end',P.e1,'-ος')+'</div>';
+  h+='<div class="grow"><span class="lbl">Мн. ч.</span>'+gramInput('a2','art',P.a2,'οι')+'<span class="stem">'+esc(sp.stem2)+'</span>'+gramInput('e2','end',P.e2,'-οι')+'</div>';
+  if(session.state==='ask')h+='<p class="hint">Впиши артикль и окончание. Ударения учитываются.</p><button type="submit" class="btn primary" style="width:100%">Проверить</button>';
+  h+='</form>';
+  h+=gramResultHtml(w,sp.art1+' '+sp.stem1+sp.end1+' → '+sp.art2+' '+sp.stem2+sp.end2);
+  return{html:h,foot:session.state==='ask'?'':doneFoot()};
+}
+function renderConj(w){
+  var forms=verbForms(w),p=session.person,ru=verbRu(w);
+  var h=progressHtml();
+  h+='<div class="prompt"><div class="lang">Русский</div><div class="word ru">'+esc(ru[p])+'</div>'+hintBtnHtml(forms[p].split('/')[0].trim())+'</div>';
+  h+='<form id="typeForm" style="margin-top:16px"><input type="text" id="typeInput" class="big" lang="el" inputmode="text" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" placeholder="форма глагола" value="'+esc(session.typed||'')+'"'+(session.state==='ask'?'':' disabled')+'>';
+  if(session.state==='ask')h+='<p class="hint">Напиши глагол в нужном лице. Ударения учитываются.</p><button type="submit" class="btn primary" style="width:100%;margin-top:10px">Проверить</button>';
+  h+='</form>';
+  h+=gramResultHtml(w,PERSONS_GR[p]+' '+forms[p]);
+  return{html:h,foot:session.state==='ask'?'':doneFoot()};
+}
+function gramResultHtml(w,full){
+  if(session.state==='ask')return '';
+  var g=session.grade;
+  if(g==='exact')return '<div class="result ok" role="status"><span class="mark">✓</span><div class="body"><div>Верно!</div><div class="ans">'+esc(full)+'</div></div></div>';
+  if(g==='hint')return '<div class="result almost" role="status"><span class="mark">✓</span><div class="body"><div>Верно, но с подсказкой.</div><div class="ans">'+esc(full)+'</div><div class="small muted">Слово вернётся через несколько вопросов.</div></div></div>';
+  if(g==='accent')return '<div class="result bad" role="status"><span class="mark">✗</span><div class="body"><div>Неверное ударение. Правильно:</div><div class="ans">'+esc(full)+'</div><div class="small muted">Слово вернётся через несколько вопросов.</div></div></div>';
+  return '<div class="result bad" role="status"><span class="mark">✗</span><div class="body"><div>Неверно. Правильно:</div><div class="ans">'+esc(full)+'</div><div class="small muted">Слово вернётся через несколько вопросов.</div></div></div>';
+}
+function checkPlural(){
+  var w=cur(),sp=stemSplit(w.gr,pluralOf(w)),P=session.parts||{};
+  if(!(P.a1||P.e1||P.a2||P.e2)){var f=document.querySelector('.gi');if(f)f.focus();return;}
+  var pairs=[[P.a1,sp.art1],[P.e1,sp.end1],[P.a2,sp.art2],[P.e2,sp.end2]];
+  var exact=pairs.every(function(q){return norm(q[0]||'',true)===norm(q[1],true);});
+  var loose=pairs.every(function(q){return norm(q[0]||'',false)===norm(q[1],false);});
+  var given=(P.a1||'')+' '+sp.stem1+(P.e1||'')+' / '+(P.a2||'')+' '+sp.stem2+(P.e2||'');
+  finishItem(exact?'exact':loose?'accent':'wrong',given);render();
+}
 function renderQuiz(w){
   var qGr=session.dir==='gr';
   var h=progressHtml();
@@ -712,6 +804,26 @@ function endingsHtml(){
   }).join('');
   return h;
 }
+/* Спряжение глаголов в настоящем времени: по презентации к четвёртому уроку */
+var CONJ_PERSONS=['εγώ','εσύ','αυτός, -ή, -ό','εμείς','εσείς','αυτοί, -ές, -ά'];
+var CONJ_TABLES=[
+  ['είμαι','γράφω (I)',['είμαι','είσαι','είναι','είμαστε','είστε','είναι'],['γράφω','γράφεις','γράφει','γράφουμε','γράφετε','γράφουν(ε)']],
+  ['αγαπώ (II)','μπορώ (II)',['αγαπώ / αγαπάω','αγαπάς','αγαπά(ει)','αγαπάμε / αγαπούμε','αγαπάτε','αγαπάνε / αγαπούν(ε)'],['μπορώ','μπορείς','μπορεί','μπορούμε','μπορείτε','μπορούν(ε)']]
+];
+function conjHtml(){
+  var h='<p class="note">Инфинитива нет: начальная форма глагола — 1-е лицо единственного числа (γράφω — я пишу). Местоимение обычно опускается, лицо и число видны по окончанию.</p>';
+  h+='<p class="note">I группа — глаголы на -ω (γράφω, παίζω). II группа — на -ώ/-άω (αγαπώ, μιλάω) и на -ώ/-είς (μπορώ).</p>';
+  CONJ_TABLES.forEach(function(t){
+    h+='<div class="art conj" style="margin-top:10px"><span class="h">Лицо</span><span class="h">'+esc(t[0])+'</span><span class="h">'+esc(t[1])+'</span>';
+    for(var i=0;i<6;i++)h+='<span class="small">'+esc(CONJ_PERSONS[i])+'</span><span class="A E">'+esc(t[2][i])+'</span><span class="A E">'+esc(t[3][i])+'</span>';
+    h+='</div>';
+  });
+  h+='<p class="sub">Примеры</p>';
+  h+='<p class="note"><span class="muted">'+grHtml('Εγώ είμαι καλά','Я в порядке')+'. '+grHtml('Εσύ είσαι φίλος μου','Ты мой друг')+'.</span></p>';
+  h+='<p class="note"><span class="muted">'+grHtml('Εγώ γράφω ένα γράμμα','Я пишу письмо')+'. '+grHtml('Αυτή παίζει ποδόσφαιρο','Она играет в футбол')+'.</span></p>';
+  h+='<p class="note"><span class="muted">'+grHtml('Εγώ αγαπώ τη μουσική','Я люблю музыку')+'. '+grHtml('Εμείς μπορούμε να πάμε','Мы можем пойти')+'.</span></p>';
+  return h;
+}
 function rulesHtml(rows){return rows.map(function(r){return '<div class="rule"><span class="k">'+esc(r[0])+'</span><span class="v">'+esc(r[1])+'</span><span class="e">'+exHtml(r[2],r[3],r[4])+'</span></div>';}).join('');}
 function renderCheat(){
   var h='<div class="cheat">';
@@ -723,6 +835,7 @@ function renderCheat(){
   h+='<details class="sec"><summary>Дифтонги αυ, ευ</summary><div class="body">'+rulesHtml(CHEAT_DIPH)+'</div></details>';
   h+='<details class="sec"><summary>Артикли</summary><div class="body">'+articlesHtml()+'</div></details>';
   h+='<details class="sec"><summary>Окончания существительных</summary><div class="body">'+endingsHtml()+'</div></details>';
+  h+='<details class="sec"><summary>Спряжение глаголов</summary><div class="body">'+conjHtml()+'</div></details>';
   h+='<details class="sec"><summary>Чтение и ударение</summary><div class="body">'+CHEAT_NOTES.map(function(n){
     var ex=exHtml(n[1],n[2],n[3]);if(n[4])ex+=', но '+exHtml(n[4],n[5],n[6]);
     return '<p class="note">'+esc(n[0])+'<br><span class="muted">'+ex+'</span></p>';}).join('')+'</div></details>';
@@ -785,7 +898,7 @@ function goHome(){view={name:'home'};session=null;render();}
    Android/Chrome: системный диалог через beforeinstallprompt. iPhone: API нет, показываем
    инструкцию (Поделиться → На экран «Домой»). Кнопка не показывается внутри установленного
    приложения (standalone) и после «Скрыть». Узнать из Safari, добавлено ли уже приложение, нельзя. */
-var installPrompt=null,installHelp=false;
+var installPrompt=null,installHelp=false,homeMsg='';
 window.addEventListener('beforeinstallprompt',function(e){e.preventDefault();installPrompt=e;if(view.name==='home')render();});
 window.addEventListener('appinstalled',function(){installPrompt=null;hideInstall();});
 function isStandalone(){return window.navigator.standalone===true||!!(window.matchMedia&&window.matchMedia('(display-mode: standalone)').matches);}
@@ -897,11 +1010,13 @@ document.addEventListener('change',function(ev){
 document.addEventListener('input',function(ev){
   var el=ev.target;
   if(el.id==='typeInput'&&session)session.typed=el.value;
+  if(el.classList&&el.classList.contains('gi')&&session&&session.parts)session.parts[el.getAttribute('data-k')]=el.value;
   if(el.id==='importText')view.importText=el.value;
   if(el.id==='importTitle')view.importTitle=el.value;
 });
 document.addEventListener('submit',function(ev){
   if(ev.target.id==='typeForm'){ev.preventDefault();if(session.state==='ask')checkTyped();else next();}
+  if(ev.target.id==='gramForm'){ev.preventDefault();if(session.state==='ask')checkPlural();else next();}
 });
 document.addEventListener('keydown',function(ev){
   if(view.name!=='session'||!session)return;
@@ -915,7 +1030,7 @@ document.addEventListener('keydown',function(ev){
 function checkTyped(){
   var inp=document.getElementById('typeInput');var val=inp?inp.value:session.typed;
   if(!val.trim()){if(inp)inp.focus();return;}
-  session.typed=val;finishItem(grade(val,cur().gr),val);render();
+  session.typed=val;finishItem(grade(val,session.mode==='conj'?verbForms(cur())[session.person]:cur().gr),val);render();
 }
 function flashAnswer(known){
   var w=cur();setLearned(session.set,session.dir,w,known);
@@ -985,7 +1100,7 @@ function saveResume(){
     var data={view:view,setId:currentSet().id};
     if(session&&(view.name==='session'||view.name==='end')){
       var s=session;
-      data.session={mode:s.mode,dir:s.dir,i:s.i,requeued:!!s.requeued,hinted:!!s.hinted,flipped:!!s.flipped,state:s.state,picked:s.picked||[],typed:s.typed||'',
+      data.session={mode:s.mode,dir:s.dir,i:s.i,requeued:!!s.requeued,hinted:!!s.hinted,parts:s.parts||null,person:s.person,persons:s.persons||null,flipped:!!s.flipped,state:s.state,picked:s.picked||[],typed:s.typed||'',
         grade:s.grade,pickedOpt:s.pickedOpt,tiles:s.tiles,options:s.options,correctOpt:s.correctOpt,target:s.target,
         words:s.words.map(function(w){return w.gr;}),scopeWords:(s.scopeWords||[]).map(function(w){return w.gr;}),
         results:Array.prototype.map.call(s.results,function(r){return r?Object.assign({},r,{word:r.word.gr}):null;})};
@@ -1005,7 +1120,7 @@ function restoreResume(){
       var byGr={};set.words.concat(extraOf(set)).forEach(function(w){byGr[w.gr]=w;});
       var res=function(k){var w=byGr[k];if(!w)throw new Error('missing word '+k);return w;};
       session={mode:sv.mode,dir:sv.dir,set:set,pool:poolWords(set),words:sv.words.map(res),scopeWords:sv.scopeWords.map(res),i:sv.i,
-        results:sv.results.map(function(r){return r?Object.assign({},r,{word:res(r.word)}):null;}),requeued:sv.requeued,hinted:!!sv.hinted,
+        results:sv.results.map(function(r){return r?Object.assign({},r,{word:res(r.word)}):null;}),requeued:sv.requeued,hinted:!!sv.hinted,parts:sv.parts||null,person:sv.person,persons:sv.persons||null,
         flipped:sv.flipped,state:sv.state,picked:sv.picked,typed:sv.typed,grade:sv.grade,pickedOpt:sv.pickedOpt,tiles:sv.tiles,options:sv.options,correctOpt:sv.correctOpt,target:sv.target};
       if(v.name==='session'&&!session.words[session.i])throw new Error('bad index');
     }

@@ -16,8 +16,8 @@ import argparse, datetime as dt, json, os, sys, urllib.parse, urllib.request
 
 SITE = os.environ.get("GOATCOUNTER_SITE", "learn-greek")
 BASE = f"https://{SITE}.goatcounter.com/api/v0"
-MODES = ["flash-gr", "flash-ru", "quiz-gr", "quiz-ru", "tiles", "type"]
-SHORT = {"flash-gr": "карт гр", "flash-ru": "карт ру", "quiz-gr": "вар гр", "quiz-ru": "вар ру", "tiles": "плитки", "type": "письмо"}
+MODES = ["flash-gr", "flash-ru", "quiz-gr", "quiz-ru", "tiles", "type", "plural", "conj"]
+SHORT = {"flash-gr": "карт гр", "flash-ru": "карт ру", "quiz-gr": "вар гр", "quiz-ru": "вар ру", "tiles": "плитки", "type": "письмо", "plural": "мн.ч", "conj": "спряж"}
 
 
 def token():

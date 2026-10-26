@@ -2,11 +2,11 @@
 
 ## Каждое изменение сразу публикуется
 
-После любой правки `index.html` или `words.js`:
+После любой правки `index.html`, `words.js` или `grammar.js`:
 
-1. Поднять номер сборки в `index.html` в двух местах (`<meta name="build">` и `words.js?v=`),
-   формат `ГГГГ-ММ-ДД-N`.
-2. Если менялся `words.js` — прогнать `node scripts/check-words.js`, ошибок быть не должно.
+1. Поднять номер сборки в `index.html` в трёх местах (`<meta name="build">`, `words.js?v=`,
+   `grammar.js?v=`), формат `ГГГГ-ММ-ДД-N`.
+2. Если менялся `words.js` или `grammar.js` — прогнать `node scripts/check-words.js`, ошибок быть не должно.
 3. Закоммитить и запушить в `main`: сайт публикуется GitHub Pages с этой ветки.
 4. Дождаться, пока `https://anton-om.github.io/greek/index.html` отдаст новый номер сборки,
    и назвать его в отчёте. Не сообщать о публикации, пока она не подтверждена.
