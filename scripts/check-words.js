@@ -3,6 +3,9 @@
 // одиночные дополнительные слова, входящие в словосочетания. Правила: docs/adding-lessons.md
 global.window={};require(require('path').join(__dirname,'..','words.js'));
 var S=window.WORD_SETS,errors=0;
+// Тема (поле t) обязательна и должна быть из window.TOPICS.
+var TOPICS={};(window.TOPICS||[]).forEach(function(q){TOPICS[q[0]]=q[1];});
+S.forEach(function(s){s.words.concat(s.extra||[]).forEach(function(w){if(!w.t||!TOPICS[w.t]){console.log('  ОШИБКА: '+s.id+' «'+w.gr+'»: нет темы или тема не из TOPICS: '+w.t);errors++;}});});
 var strip=function(s){return s.toLowerCase().replace(/[;?!.,·…:«»"()]/g,' ').replace(/\s+/g,' ').trim();};
 var seen={};
 S.forEach(function(s){
@@ -27,5 +30,7 @@ S.forEach(function(s){s.words.concat(s.extra||[]).forEach(function(w){known[w.gr
 Object.keys(G.plural).forEach(function(k){if(!known[k]){console.log('  ОШИБКА: plural для слова не из words.js: '+k);errors++;}});
 Object.keys(G.verbs).forEach(function(k){if(!known[k]){console.log('  ОШИБКА: спряжение для слова не из words.js: '+k);errors++;}});
 console.log('Существительных с мн. ч.: '+Object.keys(G.plural).filter(function(k){return G.plural[k];}).length+', глаголов со спряжением: '+Object.keys(G.verbs).length+'.');
+var tc={};S.forEach(function(s){s.words.concat(s.extra||[]).forEach(function(w){tc[w.t]=(tc[w.t]||0)+1;});});
+console.log('Темы: '+Object.keys(TOPICS).map(function(k){return TOPICS[k]+' '+(tc[k]||0);}).join(', ')+'.');
 console.log(errors?'Ошибок: '+errors:'Ошибок нет.');
 process.exit(errors?1:0);

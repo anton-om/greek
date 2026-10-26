@@ -12,7 +12,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Греческий">
-<meta name="build" content="2026-10-26-1">
+<meta name="build" content="2026-10-26-2">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap">
@@ -104,6 +104,11 @@ input[type=text].big{font-family:var(--display);font-size:24px;text-align:center
 .mixrow .t{flex:1 1 100%;font-weight:600}
 .mixrow label{display:flex;align-items:center;gap:7px;font-size:14px;cursor:pointer}
 .mixrow input{width:20px;height:20px;accent-color:var(--accent);margin:0}
+.mixrow .fold-h{display:flex;justify-content:space-between;align-items:center;gap:8px;width:100%;padding:2px 0;border:0;background:none;font:inherit;font-weight:600;color:inherit;cursor:pointer;text-align:left}
+.mixrow .fold-h .sum{font-weight:400;color:var(--muted);font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+.mixrow .fold-h i{font-style:normal}
+.mixrow .links{flex:1 1 100%;display:flex;gap:14px}
+.linkbtn{border:0;background:none;padding:0;font:inherit;font-size:14px;color:var(--accent);cursor:pointer;text-decoration:underline}
 .prog{display:flex;flex-direction:column;gap:4px}
 .prog .lab{display:flex;justify-content:space-between;font-size:13.5px;color:var(--muted)}
 .prog .lab b{color:var(--fg);font-variant-numeric:tabular-nums}
@@ -159,11 +164,11 @@ input[type=text].big{font-family:var(--display);font-size:24px;text-align:center
 .result .body{flex:1;min-width:0}
 .result .body .ans{font-family:var(--display);font-size:24px;color:var(--fg);overflow-wrap:anywhere}
 
-.options{display:grid;gap:10px;margin-top:16px}
+.options{display:grid;gap:8px;margin-top:14px}
 .optrow{display:flex;gap:8px;align-items:stretch;min-width:0}
 .optrow .opt{flex:1;min-width:0}
 .optrow .chip{flex:0 0 auto;align-self:center}
-.opt{text-align:left;padding:14px 16px;border-radius:12px;border:1px solid var(--line);background:var(--surface);font:inherit;font-size:18px;color:inherit;cursor:pointer;font-family:var(--display);overflow-wrap:anywhere}
+.opt{text-align:left;padding:12px 16px;border-radius:12px;border:1px solid var(--line);background:var(--surface);font:inherit;font-size:18px;color:inherit;cursor:pointer;font-family:var(--display);overflow-wrap:anywhere}
 .opt.correct{border-color:var(--good);background:var(--good-soft)}
 .opt.wrong{border-color:var(--bad);background:var(--bad-soft)}
 .opt:disabled{cursor:default}
@@ -232,8 +237,8 @@ input[type=text].big{font-family:var(--display);font-size:24px;text-align:center
   <main id="screen"></main>
   <footer id="actions"></footer>
 </div>
-<script src="words.js?v=2026-10-26-1"></script>
-<script src="grammar.js?v=2026-10-26-1"></script>
+<script src="words.js?v=2026-10-26-2"></script>
+<script src="grammar.js?v=2026-10-26-2"></script>
 <script>
 (function(){
 'use strict';
@@ -260,6 +265,13 @@ var POS_DEFAULT={n:true,v:true,adj:true,o:true};
 function mixCfg(id){var c=store.mix&&store.mix[id];return c||{w:false,x:false};}
 function mixPos(){return Object.assign({},POS_DEFAULT,(store.mix&&store.mix._pos)||{});}
 function posOf(w){return w.pos||'o';}
+/* Темы (поле t в words.js): по ним подбираются варианты в тестах и фильтруется лексика урока.
+   store.lex[setId].tp={тема:false} — исключённые темы; остальные включены. */
+var TOPIC_LIST=window.TOPICS||[];var TOPIC_PARENT={season:'time'};
+function topicOf(w){return w.t||'other';}
+function topicName(k){var t=TOPIC_LIST.filter(function(q){return q[0]===k;})[0];return t?t[1]:'Без темы';}
+function lexTopics(set){return lexCfg(set).tp||{};}
+function topicOn(tp,k){return tp[k]!==false;}
 /* Уроки задают пул слов (основная и/или дополнительная лексика каждого), части речи
    его фильтруют (пересечение). По умолчанию включены все части речи; слова без pos —
    наречия, местоимения, фразы — относятся к «Остальное». */
@@ -289,7 +301,8 @@ function lexCfg(set){var c=store.lex&&store.lex[set.id];if(c)return c;var m=stor
 function lexPos(set){return Object.assign({},POS_DEFAULT,lexCfg(set).pos||{});}
 /* Пул урока: выбранная лексика, затем фильтр по частям речи (как в Custom). */
 function lexPool(set){var c=lexCfg(set);return (c.w?set.words:[]).concat(c.x?extraOf(set):[]);}
-function poolWords(set){if(set.mix)return set.words;var pc=lexPos(set);return lexPool(set).filter(function(w){return pc[posOf(w)];});}
+function lexPosPool(set){var pc=lexPos(set);return lexPool(set).filter(function(w){return pc[posOf(w)];});}
+function poolWords(set){if(set.mix)return set.words;var tp=lexTopics(set);return lexPosPool(set).filter(function(w){return topicOn(tp,topicOf(w));});}
 function isLearned(set,dir,word){return progressOf(set,word).all.indexOf(word.gr)>=0;}
 function setLearned(set,dir,word,val){var arr=progressOf(set,word).all;var i=arr.indexOf(word.gr);if(val&&i<0)arr.push(word.gr);if(!val&&i>=0)arr.splice(i,1);save();}
 function learnedCount(set,dir,words){return (words||set.words).filter(function(w){return isLearned(set,dir,w);}).length;}
@@ -380,8 +393,8 @@ var session=null;
 var MODE_LIST=[
   {key:'flash-gr',mode:'flash',dir:'gr',t:'Карточки: греческий → русский',d:'Переворачивай, отмечай изученное'},
   {key:'flash-ru',mode:'flash',dir:'ru',t:'Карточки: русский → греческий',d:'Тот же режим в обратную сторону'},
-  {key:'quiz-gr',mode:'quiz',dir:'gr',t:'Варианты ответа: греческий → русский',d:'Выбери перевод из четырёх'},
-  {key:'quiz-ru',mode:'quiz',dir:'ru',t:'Варианты ответа: русский → греческий',d:'Выбери греческое слово из четырёх'},
+  {key:'quiz-gr',mode:'quiz',dir:'gr',t:'Варианты ответа: греческий → русский',d:'Выбери перевод из шести'},
+  {key:'quiz-ru',mode:'quiz',dir:'ru',t:'Варианты ответа: русский → греческий',d:'Выбери греческое слово из шести'},
   {key:'tiles',mode:'tiles',dir:'ru',t:'Учимся писать',d:'Собери слово из букв вразброс'},
   {key:'type',mode:'type',dir:'ru',t:'Пишем сами',d:'Введи греческое слово с клавиатуры'},
   {key:'plural',mode:'plural',dir:'ru',t:'Множественное число',d:'Артикль и окончание в единственном и множественном числе'},
@@ -424,15 +437,33 @@ function render(){
   else if(view.name==='settings'){title='Настройки';html=renderSettings();}
   else if(view.name==='cheat'){title='Шпаргалка';html=renderCheat();}
   topTitle.textContent=title;
-  screen.innerHTML=html;actions.innerHTML=foot;
-  screen.scrollTop=0;
+  var st=screen.scrollTop;screen.innerHTML=html;actions.innerHTML=foot;
+  screen.scrollTop=keepScroll?st:0;keepScroll=false;
   var inp=document.getElementById('typeInput');if(inp&&session&&session.state==='ask'){inp.focus();}
 }
 
 /* ---------- home ---------- */
+/* Свёртываемая строка настроек: заголовок с итогом, по нажатию раскрываются флажки. */
+function foldRowHtml(key,title,summary,body){
+  var open=!!folds[key];
+  return '<div class="mixrow fold'+(open?' open':'')+'"><button class="t fold-h" data-action="fold" data-key="'+key+'"><span>'+title+'</span><span class="sum">'+esc(summary)+' <i>'+(open?'▾':'▸')+'</i></span></button>'+(open?body:'')+'</div>';
+}
 function posRowHtml(action,pc,pool){
-  return '<div class="mixrow"><span class="t">Части речи</span>'+POS_LIST.map(function(q){var n=pool.filter(function(w){return posOf(w)===q[0];}).length;
-    return '<label><input type="checkbox" data-action="'+action+'" data-part="'+q[0]+'"'+(pc[q[0]]?' checked':'')+'>'+q[1]+' ('+n+')</label>';}).join('')+'</div>';
+  var on=POS_LIST.filter(function(q){return pc[q[0]];});
+  var summary=on.length===POS_LIST.length?'все':on.length?on.map(function(q){return q[1].toLowerCase();}).join(', '):'ничего';
+  return foldRowHtml('pos-'+action,'Части речи',summary,POS_LIST.map(function(q){var n=pool.filter(function(w){return posOf(w)===q[0];}).length;
+    return '<label><input type="checkbox" data-action="'+action+'" data-part="'+q[0]+'"'+(pc[q[0]]?' checked':'')+'>'+q[1]+' ('+n+')</label>';}).join(''));
+}
+/* Темы урока: показываются только те, что есть в выбранной лексике (после фильтра частей речи). */
+function topicRowHtml(set){
+  var pool=lexPosPool(set),tp=lexTopics(set),counts={};
+  pool.forEach(function(w){var k=topicOf(w);counts[k]=(counts[k]||0)+1;});
+  var list=TOPIC_LIST.filter(function(q){return counts[q[0]];});if(counts.other)list=list.concat([['other','Без темы']]);
+  if(list.length<2)return '';
+  var on=list.filter(function(q){return topicOn(tp,q[0]);}).length;
+  var summary=on===list.length?'все ('+list.length+')':on+' из '+list.length;
+  return foldRowHtml('topics','Темы',summary,'<span class="links"><button class="linkbtn" data-action="topics-all">все</button><button class="linkbtn" data-action="topics-none">ни одной</button></span>'+
+    list.map(function(q){return '<label><input type="checkbox" data-action="lex-topic" data-part="'+q[0]+'"'+(topicOn(tp,q[0])?' checked':'')+'>'+esc(q[1])+' ('+counts[q[0]]+')</label>';}).join(''));
 }
 function renderHome(){
   var set=currentSet();var pool=poolWords(set);var n=pool.length;
@@ -456,7 +487,7 @@ function renderHome(){
     h+='<div class="mixcfg"><div class="mixrow"><span class="t">Лексика</span>'+
       '<label><input type="checkbox" data-action="lex-toggle" data-part="w"'+(lc.w?' checked':'')+'>Основная ('+set.words.length+')</label>'+
       (lx?'<label><input type="checkbox" data-action="lex-toggle" data-part="x"'+(lc.x?' checked':'')+'>Дополнительная ('+lx+')</label>':'')+'</div>';
-    h+=posRowHtml('lex-pos',lexPos(set),lexPool(set))+'</div>';
+    h+=posRowHtml('lex-pos',lexPos(set),lexPool(set))+topicRowHtml(set)+'</div>';
   }
   var scope=store.settings.scope==='new'?'new':'all',shuf=store.settings.shuffle!==false;
   h+='<div class="seg">'+
@@ -522,13 +553,18 @@ function prepareItem(){
     var correct=w[ansKey];
     var seen={};seen[norm(correct,true)]=true;
     var poolFrom=function(list){var out=list.filter(function(x){return x!==w;}).map(function(x){return x[ansKey];}).filter(function(p){var k=norm(p,true);if(seen[k])return false;seen[k]=true;return true;});return shuffle(out);};
-    /* Дистракторы той же части речи, что и слово: из слов тренировки, затем из набора,
-       затем из всех уроков. Любые слова — только если одной части речи не хватило. */
+    /* Шесть вариантов. Дистракторы той же темы, что и слово (кухня — кухня, части тела —
+       части тела): из слов тренировки, затем из набора, затем из всех уроков; потом родительская
+       тема (времена года → время), потом та же часть речи, и только потом любые слова. */
+    var QUIZ_N=5;
+    var sameTopic=function(list,t){return list.filter(function(x){return topicOf(x)===t&&posOf(x)===posOf(w);});};
     var samePos=function(list){return list.filter(function(x){return posOf(x)===posOf(w);});};
     var everything=[];allSets().forEach(function(t){everything=everything.concat(t.words,extraOf(t));});
-    var tiers=[samePos(session.scopeWords||session.set.words),samePos(session.set.words),samePos(everything),session.scopeWords||session.set.words,session.set.words];
-    var pool=[];for(var ti=0;ti<tiers.length&&pool.length<3;ti++)pool=pool.concat(poolFrom(tiers[ti]));
-    session.options=shuffle([correct].concat(pool.slice(0,3)));
+    var scopeW=session.scopeWords||session.set.words,setW=session.set.words,tiers=[];
+    [topicOf(w),TOPIC_PARENT[topicOf(w)]].forEach(function(t){if(t)tiers.push(sameTopic(scopeW,t),sameTopic(setW,t),sameTopic(everything,t));});
+    tiers.push(samePos(scopeW),samePos(setW),samePos(everything),scopeW,setW,everything);
+    var pool=[];for(var ti=0;ti<tiers.length&&pool.length<QUIZ_N;ti++)pool=pool.concat(poolFrom(tiers[ti]));
+    session.options=shuffle([correct].concat(pool.slice(0,QUIZ_N)));
     session.correctOpt=correct;
   }
 }
@@ -844,7 +880,7 @@ function renderCheat(){
 }
 
 /* ---------- settings ---------- */
-var settingsMsg='';var confirmReset=false;var confirmDelete=null;
+var settingsMsg='';var confirmReset=false;var confirmDelete=null;var folds={};var keepScroll=false;
 function renderSettings(){
   var set=currentSet();var s=store.settings;
   var h='<div class="stack" style="margin-top:8px">';
@@ -938,6 +974,12 @@ document.addEventListener('click',function(ev){
     case 'check-update':checkUpdate(true);break;
     case 'test-speech':speak('Καλημέρα');settingsMsg=speechStatus();render();break;
     case 'cheat':view={name:'cheat'};trackEvent('cheat','Шпаргалка');render();break;
+    case 'fold':folds[el.getAttribute('data-key')]=!folds[el.getAttribute('data-key')];keepScroll=true;render();break;
+    case 'topics-all':case 'topics-none':{
+      var ts=currentSet();if(!store.lex)store.lex={};var tl=Object.assign({},lexCfg(ts));tl.tp={};
+      if(a==='topics-none'){TOPIC_LIST.concat([['other']]).forEach(function(q){tl.tp[q[0]]=false;});}
+      store.lex[ts.id]=tl;save();keepScroll=true;render();break;
+    }
     case 'home':goHome();break;
     case 'install':doInstall();break;
     case 'install-hide':hideInstall();break;
@@ -998,8 +1040,9 @@ document.addEventListener('change',function(ev){
     if(el.value===MIX_ID&&!allSets().some(function(x){return store.mix&&store.mix[x.id];})){store.mix={_pos:Object.assign({},POS_DEFAULT),_posV:2};allSets().forEach(function(s){store.mix[s.id]={w:true,x:false};});}
     save();render();return;}
   if(el.getAttribute('data-action')==='lex-toggle'){var cs=currentSet();if(!store.lex)store.lex={};store.lex[cs.id]=Object.assign({},lexCfg(cs));store.lex[cs.id][el.getAttribute('data-part')]=el.checked;save();render();return;}
-  if(el.getAttribute('data-action')==='lex-pos'){var ps=currentSet();if(!store.lex)store.lex={};var lc2=Object.assign({},lexCfg(ps));lc2.pos=lexPos(ps);lc2.pos[el.getAttribute('data-part')]=el.checked;store.lex[ps.id]=lc2;save();render();return;}
-  if(el.getAttribute('data-action')==='mix-pos'){if(!store.mix)store.mix={};store.mix._pos=mixPos();store.mix._pos[el.getAttribute('data-part')]=el.checked;save();render();return;}
+  if(el.getAttribute('data-action')==='lex-pos'){var ps=currentSet();if(!store.lex)store.lex={};var lc2=Object.assign({},lexCfg(ps));lc2.pos=lexPos(ps);lc2.pos[el.getAttribute('data-part')]=el.checked;store.lex[ps.id]=lc2;save();keepScroll=true;render();return;}
+  if(el.getAttribute('data-action')==='lex-topic'){var pt=currentSet();if(!store.lex)store.lex={};var lc3=Object.assign({},lexCfg(pt));lc3.tp=Object.assign({},lexTopics(pt));if(el.checked)delete lc3.tp[el.getAttribute('data-part')];else lc3.tp[el.getAttribute('data-part')]=false;store.lex[pt.id]=lc3;save();keepScroll=true;render();return;}
+  if(el.getAttribute('data-action')==='mix-pos'){if(!store.mix)store.mix={};store.mix._pos=mixPos();store.mix._pos[el.getAttribute('data-part')]=el.checked;save();keepScroll=true;render();return;}
   if(el.getAttribute('data-action')==='mix-toggle'){var mid=el.getAttribute('data-id'),part=el.getAttribute('data-part');
     if(!store.mix)store.mix={};if(!store.mix[mid])store.mix[mid]={w:false,x:false};store.mix[mid][part]=el.checked;save();render();return;}
   var a=el.getAttribute('data-action');if(!a)return;
