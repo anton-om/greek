@@ -12,7 +12,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Греческий">
-<meta name="build" content="2026-10-26-4">
+<meta name="build" content="2026-10-26-5">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap">
@@ -239,8 +239,8 @@ input[type=text].big{font-family:var(--display);font-size:24px;text-align:center
   <main id="screen"></main>
   <footer id="actions"></footer>
 </div>
-<script src="words.js?v=2026-10-26-4"></script>
-<script src="grammar.js?v=2026-10-26-4"></script>
+<script src="words.js?v=2026-10-26-5"></script>
+<script src="grammar.js?v=2026-10-26-5"></script>
 <script>
 (function(){
 'use strict';
@@ -468,6 +468,7 @@ function topicRowHtml(target,tp,pool){
   var counts={};
   pool.forEach(function(w){var k=topicOf(w);counts[k]=(counts[k]||0)+1;});
   var list=TOPIC_LIST.filter(function(q){return counts[q[0]];});if(counts.other)list=list.concat([['other','Без темы']]);
+  list.sort(function(a,b){return counts[b[0]]-counts[a[0]];}); /* по убыванию числа слов */
   if(list.length<2)return '';
   var on=list.filter(function(q){return topicOn(tp,q[0]);}).length;
   var summary=on===list.length?'все ('+list.length+')':on+' из '+list.length;
