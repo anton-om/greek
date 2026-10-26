@@ -12,7 +12,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Греческий">
-<meta name="build" content="2026-10-26-2">
+<meta name="build" content="2026-10-26-3">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap">
@@ -96,7 +96,8 @@ input[type=text].big{font-family:var(--display);font-size:24px;text-align:center
 .seg label.on{background:var(--accent);color:var(--accent-fg)}
 .seg label.off-dis{opacity:.45}
 
-.hero{display:flex;flex-direction:column;gap:6px;margin-block:8px 6px}
+.hero{display:flex;flex-direction:column;gap:6px;margin-block:10px 6px}
+.hero-h{display:flex;align-items:center;justify-content:space-between;gap:8px}
 .hero h2{font-size:30px}
 .setbox{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:14px;display:flex;flex-direction:column;gap:12px}
 .mixcfg{display:flex;flex-direction:column}
@@ -232,13 +233,12 @@ input[type=text].big{font-family:var(--display);font-size:24px;text-align:center
   <header class="top">
     <button class="icon-btn" id="backBtn" data-action="back" aria-label="Назад" hidden>←</button>
     <div class="top-title" id="topTitle">Греческие слова</div>
-    <button class="icon-btn" id="settingsBtn" data-action="settings" aria-label="Настройки">⚙</button>
   </header>
   <main id="screen"></main>
   <footer id="actions"></footer>
 </div>
-<script src="words.js?v=2026-10-26-2"></script>
-<script src="grammar.js?v=2026-10-26-2"></script>
+<script src="words.js?v=2026-10-26-3"></script>
+<script src="grammar.js?v=2026-10-26-3"></script>
 <script>
 (function(){
 'use strict';
@@ -425,12 +425,12 @@ if(ANALYTICS_CODE){var gcs=document.createElement('script');gcs.async=true;gcs.s
 var actions=document.getElementById('actions');
 var topTitle=document.getElementById('topTitle');
 var backBtn=document.getElementById('backBtn');
-var settingsBtn=document.getElementById('settingsBtn');
+var topBar=document.querySelector('header.top');
 
 function render(){
   var html='',foot='',title='Греческие слова';
-  backBtn.hidden=(view.name==='home');
-  settingsBtn.hidden=(view.name!=='home');
+  /* На главном экране верхней строки нет: заголовок и настройки в шапке страницы. */
+  topBar.hidden=(view.name==='home');backBtn.hidden=(view.name==='home');
   if(view.name==='home'){html=renderHome();}
   else if(view.name==='session'){title=sessionTitle();var r=renderSession();html='<div class="swipe-wrap">'+r.html+'</div>';foot=r.foot;}
   else if(view.name==='end'){title=sessionTitle();var e=renderEnd();html=e.html;foot=e.foot;}
@@ -469,7 +469,7 @@ function renderHome(){
   var set=currentSet();var pool=poolWords(set);var n=pool.length;
   var lg=learnedCount(set,null,pool);
   var sets=allSets();
-  var h=installHtml()+'<div class="hero"><h2>Греческие слова</h2><p class="muted small">Карточки, письмо и тесты по наборам слов.</p></div>';
+  var h=installHtml()+'<div class="hero"><div class="hero-h"><h2>Греческие слова</h2><button class="icon-btn" data-action="settings" aria-label="Настройки">⚙</button></div><p class="muted small">Карточки, письмо и тесты по наборам слов.</p></div>';
   h+='<h3>Справка</h3><button class="mode" data-action="cheat"><span class="num">Αα</span><span class="txt"><div class="t">Шпаргалка</div><div class="d">Алфавит, артикли, окончания, спряжение глаголов, ударение</div></span><span class="arr">›</span></button>';
   h+='<h3>Набор слов</h3>'+'<div class="setbox">';
   h+='<div class="row"><select id="setSelect" aria-label="Набор слов">'+sets.map(function(s){return '<option value="'+esc(s.id)+'"'+(s.id===set.id?' selected':'')+'>'+esc(s.title)+' ('+s.words.length+')</option>';}).join('')
