@@ -2,7 +2,19 @@
 <html lang="ru">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta id="vp" name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<script>
+/* Планшет в портретной ориентации: та же раскладка, что на телефоне, увеличенная на всю ширину.
+   Страница рисуется в ширину колонки (520px) и масштабируется под экран; в ландшафте и на телефоне — обычный масштаб. */
+(function(){var COL=520,meta=document.getElementById('vp'),cur=1;
+  function portrait(){var o=screen.orientation&&screen.orientation.type;if(o)return o.indexOf('portrait')===0;
+    if(typeof window.orientation==='number')return Math.abs(window.orientation)!==90;return window.innerHeight>window.innerWidth;}
+  function fit(){var w=Math.round(window.innerWidth*cur),k=(w>=600&&portrait())?Math.round(w/COL*1000)/1000:1;
+    if(k===cur)return;cur=k;
+    meta.setAttribute('content',k===1?'width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover':
+      'width='+COL+', initial-scale='+k+', minimum-scale='+k+', maximum-scale='+k+', user-scalable=no, viewport-fit=cover');}
+  fit();window.addEventListener('resize',fit);window.addEventListener('orientationchange',function(){setTimeout(fit,300);});})();
+</script>
 <title>Греческие слова</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <meta name="theme-color" content="#1f5fa8">
@@ -12,7 +24,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Греческий">
-<meta name="build" content="2026-10-29-1">
+<meta name="build" content="2026-10-29-2">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap">
@@ -244,8 +256,8 @@ input[type=text].big{font-family:var(--display);font-size:24px;text-align:center
   <main id="screen"></main>
   <footer id="actions"></footer>
 </div>
-<script src="words.js?v=2026-10-29-1"></script>
-<script src="grammar.js?v=2026-10-29-1"></script>
+<script src="words.js?v=2026-10-29-2"></script>
+<script src="grammar.js?v=2026-10-29-2"></script>
 <script>
 (function(){
 'use strict';
