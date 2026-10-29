@@ -24,7 +24,7 @@ var appZoom=1;
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Греческий">
-<meta name="build" content="2026-10-29-3">
+<meta name="build" content="2026-10-29-4">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap">
@@ -256,8 +256,8 @@ input[type=text].big{font-family:var(--display);font-size:24px;text-align:center
   <main id="screen"></main>
   <footer id="actions"></footer>
 </div>
-<script src="words.js?v=2026-10-29-3"></script>
-<script src="grammar.js?v=2026-10-29-3"></script>
+<script src="words.js?v=2026-10-29-4"></script>
+<script src="grammar.js?v=2026-10-29-4"></script>
 <script>
 (function(){
 'use strict';
@@ -497,7 +497,7 @@ function renderHome(){
   var lg=learnedCount(set,null,pool);
   var sets=allSets();
   var h=installHtml()+'<div class="hero"><div class="hero-h"><h2>Греческие слова</h2><button class="icon-btn" data-action="settings" aria-label="Настройки">⚙</button></div><p class="muted small">Карточки, письмо и тесты по наборам слов.</p></div>';
-  h+='<h3>Справка</h3><button class="mode" data-action="cheat"><span class="num">Αα</span><span class="txt"><div class="t">Шпаргалка</div><div class="d">Алфавит, артикли, окончания, спряжение глаголов, ударение</div></span><span class="arr">›</span></button>';
+  h+='<h3>Справка</h3><button class="mode" data-action="cheat"><span class="num">Αα</span><span class="txt"><div class="t">Шпаргалка</div><div class="d">Алфавит, артикли, окончания, местоимения, спряжение глаголов, ударение</div></span><span class="arr">›</span></button>';
   h+='<h3>Набор слов</h3>'+'<div class="setbox">';
   h+='<div class="row"><select id="setSelect" aria-label="Набор слов">'+sets.map(function(s){return '<option value="'+esc(s.id)+'"'+(s.id===set.id?' selected':'')+'>'+esc(s.title)+' ('+s.words.length+')</option>';}).join('')
     +'<option value="'+MIX_ID+'"'+(set.mix?' selected':'')+'>Custom: свой выбор уроков'+(set.mix?' ('+n+')':'')+'</option></select></div>';
@@ -898,10 +898,26 @@ function conjHtml(){
   h+='<p class="note"><span class="muted">'+grHtml('Εγώ αγαπώ τη μουσική','Я люблю музыку')+'. '+grHtml('Εμείς μπορούμε να πάμε','Мы можем пойти')+'.</span></p>';
   return h;
 }
+/* Личные местоимения с глаголом είμαι и притяжательные местоимения */
+var PRON_PERS=[['εγώ','я','εγώ είμαι','я есть'],['εσύ','ты','εσύ είσαι','ты есть'],['αυτός','он','αυτός είναι','он есть'],['αυτή','она','αυτή είναι','она есть'],
+  ['αυτό','оно','αυτό είναι','оно есть'],['εμείς','мы','εμείς είμαστε','мы есть'],['εσείς','вы, Вы','εσείς είστε','вы есть'],
+  ['αυτοί','они (м. р.)','αυτοί είναι','они есть'],['αυτές','они (ж. р.)','αυτές είναι','они есть'],['αυτά','они (ср. р.)','αυτά είναι','они есть']];
+var PRON_POSS=[['μου','мой, моя, моё','ο φίλος μου','мой друг'],['σου','твой','το σπίτι σου','твой дом'],['του','его','η μητέρα του','его мать'],
+  ['της','её','τα χείλη της','её губы'],['μας','наш','ο κήπος μας','наш сад'],['σας','ваш, Ваш','το όνομά σας','ваше имя'],['τους','их','οι φίλοι τους','их друзья']];
+function pronHtml(){
+  var h='<p class="note">Личное местоимение обычно опускается: глагол и так показывает лицо (είμαι — я есть). Его ставят для выделения: <b>Εγώ</b> είμαι από τη Ρωσία.</p>';
+  h+='<p class="sub">Личные местоимения и είμαι</p><div class="art conj"><span class="h">Местоимение</span><span class="h">Перевод</span><span class="h">С глаголом είμαι</span>';
+  h+=PRON_PERS.map(function(r){return '<span class="A E">'+esc(r[0])+'</span><span class="small muted">'+esc(r[1])+'</span><span><span class="ex" data-action="speak" data-text="'+esc(r[2])+'">'+esc(r[2])+'</span></span>';}).join('')+'</div>';
+  h+='<p class="note">Εσείς — и «вы» для нескольких людей, и вежливое «Вы» одному человеку: Από πού είστε; — Откуда Вы?</p>';
+  h+='<p class="sub">Притяжательные местоимения</p><p class="note">Ставятся после существительного, а у существительного остаётся артикль: ο φίλος μου — мой друг.</p>';
+  h+='<div class="art conj"><span class="h">Местоимение</span><span class="h">Перевод</span><span class="h">Пример</span>';
+  h+=PRON_POSS.map(function(r){return '<span class="A E">'+esc(r[0])+'</span><span class="small muted">'+esc(r[1])+'</span><span>'+grHtml(r[2],r[3])+'</span>';}).join('')+'</div>';
+  return h;
+}
 function rulesHtml(rows){return rows.map(function(r){return '<div class="rule"><span class="k">'+esc(r[0])+'</span><span class="v">'+esc(r[1])+'</span><span class="e">'+exHtml(r[2],r[3],r[4])+'</span></div>';}).join('');}
 function renderCheat(){
   var h='<div class="cheat">';
-  h+='<details class="sec" open><summary>Алфавит</summary><div class="body"><div class="abc"><span>Буква</span><span>Название</span><span>Звук</span><span>Как в слове</span>';
+  h+='<details class="sec"><summary>Алфавит</summary><div class="body"><div class="abc"><span>Буква</span><span>Название</span><span>Звук</span><span>Как в слове</span>';
   h+=ALPHABET.map(function(a){return '<span class="L">'+esc(a[0])+' '+esc(a[1])+'</span><span>'+esc(a[2])+'</span><span class="S">['+esc(a[3])+']</span><span class="E">'+esc(a[4])+'</span>';}).join('');
   h+='</div><p class="small muted" style="margin:10px 0 0">Нажми на греческое слово в примерах ниже, чтобы услышать его.</p></div></details>';
   h+='<details class="sec"><summary>Сочетания гласных</summary><div class="body">'+rulesHtml(CHEAT_VOWELS)+'</div></details>';
@@ -909,6 +925,7 @@ function renderCheat(){
   h+='<details class="sec"><summary>Дифтонги αυ, ευ</summary><div class="body">'+rulesHtml(CHEAT_DIPH)+'</div></details>';
   h+='<details class="sec"><summary>Артикли</summary><div class="body">'+articlesHtml()+'</div></details>';
   h+='<details class="sec"><summary>Окончания существительных</summary><div class="body">'+endingsHtml()+'</div></details>';
+  h+='<details class="sec"><summary>Местоимения</summary><div class="body">'+pronHtml()+'</div></details>';
   h+='<details class="sec"><summary>Спряжение глаголов</summary><div class="body">'+conjHtml()+'</div></details>';
   h+='<details class="sec"><summary>Чтение и ударение</summary><div class="body">'+CHEAT_NOTES.map(function(n){
     var ex=exHtml(n[1],n[2],n[3]);if(n[4])ex+=', но '+exHtml(n[4],n[5],n[6]);
