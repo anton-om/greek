@@ -12,7 +12,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Греческий">
-<meta name="build" content="2026-10-26-6">
+<meta name="build" content="2026-10-29-1">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap">
@@ -219,7 +219,9 @@ input[type=text].big{font-family:var(--display);font-size:24px;text-align:center
 .cheat p.note:first-child{border-top:0}
 .cheat .sub{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin:14px 0 2px}
 .art{display:grid;gap:0 14px;align-items:baseline;font-size:14px}
-.art.c3{grid-template-columns:1fr auto auto}.art.c2{grid-template-columns:1fr auto}.art.conj{grid-template-columns:auto 1fr 1fr;gap:0 10px}.art.conj .A.E{font-size:15px}
+.art.c3{grid-template-columns:1fr auto auto}.art.c2{grid-template-columns:1fr auto}.art.conj{grid-template-columns:auto auto 1fr;gap:0 12px}.art.conj .A.E{font-size:15px}
+.art.conj4{grid-template-columns:auto 1fr 1fr 1fr;gap:0 8px}.art.conj4 .A.E{font-size:15px}.art.conj4>span.h{text-transform:none;letter-spacing:0;font-size:12px}
+.art.conj4 .A.E small{display:block;font-size:11.5px;font-weight:400;color:var(--muted);margin-top:1px}
 .art>span{padding:6px 0;border-top:1px solid var(--line);min-width:0}
 .art>span.h{border-top:0;font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);padding-bottom:2px}
 .art .A{font-size:21px;font-weight:600;color:var(--accent);text-align:center;min-width:2.2em}
@@ -242,8 +244,8 @@ input[type=text].big{font-family:var(--display);font-size:24px;text-align:center
   <main id="screen"></main>
   <footer id="actions"></footer>
 </div>
-<script src="words.js?v=2026-10-26-6"></script>
-<script src="grammar.js?v=2026-10-26-6"></script>
+<script src="words.js?v=2026-10-29-1"></script>
+<script src="grammar.js?v=2026-10-29-1"></script>
 <script>
 (function(){
 'use strict';
@@ -671,7 +673,7 @@ function renderPlural(w){
   h+='<form id="gramForm" class="gram">';
   h+='<div class="grow"><span class="lbl">Ед. ч.</span>'+gramInput('a1','art',P.a1,'артикль')+'<span class="stem">'+esc(sp.stem1)+'</span>'+gramInput('e1','end',P.e1,'окончание')+'</div>';
   h+='<div class="grow"><span class="lbl">Мн. ч.</span>'+gramInput('a2','art',P.a2,'артикль')+'<span class="stem">'+esc(sp.stem2)+'</span>'+gramInput('e2','end',P.e2,'окончание')+'</div>';
-  if(session.state==='ask')h+='<p class="hint">Впиши артикль и окончание для единственного и множественного числа. Ударения учитываются.</p><button type="submit" class="btn primary" style="width:100%">Проверить</button>';
+  if(session.state==='ask')h+='<p class="hint">Впиши артикль и окончание для единственного и множественного числа. Ударения можно не ставить.</p><button type="submit" class="btn primary" style="width:100%">Проверить</button>';
   h+='</form>';
   h+=gramResultHtml(w,sp.art1+' '+sp.stem1+sp.end1+' → '+sp.art2+' '+sp.stem2+sp.end2);
   return{html:h,foot:session.state==='ask'?'':doneFoot()};
@@ -698,10 +700,10 @@ function checkPlural(){
   var w=cur(),sp=stemSplit(w.gr,pluralOf(w)),P=session.parts||{};
   if(!(P.a1||P.e1||P.a2||P.e2)){var f=document.querySelector('.gi');if(f)f.focus();return;}
   var pairs=[[P.a1,sp.art1],[P.e1,sp.end1],[P.a2,sp.art2],[P.e2,sp.end2]];
-  var exact=pairs.every(function(q){return norm(q[0]||'',true)===norm(q[1],true);});
-  var loose=pairs.every(function(q){return norm(q[0]||'',false)===norm(q[1],false);});
+  // Ударения в этом режиме не проверяются: тренируются артикль и окончание.
+  var ok=pairs.every(function(q){return norm(q[0]||'',false)===norm(q[1],false);});
   var given=(P.a1||'')+' '+sp.stem1+(P.e1||'')+' / '+(P.a2||'')+' '+sp.stem2+(P.e2||'');
-  finishItem(exact?'exact':loose?'accent':'wrong',given);render();
+  finishItem(ok?'exact':'wrong',given);render();
 }
 function renderQuiz(w){
   var qGr=session.dir==='gr';
@@ -859,20 +861,27 @@ function endingsHtml(){
 }
 /* Спряжение глаголов в настоящем времени: по презентации к четвёртому уроку */
 var CONJ_PERSONS=['εγώ','εσύ','αυτός, -ή, -ό','εμείς','εσείς','αυτοί, -ές, -ά'];
-var CONJ_TABLES=[
-  ['είμαι','γράφω (I)',['είμαι','είσαι','είναι','είμαστε','είστε','είναι'],['γράφω','γράφεις','γράφει','γράφουμε','γράφετε','γράφουν(ε)']],
-  ['αγαπώ (II)','μπορώ (II)',['αγαπώ / αγαπάω','αγαπάς','αγαπά(ει)','αγαπάμε / αγαπούμε','αγαπάτε','αγαπάνε / αγαπούν(ε)'],['μπορώ','μπορείς','μπορεί','μπορούμε','μπορείτε','μπορούν(ε)']]
+var CONJ_EIMAI=[['είμαι','я есть'],['είσαι','ты есть'],['είναι','он, она, оно есть'],['είμαστε','мы есть'],['είστε','вы есть'],['είναι','они есть']];
+/* Окончания групп: заголовок, пример глагола, шесть окончаний и шесть форм примера. */
+var CONJ_GROUPS=[
+  ['I: -ω','γράφω',['-ω','-εις','-ει','-ουμε','-ετε','-ουν(ε)'],['γράφω','γράφεις','γράφει','γράφουμε','γράφετε','γράφουν(ε)']],
+  ['II: -ώ/-άω','αγαπώ',['-ώ / -άω','-άς','-ά(ει)','-άμε / -ούμε','-άτε','-άνε / -ούν(ε)'],['αγαπώ / αγαπάω','αγαπάς','αγαπά(ει)','αγαπάμε / αγαπούμε','αγαπάτε','αγαπάνε / αγαπούν(ε)']],
+  ['II: -ώ/-είς','μπορώ',['-ώ','-είς','-εί','-ούμε','-είτε','-ούν(ε)'],['μπορώ','μπορείς','μπορεί','μπορούμε','μπορείτε','μπορούν(ε)']]
 ];
 function conjHtml(){
   var h='<p class="note">Инфинитива нет: начальная форма глагола — 1-е лицо единственного числа (γράφω — я пишу). Местоимение обычно опускается, лицо и число видны по окончанию.</p>';
-  h+='<p class="note">I группа — глаголы на -ω (γράφω, παίζω). II группа — на -ώ/-άω (αγαπώ, μιλάω) и на -ώ/-είς (μπορώ).</p>';
-  CONJ_TABLES.forEach(function(t){
-    h+='<div class="art conj" style="margin-top:10px"><span class="h">Лицо</span><span class="h">'+esc(t[0])+'</span><span class="h">'+esc(t[1])+'</span>';
-    for(var i=0;i<6;i++)h+='<span class="small">'+esc(CONJ_PERSONS[i])+'</span><span class="A E">'+esc(t[2][i])+'</span><span class="A E">'+esc(t[3][i])+'</span>';
-    h+='</div>';
-  });
+  h+='<p class="sub">Глагол είμαι — быть</p><div class="art conj"><span class="h">Лицо</span><span class="h">Форма</span><span class="h">Перевод</span>';
+  for(var i=0;i<6;i++)h+='<span class="small">'+esc(CONJ_PERSONS[i])+'</span><span class="A E">'+esc(CONJ_EIMAI[i][0])+'</span><span class="small muted">'+esc(CONJ_EIMAI[i][1])+'</span>';
+  h+='</div><p class="note"><span class="muted">'+grHtml('Εγώ είμαι καλά','Я в порядке')+'. '+grHtml('Εσύ είσαι φίλος μου','Ты мой друг')+'.</span></p>';
+  h+='<p class="sub">Окончания I и II группы</p>';
+  h+='<p class="note">I группа — глаголы на -ω (γράφω, παίζω). II группа — на -ώ/-άω (αγαπώ, μιλάω) и на -ώ/-είς (μπορώ). Окончание добавляется к основе: γράφ-ω, αγαπ-άς.</p>';
+  h+='<div class="art conj4"><span class="h">Лицо</span>'+CONJ_GROUPS.map(function(g){return '<span class="h">'+esc(g[0])+'</span>';}).join('');
+  for(var j=0;j<6;j++){
+    h+='<span class="small">'+esc(CONJ_PERSONS[j].split(',')[0])+'</span>';
+    h+=CONJ_GROUPS.map(function(g){return '<span class="A E">'+esc(g[2][j])+'<small>'+esc(g[3][j])+'</small></span>';}).join('');
+  }
+  h+='</div>';
   h+='<p class="sub">Примеры</p>';
-  h+='<p class="note"><span class="muted">'+grHtml('Εγώ είμαι καλά','Я в порядке')+'. '+grHtml('Εσύ είσαι φίλος μου','Ты мой друг')+'.</span></p>';
   h+='<p class="note"><span class="muted">'+grHtml('Εγώ γράφω ένα γράμμα','Я пишу письмо')+'. '+grHtml('Αυτή παίζει ποδόσφαιρο','Она играет в футбол')+'.</span></p>';
   h+='<p class="note"><span class="muted">'+grHtml('Εγώ αγαπώ τη μουσική','Я люблю музыку')+'. '+grHtml('Εμείς μπορούμε να πάμε','Мы можем пойти')+'.</span></p>';
   return h;
