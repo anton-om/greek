@@ -24,7 +24,7 @@ var appZoom=1;
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Греческий">
-<meta name="build" content="2026-10-29-4">
+<meta name="build" content="2026-10-29-5">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap">
@@ -256,8 +256,8 @@ input[type=text].big{font-family:var(--display);font-size:24px;text-align:center
   <main id="screen"></main>
   <footer id="actions"></footer>
 </div>
-<script src="words.js?v=2026-10-29-4"></script>
-<script src="grammar.js?v=2026-10-29-4"></script>
+<script src="words.js?v=2026-10-29-5"></script>
+<script src="grammar.js?v=2026-10-29-5"></script>
 <script>
 (function(){
 'use strict';
@@ -923,13 +923,13 @@ function renderCheat(){
   h+='<details class="sec"><summary>Сочетания гласных</summary><div class="body">'+rulesHtml(CHEAT_VOWELS)+'</div></details>';
   h+='<details class="sec"><summary>Сочетания согласных</summary><div class="body">'+rulesHtml(CHEAT_CONS)+'</div></details>';
   h+='<details class="sec"><summary>Дифтонги αυ, ευ</summary><div class="body">'+rulesHtml(CHEAT_DIPH)+'</div></details>';
+  h+='<details class="sec"><summary>Чтение и ударение</summary><div class="body">'+CHEAT_NOTES.map(function(n){
+    var ex=exHtml(n[1],n[2],n[3]);if(n[4])ex+=', но '+exHtml(n[4],n[5],n[6]);
+    return '<p class="note">'+esc(n[0])+'<br><span class="muted">'+ex+'</span></p>';}).join('')+'</div></details>';
   h+='<details class="sec"><summary>Артикли</summary><div class="body">'+articlesHtml()+'</div></details>';
   h+='<details class="sec"><summary>Окончания существительных</summary><div class="body">'+endingsHtml()+'</div></details>';
   h+='<details class="sec"><summary>Местоимения</summary><div class="body">'+pronHtml()+'</div></details>';
   h+='<details class="sec"><summary>Спряжение глаголов</summary><div class="body">'+conjHtml()+'</div></details>';
-  h+='<details class="sec"><summary>Чтение и ударение</summary><div class="body">'+CHEAT_NOTES.map(function(n){
-    var ex=exHtml(n[1],n[2],n[3]);if(n[4])ex+=', но '+exHtml(n[4],n[5],n[6]);
-    return '<p class="note">'+esc(n[0])+'<br><span class="muted">'+ex+'</span></p>';}).join('')+'</div></details>';
   h+='</div>';
   return h;
 }
