@@ -2,17 +2,17 @@
 <html lang="ru">
 <head>
 <meta charset="utf-8">
-<meta id="vp" name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <script>
 /* Планшет в портретной ориентации: та же раскладка, что на телефоне, увеличенная на всю ширину.
-   Страница рисуется в ширину колонки (520px) и масштабируется под экран; в ландшафте и на телефоне — обычный масштаб. */
-(function(){var COL=520,meta=document.getElementById('vp'),cur=1;
+   Колонка #app (520px) получает CSS zoom = ширина экрана / 520; viewport остаётся device-width,
+   иначе Android считает страницу немобильной и сам раздувает шрифты. В ландшафте и на телефоне zoom 1. */
+var appZoom=1;
+(function(){var COL=520;
   function portrait(){var o=screen.orientation&&screen.orientation.type;if(o)return o.indexOf('portrait')===0;
     if(typeof window.orientation==='number')return Math.abs(window.orientation)!==90;return window.innerHeight>window.innerWidth;}
-  function fit(){var w=Math.round(window.innerWidth*cur),k=(w>=600&&portrait())?Math.round(w/COL*1000)/1000:1;
-    if(k===cur)return;cur=k;
-    meta.setAttribute('content',k===1?'width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover':
-      'width='+COL+', initial-scale='+k+', minimum-scale='+k+', maximum-scale='+k+', user-scalable=no, viewport-fit=cover');}
+  function fit(){var w=document.documentElement.clientWidth||window.innerWidth,k=(w>=600&&portrait())?Math.floor(w/COL*1000)/1000:1;
+    if(k===appZoom)return;appZoom=k;document.documentElement.style.setProperty('--k',String(k));}
   fit();window.addEventListener('resize',fit);window.addEventListener('orientationchange',function(){setTimeout(fit,300);});})();
 </script>
 <title>Греческие слова</title>
@@ -24,7 +24,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Греческий">
-<meta name="build" content="2026-10-29-2">
+<meta name="build" content="2026-10-29-3">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap">
@@ -61,8 +61,8 @@
 html,body{height:100%}
 body{margin:0;background:var(--bg);color:var(--fg);font-family:var(--ui);font-size:16px;line-height:1.4;-webkit-text-size-adjust:100%;-webkit-tap-highlight-color:transparent}
 [hidden]{display:none!important}
-#app{height:100%;display:flex;flex-direction:column;max-width:520px;margin:0 auto}
-#app.vv{height:var(--vvh)}
+#app{height:100%;display:flex;flex-direction:column;max-width:520px;margin:0 auto;zoom:var(--k,1)}
+#app.vv{height:calc(var(--vvh) / var(--k,1))}
 .top{display:flex;align-items:center;gap:8px;flex:0 0 auto;padding-block:10px;
   padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));
   position:sticky;top:env(safe-area-inset-top,0px);background:var(--bg);z-index:2}
@@ -256,8 +256,8 @@ input[type=text].big{font-family:var(--display);font-size:24px;text-align:center
   <main id="screen"></main>
   <footer id="actions"></footer>
 </div>
-<script src="words.js?v=2026-10-29-2"></script>
-<script src="grammar.js?v=2026-10-29-2"></script>
+<script src="words.js?v=2026-10-29-3"></script>
+<script src="grammar.js?v=2026-10-29-3"></script>
 <script>
 (function(){
 'use strict';
@@ -1151,7 +1151,7 @@ screen.addEventListener('pointerdown',function(ev){
 });
 screen.addEventListener('pointermove',function(ev){
   if(!drag||ev.pointerId!==drag.id)return;
-  drag.dx=ev.clientX-drag.x;var dy=ev.clientY-drag.y;
+  drag.dx=(ev.clientX-drag.x)/appZoom;var dy=(ev.clientY-drag.y)/appZoom;
   if(!drag.moved&&Math.abs(drag.dx)>8&&Math.abs(drag.dx)>Math.abs(dy))drag.moved=true;
   if(!drag.moved||!drag.el)return;
   var dx=drag.dx;
