@@ -24,7 +24,7 @@ var appZoom=1;
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Греческий">
-<meta name="build" content="2026-10-29-5">
+<meta name="build" content="2026-10-31-1">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap">
@@ -256,8 +256,8 @@ input[type=text].big{font-family:var(--display);font-size:24px;text-align:center
   <main id="screen"></main>
   <footer id="actions"></footer>
 </div>
-<script src="words.js?v=2026-10-29-5"></script>
-<script src="grammar.js?v=2026-10-29-5"></script>
+<script src="words.js?v=2026-10-31-1"></script>
+<script src="grammar.js?v=2026-10-31-1"></script>
 <script>
 (function(){
 'use strict';
@@ -349,6 +349,10 @@ function norm(s,keepAccents){
 var GRAMMAR=window.GRAMMAR||{plural:{},verbs:{}};
 var SG_ENDINGS=['ούς','μα','ος','ας','ης','ής','άς','ές','α','ά','η','ή','ο','ό','ι','ί','υ','ύ','ω','ώ','ς'];
 var PERSONS_RU=['я','ты','он / она / оно','мы','вы','они'],PERSONS_GR=['εγώ','εσύ','αυτός','εμείς','εσείς','αυτοί'];
+/* Местоимения, которые можно вписать перед формой глагола: «αυτός μπορεί» засчитывается как «μπορεί». */
+var PERSONS_ALL=[['εγώ'],['εσύ'],['αυτός','αυτή','αυτό'],['εμείς'],['εσείς'],['αυτοί','αυτές','αυτά']];
+function dropPronoun(val,p){var t=norm(val,true),sp=t.indexOf(' ');if(sp<0)return val;var first=norm(t.slice(0,sp),false);
+  return PERSONS_ALL[p].some(function(x){return norm(x,false)===first;})?t.slice(sp+1):val;}
 function pluralOf(w){return GRAMMAR.plural[w.gr]||null;}
 function splitArt(s){var m=String(s).normalize('NFC').trim().match(/^(ο|η|το|οι|τα)\s+(.+)$/i);return m?{art:m[1].toLowerCase(),word:m[2]}:{art:'',word:String(s).trim()};}
 /* Разбиение «основа + окончание»: окончание ед. ч. берётся из списка известных, основа мн. ч. —
@@ -695,7 +699,7 @@ function renderConj(w){
   var h=progressHtml();
   h+='<div class="prompt"><div class="lang">Русский</div><div class="word ru">'+esc(ru[p])+'</div>'+hintBtnHtml(forms[p].split('/')[0].trim())+'</div>';
   h+='<form id="typeForm" style="margin-top:16px"><input type="text" id="typeInput" class="big" lang="el" inputmode="text" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" placeholder="форма глагола" value="'+esc(session.typed||'')+'"'+(session.state==='ask'?'':' disabled')+'>';
-  if(session.state==='ask')h+='<p class="hint">Напиши глагол в нужном лице. Ударения учитываются.</p><button type="submit" class="btn primary" style="width:100%;margin-top:10px">Проверить</button>';
+  if(session.state==='ask')h+='<p class="hint">Напиши глагол в нужном лице, местоимение можно не писать. Ударения учитываются.</p><button type="submit" class="btn primary" style="width:100%;margin-top:10px">Проверить</button>';
   h+='</form>';
   h+=gramResultHtml(w,PERSONS_GR[p]+' '+forms[p]);
   return{html:h,foot:session.state==='ask'?'':doneFoot()};
@@ -1128,7 +1132,7 @@ document.addEventListener('keydown',function(ev){
 function checkTyped(){
   var inp=document.getElementById('typeInput');var val=inp?inp.value:session.typed;
   if(!val.trim()){if(inp)inp.focus();return;}
-  session.typed=val;finishItem(grade(val,session.mode==='conj'?verbForms(cur())[session.person]:cur().gr),val);render();
+  session.typed=val;finishItem(session.mode==='conj'?grade(dropPronoun(val,session.person),verbForms(cur())[session.person]):grade(val,cur().gr),val);render();
 }
 function flashAnswer(known){
   var w=cur();setLearned(session.set,session.dir,w,known);
