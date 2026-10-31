@@ -24,7 +24,7 @@ var appZoom=1;
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Греческий">
-<meta name="build" content="2026-10-31-3">
+<meta name="build" content="2026-10-31-4">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap">
@@ -203,7 +203,7 @@ input[type=text].big{font-family:var(--display);font-size:24px;text-align:center
 .gi{font:inherit;font-size:22px;border:1px solid var(--line);border-radius:8px;padding:6px 8px;background:var(--bg);color:var(--fg);min-width:0;width:100%}
 .grow .cell{display:flex;flex-direction:column;align-items:center;gap:2px;min-width:0}
 .grow .cell small{font-size:11px;color:var(--muted);line-height:1}
-.grow .cell.art{flex:0 0 3.4em}.grow .cell.end{flex:1}
+.grow .cell.art{flex:0 0 3.4em}.grow .cell.pron{flex:0 0 5.2em}.grow .cell.pron .gi{text-align:center}.grow .cell.end{flex:1}
 .grow .cell.art .gi{text-align:center}
 .gi:disabled{opacity:.7}
 .notice.install{font-size:15px}.notice.install .row{display:flex;gap:8px}.notice.install .btn{flex:1}.notice.install .btn.ghost{flex:0 0 auto}
@@ -256,8 +256,8 @@ input[type=text].big{font-family:var(--display);font-size:24px;text-align:center
   <main id="screen"></main>
   <footer id="actions"></footer>
 </div>
-<script src="words.js?v=2026-10-31-3"></script>
-<script src="grammar.js?v=2026-10-31-3"></script>
+<script src="words.js?v=2026-10-31-4"></script>
+<script src="grammar.js?v=2026-10-31-4"></script>
 <script>
 (function(){
 'use strict';
@@ -349,10 +349,17 @@ function norm(s,keepAccents){
 var GRAMMAR=window.GRAMMAR||{plural:{},verbs:{}};
 var SG_ENDINGS=['ούς','μα','ος','ας','ης','ής','άς','ές','α','ά','η','ή','ο','ό','ι','ί','υ','ύ','ω','ώ','ς'];
 var PERSONS_RU=['я','ты','он / она / оно','мы','вы','они'],PERSONS_GR=['εγώ','εσύ','αυτός','εμείς','εσείς','αυτοί'];
-/* Местоимения, которые можно вписать перед формой глагола: «αυτός μπορεί» засчитывается как «μπορεί». */
+/* Местоимения, засчитываемые в режиме спряжения для каждого лица. */
 var PERSONS_ALL=[['εγώ'],['εσύ'],['αυτός','αυτή','αυτό'],['εμείς'],['εσείς'],['αυτοί','αυτές','αυτά']];
-function dropPronoun(val,p){var t=norm(val,true),sp=t.indexOf(' ');if(sp<0)return val;var first=norm(t.slice(0,sp),false);
-  return PERSONS_ALL[p].some(function(x){return norm(x,false)===first;})?t.slice(sp+1):val;}
+/* Основа глагола — общее начало всех шести форм (без учёта ударений); окончания — остаток каждой формы и её вариантов. */
+function conjSplit(w,p){
+  var forms=verbForms(w).map(function(f){return f.split('/').map(function(v){return v.trim().normalize('NFC');});});
+  var first=forms.map(function(v){return v[0];}),k=0;
+  while(first.every(function(f){return k<f.length-1&&norm(f[k],false)===norm(first[0][k],false);}))k++;
+  var stem=first[p].slice(0,k);
+  var ends=forms[p].filter(function(v){return norm(v.slice(0,k),false)===norm(stem,false);}).map(function(v){return v.slice(k);});
+  return {stem:stem,ends:ends};
+}
 function pluralOf(w){return GRAMMAR.plural[w.gr]||null;}
 function splitArt(s){var m=String(s).normalize('NFC').trim().match(/^(ο|η|το|οι|τα)\s+(.+)$/i);return m?{art:m[1].toLowerCase(),word:m[2]}:{art:'',word:String(s).trim()};}
 /* Разбиение «основа + окончание»: окончание ед. ч. берётся из списка известных, основа мн. ч. —
@@ -428,7 +435,7 @@ var MODE_LIST=[
   {key:'tiles',mode:'tiles',dir:'ru',t:'Учимся писать',d:'Собери слово из букв вразброс'},
   {key:'type',mode:'type',dir:'ru',t:'Пишем сами',d:'Введи греческое слово с клавиатуры'},
   {key:'plural',mode:'plural',dir:'ru',t:'Множественное число',d:'Артикль и окончание в единственном и множественном числе'},
-  {key:'conj',mode:'conj',dir:'ru',t:'Спряжение глаголов',d:'Напиши форму глагола по русской подсказке'}
+  {key:'conj',mode:'conj',dir:'ru',t:'Спряжение глаголов',d:'Впиши местоимение и окончание по русской подсказке'}
 ];
 var MODE_TITLE={flash:'Карточки',tiles:'Учимся писать',type:'Пишем сами',quiz:'Варианты ответа',plural:'Множественное число',conj:'Спряжение глаголов'};
 
@@ -572,7 +579,7 @@ function prepareItem(){
   var w=cur();if(!w)return;
   if(session.mode==='flash'&&session.dir==='gr'&&store.settings.autoSpeak)speak(w.gr);
   if(session.mode==='plural'){session.parts={a1:'',e1:'',a2:'',e2:''};}
-  if(session.mode==='conj'){session.persons=session.persons||{};if(session.persons[w.gr]==null)session.persons[w.gr]=Math.floor(Math.random()*6);session.person=session.persons[w.gr];}
+  if(session.mode==='conj'){session.parts={pr:'',en:''};session.persons=session.persons||{};if(session.persons[w.gr]==null)session.persons[w.gr]=Math.floor(Math.random()*6);session.person=session.persons[w.gr];}
   if(session.mode==='tiles'){
     var target=lowerGr(primaryTarget(w.gr).replace(/[;?!.,·…:«»"]+$/,'').trim());
     session.target=target;
@@ -695,14 +702,23 @@ function renderPlural(w){
   return{html:h,foot:session.state==='ask'?'':doneFoot()};
 }
 function renderConj(w){
-  var forms=verbForms(w),p=session.person,ru=verbRu(w);
+  var forms=verbForms(w),p=session.person,ru=verbRu(w),sp=conjSplit(w,p),P=session.parts||{};
   var h=progressHtml();
   h+='<div class="prompt"><div class="lang">Русский</div><div class="word ru">'+esc(ru[p])+'</div>'+hintBtnHtml(forms[p].split('/')[0].trim())+'</div>';
-  h+='<form id="typeForm" style="margin-top:16px"><input type="text" id="typeInput" class="big" lang="el" inputmode="text" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" placeholder="форма глагола" value="'+esc(session.typed||'')+'"'+(session.state==='ask'?'':' disabled')+'>';
-  if(session.state==='ask')h+='<p class="hint">Напиши глагол в нужном лице, местоимение можно не писать. Ударения учитываются.</p><button type="submit" class="btn primary" style="width:100%;margin-top:10px">Проверить</button>';
+  h+='<form id="gramForm" class="gram">';
+  h+='<div class="grow">'+gramInput('pr','pron',P.pr,'местоимение')+'<span class="stem">'+esc(sp.stem)+'</span>'+gramInput('en','end',P.en,'окончание')+'</div>';
+  if(session.state==='ask')h+='<p class="hint">Впиши местоимение и окончание глагола. Ударения учитываются.</p><button type="submit" class="btn primary" style="width:100%">Проверить</button>';
   h+='</form>';
   h+=gramResultHtml(w,PERSONS_GR[p]+' '+forms[p]);
   return{html:h,foot:session.state==='ask'?'':doneFoot()};
+}
+function checkConj(){
+  var w=cur(),p=session.person,sp=conjSplit(w,p),P=session.parts||{};
+  if(!(P.pr||P.en)){var f=document.querySelector('.gi');if(f)f.focus();return;}
+  function match(val,list,acc){return list.some(function(x){return norm(val||'',acc)===norm(x,acc);});}
+  var exact=match(P.pr,PERSONS_ALL[p],true)&&match(P.en,sp.ends,true);
+  var loose=match(P.pr,PERSONS_ALL[p],false)&&match(P.en,sp.ends,false);
+  finishItem(exact?'exact':loose?'accent':'wrong',(P.pr||'')+' '+sp.stem+(P.en||''));render();
 }
 function gramResultHtml(w,full){
   if(session.state==='ask')return '';
@@ -1121,7 +1137,7 @@ document.addEventListener('input',function(ev){
 });
 document.addEventListener('submit',function(ev){
   if(ev.target.id==='typeForm'){ev.preventDefault();if(session.state==='ask')checkTyped();else next();}
-  if(ev.target.id==='gramForm'){ev.preventDefault();if(session.state==='ask')checkPlural();else next();}
+  if(ev.target.id==='gramForm'){ev.preventDefault();if(session.state==='ask'){if(session.mode==='conj')checkConj();else checkPlural();}else next();}
 });
 document.addEventListener('keydown',function(ev){
   if(view.name!=='session'||!session)return;
@@ -1135,7 +1151,7 @@ document.addEventListener('keydown',function(ev){
 function checkTyped(){
   var inp=document.getElementById('typeInput');var val=inp?inp.value:session.typed;
   if(!val.trim()){if(inp)inp.focus();return;}
-  session.typed=val;finishItem(session.mode==='conj'?grade(dropPronoun(val,session.person),verbForms(cur())[session.person]):grade(val,cur().gr),val);render();
+  session.typed=val;finishItem(grade(val,cur().gr),val);render();
 }
 function flashAnswer(known){
   var w=cur();setLearned(session.set,session.dir,w,known);
