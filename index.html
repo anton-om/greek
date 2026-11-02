@@ -24,7 +24,7 @@ var appZoom=1;
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Греческий">
-<meta name="build" content="2026-11-02-1">
+<meta name="build" content="2026-11-02-2">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap">
@@ -233,6 +233,7 @@ input[type=text].big{font-family:var(--display);font-size:24px;text-align:center
 .art{display:grid;gap:0 14px;align-items:baseline;font-size:14px}
 .art.c3{grid-template-columns:1fr auto auto}.art.c2{grid-template-columns:1fr auto}.art.conj{grid-template-columns:auto auto 1fr;gap:0 12px}.art.conj .A.E{font-size:15px}
 .art.conj4{grid-template-columns:auto 1fr 1fr 1fr;gap:0 8px}.art.conj4 .A.E{font-size:15px}.art.conj4>span.h{text-transform:none;letter-spacing:0;font-size:12px}
+.art.conj4.c2{grid-template-columns:auto 1fr 1fr}
 .art.conj4 .A.E small{display:block;font-size:11.5px;font-weight:400;color:var(--muted);margin-top:1px}
 .art>span{padding:6px 0;border-top:1px solid var(--line);min-width:0}
 .art>span.h{border-top:0;font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);padding-bottom:2px}
@@ -256,8 +257,8 @@ input[type=text].big{font-family:var(--display);font-size:24px;text-align:center
   <main id="screen"></main>
   <footer id="actions"></footer>
 </div>
-<script src="words.js?v=2026-11-02-1"></script>
-<script src="grammar.js?v=2026-11-02-1"></script>
+<script src="words.js?v=2026-11-02-2"></script>
+<script src="grammar.js?v=2026-11-02-2"></script>
 <script>
 (function(){
 'use strict';
@@ -900,6 +901,10 @@ var CONJ_GROUPS=[
   ['II: -ώ/-άω','αγαπώ',['-ώ / -άω','-άς','-ά(ει)','-άμε / -ούμε','-άτε','-άνε / -ούν(ε)'],['αγαπώ / αγαπάω','αγαπάς','αγαπά(ει)','αγαπάμε / αγαπούμε','αγαπάτε','αγαπάνε / αγαπούν(ε)']],
   ['II: -ώ/-είς','μπορώ',['-ώ','-είς','-εί','-ούμε','-είτε','-ούν(ε)'],['μπορώ','μπορείς','μπορεί','μπορούμε','μπορείτε','μπορούν(ε)']]
 ];
+var CONJ_MAI=[
+  ['-ομαι','στέκομαι',['-ομαι','-εσαι','-εται','-όμαστε','-εστε','-ονται'],['στέκομαι','στέκεσαι','στέκεται','στεκόμαστε','στέκεστε','στέκονται']],
+  ['-άμαι','κοιμάμαι',['-άμαι','-άσαι','-άται','-όμαστε','-άστε','-ούνται'],['κοιμάμαι','κοιμάσαι','κοιμάται','κοιμόμαστε','κοιμάστε','κοιμούνται']]
+];
 function conjHtml(){
   var h='<p class="note">Инфинитива нет: начальная форма глагола — 1-е лицо единственного числа (γράφω — я пишу). Местоимение обычно опускается, лицо и число видны по окончанию.</p>';
   h+='<p class="sub">Глагол είμαι — быть</p><div class="art conj"><span class="h">Лицо</span><span class="h">Форма</span><span class="h">Перевод</span>';
@@ -916,9 +921,20 @@ function conjHtml(){
   h+='<p class="sub">Как узнать тип II группы</p>';
   h+='<p class="note">По начальной форме αγαπώ и μπορώ не различить. Если у глагола есть форма на -άω (αγαπάω, μιλάω, γελάω), спрягаем как αγαπώ: -άς, -ά. Если такой формы нет, как μπορώ: -είς, -εί.</p>';
   h+='<p class="note">В словарях рядом пишут окончание 2-го лица: αγαπώ, -άς; μπορώ, -είς. Глаголов на -είς меньше, их проще запомнить: '+grHtml('μπορώ','могу')+', '+grHtml('χρησιμοποιώ','использую')+', '+grHtml('ευχαριστώ','благодарю')+', '+grHtml('τηλεφωνώ','звоню')+', '+grHtml('οδηγώ','веду машину')+'.</p>';
+  h+='<p class="sub">Глаголы на -μαι</p>';
+  h+='<p class="note">По форме возвратные, по смыслу обычные — как русские глаголы на «-ся» (находиться, садиться). Формы на -ω у них нет: «стоять» — только στέκομαι. В форме «мы» ударение переходит на окончание: στεκόμαστε, ερχόμαστε.</p>';
+  h+='<div class="art conj4 c2"><span class="h">Лицо</span>'+CONJ_MAI.map(function(g){return '<span class="h">'+esc(g[0])+'</span>';}).join('');
+  for(var k=0;k<6;k++){
+    h+='<span class="small">'+esc(CONJ_PERSONS[k].split(',')[0])+'</span>';
+    h+=CONJ_MAI.map(function(g){return '<span class="A E">'+esc(g[2][k])+'<small>'+esc(g[3][k])+'</small></span>';}).join('');
+  }
+  h+='</div>';
+  h+='<p class="note">Как στέκομαι: '+grHtml('έρχομαι','прихожу')+', '+grHtml('κάθομαι','сижу')+', '+grHtml('βρίσκομαι','нахожусь')+', '+grHtml('χρειάζομαι','нуждаюсь')+', '+grHtml('αισθάνομαι','чувствую')+'. На -άμαι немного глаголов: '+grHtml('κοιμάμαι','сплю')+', '+grHtml('θυμάμαι','помню')+', '+grHtml('φοβάμαι','боюсь')+'.</p>';
+  h+='<p class="note">У многих глаголов на -ω есть пара на -ομαι с возвратным значением: '+grHtml('πλένω','мою')+' → '+grHtml('πλένομαι','моюсь')+'.</p>';
   h+='<p class="sub">Примеры</p>';
   h+='<p class="note"><span class="muted">'+grHtml('Εγώ γράφω ένα γράμμα','Я пишу письмо')+'. '+grHtml('Αυτή παίζει ποδόσφαιρο','Она играет в футбол')+'.</span></p>';
   h+='<p class="note"><span class="muted">'+grHtml('Εγώ αγαπώ τη μουσική','Я люблю музыку')+'. '+grHtml('Εμείς μπορούμε να πάμε','Мы можем пойти')+'.</span></p>';
+  h+='<p class="note"><span class="muted">'+grHtml('Αυτός έρχεται σπίτι','Он идёт домой')+'. '+grHtml('Εμείς καθόμαστε στο σαλόνι','Мы сидим в гостиной')+'.</span></p>';
   return h;
 }
 /* Личные местоимения с глаголом είμαι и притяжательные местоимения */
