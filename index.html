@@ -24,7 +24,7 @@ var appZoom=1;
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Греческий">
-<meta name="build" content="2026-11-02-2">
+<meta name="build" content="2026-11-02-3">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap">
@@ -233,6 +233,8 @@ input[type=text].big{font-family:var(--display);font-size:24px;text-align:center
 .art{display:grid;gap:0 14px;align-items:baseline;font-size:14px}
 .art.c3{grid-template-columns:1fr auto auto}.art.c2{grid-template-columns:1fr auto}.art.conj{grid-template-columns:auto auto 1fr;gap:0 12px}.art.conj .A.E{font-size:15px}
 .art.conj4{grid-template-columns:auto 1fr 1fr 1fr;gap:0 8px}.art.conj4 .A.E{font-size:15px}.art.conj4>span.h{text-transform:none;letter-spacing:0;font-size:12px}
+.dict-row{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px;padding:5px 0;border-bottom:1px solid var(--line)}
+.dict-row .ru{color:var(--muted)}.dict-l{margin:12px 0 2px;font-weight:700;font-family:var(--display);font-size:17px}
 .art.conj4.c2{grid-template-columns:auto 1fr 1fr}
 .art.conj4 .A.E small{display:block;font-size:11.5px;font-weight:400;color:var(--muted);margin-top:1px}
 .art>span{padding:6px 0;border-top:1px solid var(--line);min-width:0}
@@ -257,8 +259,8 @@ input[type=text].big{font-family:var(--display);font-size:24px;text-align:center
   <main id="screen"></main>
   <footer id="actions"></footer>
 </div>
-<script src="words.js?v=2026-11-02-2"></script>
-<script src="grammar.js?v=2026-11-02-2"></script>
+<script src="words.js?v=2026-11-02-3"></script>
+<script src="grammar.js?v=2026-11-02-3"></script>
 <script>
 (function(){
 'use strict';
@@ -509,7 +511,7 @@ function renderHome(){
   var lg=learnedCount(set,null,pool);
   var sets=allSets();
   var h=installHtml()+'<div class="hero"><div class="hero-h"><h2>Греческие слова</h2><button class="icon-btn" data-action="settings" aria-label="Настройки">⚙</button></div><p class="muted small">Карточки, письмо и тесты по наборам слов.</p></div>';
-  h+='<h3>Справка</h3><button class="mode" data-action="cheat"><span class="num">Αα</span><span class="txt"><div class="t">Шпаргалка</div><div class="d">Алфавит, артикли, окончания, местоимения, спряжение глаголов, ударение</div></span><span class="arr">›</span></button>';
+  h+='<h3>Справка</h3><button class="mode" data-action="cheat"><span class="num">Αα</span><span class="txt"><div class="t">Шпаргалка</div><div class="d">Алфавит, ударение, словарь, артикли, окончания, местоимения, спряжение глаголов</div></span><span class="arr">›</span></button>';
   h+='<h3>Набор слов</h3>'+'<div class="setbox">';
   h+='<div class="row"><select id="setSelect" aria-label="Набор слов">'+sets.map(function(s){return '<option value="'+esc(s.id)+'"'+(s.id===set.id?' selected':'')+'>'+esc(s.title)+' ('+s.words.length+')</option>';}).join('')
     +'<option value="'+MIX_ID+'"'+(set.mix?' selected':'')+'>Custom: свой выбор уроков'+(set.mix?' ('+n+')':'')+'</option></select></div>';
@@ -954,6 +956,27 @@ function pronHtml(){
   return h;
 }
 function rulesHtml(rows){return rows.map(function(r){return '<div class="rule"><span class="k">'+esc(r[0])+'</span><span class="v">'+esc(r[1])+'</span><span class="e">'+exHtml(r[2],r[3],r[4])+'</span></div>';}).join('');}
+/* Словарь: все слова и фразы встроенных уроков, по алфавиту без учёта артикля */
+function dictKey(gr){return norm(gr).replace(/^(ο|η|το|οι|τα) /,'');}
+function dictHtml(){
+  var seen={},rows=[];
+  BUILTIN.forEach(function(st){st.words.concat(st.extra||[]).forEach(function(w){if(seen[w.gr])return;seen[w.gr]=1;rows.push({gr:w.gr,ru:w.ru,k:dictKey(w.gr)});});});
+  rows.sort(function(a,b){return a.k.localeCompare(b.k,'el')||a.gr.localeCompare(b.gr,'el');});
+  var h='<input type="text" id="dictQ" placeholder="Поиск по-гречески или по-русски" autocomplete="off" autocapitalize="off" spellcheck="false">';
+  h+='<p class="small muted" style="margin:6px 0 0">'+rows.length+' слов и фраз из основной и дополнительной лексики. Нажми на слово, чтобы услышать его.</p>';
+  var last='';
+  rows.forEach(function(r){
+    var l=r.k.charAt(0).toUpperCase();
+    if(l!==last){h+='<p class="dict-l" data-l="'+esc(l)+'">'+esc(l)+'</p>';last=l;}
+    h+='<div class="dict-row" data-l="'+esc(l)+'" data-q="'+esc(norm(r.gr)+' | '+norm(r.ru))+'"><span><span class="ex" data-action="speak" data-text="'+esc(r.gr)+'">'+esc(r.gr)+'</span></span><span class="ru">'+esc(r.ru)+'</span></div>';
+  });
+  return h;
+}
+function filterDict(q){
+  q=norm(q);var shown={};
+  document.querySelectorAll('.dict-row').forEach(function(el){var ok=!q||el.getAttribute('data-q').indexOf(q)>=0;el.hidden=!ok;if(ok)shown[el.getAttribute('data-l')]=1;});
+  document.querySelectorAll('.dict-l').forEach(function(el){el.hidden=!shown[el.getAttribute('data-l')];});
+}
 function renderCheat(){
   var h='<div class="cheat">';
   h+='<details class="sec"><summary>Алфавит</summary><div class="body"><div class="abc"><span>Буква</span><span>Название</span><span>Звук</span><span>Как в слове</span>';
@@ -965,6 +988,7 @@ function renderCheat(){
   h+='<details class="sec"><summary>Чтение и ударение</summary><div class="body">'+CHEAT_NOTES.map(function(n){
     var ex=exHtml(n[1],n[2],n[3]);if(n[4])ex+=', но '+exHtml(n[4],n[5],n[6]);
     return '<p class="note">'+esc(n[0])+'<br><span class="muted">'+ex+'</span></p>';}).join('')+'</div></details>';
+  h+='<details class="sec"><summary>Словарь</summary><div class="body">'+dictHtml()+'</div></details>';
   h+='<details class="sec"><summary>Артикли</summary><div class="body">'+articlesHtml()+'</div></details>';
   h+='<details class="sec"><summary>Окончания существительных</summary><div class="body">'+endingsHtml()+'</div></details>';
   h+='<details class="sec"><summary>Местоимения</summary><div class="body">'+pronHtml()+'</div></details>';
@@ -1150,6 +1174,7 @@ document.addEventListener('input',function(ev){
   if(el.classList&&el.classList.contains('gi')&&session&&session.parts)session.parts[el.getAttribute('data-k')]=el.value;
   if(el.id==='importText')view.importText=el.value;
   if(el.id==='importTitle')view.importTitle=el.value;
+  if(el.id==='dictQ')filterDict(el.value);
 });
 document.addEventListener('submit',function(ev){
   if(ev.target.id==='typeForm'){ev.preventDefault();if(session.state==='ask')checkTyped();else next();}
