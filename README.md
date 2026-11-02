@@ -78,10 +78,11 @@
 3. Через минуту приложение откроется по адресу `https://<user>.github.io/<repo>/`.
 4. Добавьте страницу на домашний экран телефона («Поделиться» → «На экран Домой»).
 
-## Лицензия
+## License
 
-Код распространяется по лицензии [GNU AGPL-3.0](LICENSE). Copyright © 2026 Anton Omelyanenko.
+The code is licensed under the [GNU Affero General Public License v3.0](LICENSE).
+Copyright © 2026 Anton Omelyanenko.
 
-Использовать, изменять и распространять код можно при условии, что производные работы, в том числе
-сайты и сервисы, доступные пользователям по сети, публикуются с исходным кодом под той же лицензией.
-По вопросам других условий использования пишите автору.
+You may use, modify and distribute the code provided that derivative works, including websites
+and services that users interact with over a network, are released with their source code
+under the same license. For other licensing terms, please contact the author.
