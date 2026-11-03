@@ -24,7 +24,7 @@ var appZoom=1;
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Греческий">
-<meta name="build" content="2026-11-03-6">
+<meta name="build" content="2026-11-03-7">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap">
@@ -267,9 +267,9 @@ input[type=text].big{font-family:var(--display);font-size:24px;text-align:center
   <main id="screen"></main>
   <footer id="actions"></footer>
 </div>
-<script src="words.js?v=2026-11-03-6"></script>
-<script src="sentences.js?v=2026-11-03-6"></script>
-<script src="grammar.js?v=2026-11-03-6"></script>
+<script src="words.js?v=2026-11-03-7"></script>
+<script src="sentences.js?v=2026-11-03-7"></script>
+<script src="grammar.js?v=2026-11-03-7"></script>
 <script>
 (function(){
 'use strict';
@@ -860,22 +860,17 @@ function recFinish(a){
   if(recAtt===a)recAtt=null;
   if(a.cancel)return;
   if(a.onDone)a.onDone(a);else sayEvaluate(a);
-  if(recNeedsReload())setTimeout(recReload,300);
 }
-/* Ошибка WebKit на iPhone (bug 317741): после первого распознавания на странице следующие
-   получают тишину и обрываются с «aborted»; помогает только перезагрузка страницы. Поэтому
-   на iPhone после каждой попытки страница незаметно перезагружается с сохранением места
-   в упражнении (saveResume/restoreResume, как при автообновлении). */
-var recUsed=false;
-function recNeedsReload(){return recUsed&&isIOSDevice();}
-function recReload(){saveResume();try{location.replace(location.pathname+'?b='+encodeURIComponent(APP_BUILD));}catch(e){}}
+/* На iPhone с iOS 27 распознавание работает только в первый раз после запуска приложения
+   (ошибка WebKit, docs/ios-speech-recognition.md); обходы из кода, включая перезагрузку
+   страницы, не помогают. */
 /* Запуск попытки распознавания; false — не удалось. */
 function recBegin(a){
   if(recAtt){var old=recAtt;old.cancel=true;recFinish(old);try{recObj.abort();}catch(e){}}
   try{if(window.speechSynthesis&&speechSynthesis.speaking)speechSynthesis.cancel();}catch(e){}
   recAtt=a;
   try{recObj=makeRec(a);recObj.start();}catch(e){recAtt=null;return false;}
-  recUsed=true;return true;
+  return true;
 }
 function newAtt(){return {finals:[],interim:'',err:null,t0:Date.now(),trace:[],done:false,timer:null};}
 function attText(a){return a.finals.map(function(q){return q[0];}).concat(a.interim?[a.interim]:[]).join(' ').trim();}
@@ -890,7 +885,6 @@ var micTest={};
 function micTestStart(){
   keepScroll=true;
   if(!canListen){micTest={msg:'Этот браузер не умеет распознавать речь. Открой приложение в Chrome или Safari.',ok:false};render();return;}
-  if(recNeedsReload()){recReload();return;}
   var a=newAtt();a.onDone=micTestDone;
   if(!recBegin(a)){micTest={msg:'Не удалось включить микрофон.',ok:false};render();return;}
   micTest={on:true,msg:'Слушаю… Скажи что-нибудь по-гречески, например «Καλημέρα».',ok:true};render();
@@ -909,7 +903,6 @@ function micTestDone(a){
 function micDown(ev){
   if(!canListen||!session||session.mode!=='say'||session.state!=='ask')return;
   ev.preventDefault();
-  if(recNeedsReload()){recReload();return;}
   var a=newAtt();session.sayMsg='';
   if(!recBegin(a)){session.sayMsg='Не удалось включить микрофон.';render();return;}
   setMicState('on');
