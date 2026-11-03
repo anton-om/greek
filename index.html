@@ -24,7 +24,7 @@ var appZoom=1;
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Греческий">
-<meta name="build" content="2026-11-03-8">
+<meta name="build" content="2026-11-03-9">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap">
@@ -268,9 +268,9 @@ input[type=text].big{font-family:var(--display);font-size:24px;text-align:center
   <main id="screen"></main>
   <footer id="actions"></footer>
 </div>
-<script src="words.js?v=2026-11-03-8"></script>
-<script src="sentences.js?v=2026-11-03-8"></script>
-<script src="grammar.js?v=2026-11-03-8"></script>
+<script src="words.js?v=2026-11-03-9"></script>
+<script src="sentences.js?v=2026-11-03-9"></script>
+<script src="grammar.js?v=2026-11-03-9"></script>
 <script>
 (function(){
 'use strict';
@@ -802,7 +802,7 @@ function sayMicHint(){
 function renderSay(w){
   var gr=session.dir==='gr',done=session.state!=='ask';
   var h=progressHtml();
-  h+='<p class="notice" style="margin-top:10px">Режим в разработке: на iPhone кнопка микрофона срабатывает только один раз после запуска приложения. Вместо неё надиктуй предложение через клавиатуру.</p>';
+  if(!done&&isIOSDevice())h+='<p class="notice" style="margin-top:10px">На iPhone распознавание речи в браузере сейчас не работает (ошибка iOS 27), поэтому предложение надиктовывают через клавиатуру.</p>';
   h+='<div class="prompt"><div class="lang">'+(gr?'Греческий':'Русский')+'</div>';
   if(gr)h+='<div class="word sent">'+sayMarked(w)+'</div><div class="muted" style="margin-top:8px">'+esc(w.ru)+'</div>';
   else{h+='<div class="word ru sent">'+esc(w.ru)+'</div>';if(done||session.marks)h+='<div class="word sent" style="margin-top:10px">'+sayMarked(w)+'</div>';}
@@ -812,9 +812,10 @@ function renderSay(w){
   }
   h+='</div>';
   if(!done){
-    if(!canListen)h+='<p class="notice bad" style="margin-top:16px">Этот браузер не умеет распознавать речь. Напиши или надиктуй предложение в поле ниже.</p>';
-    else h+='<div class="mic-wrap"><button class="mic'+(session.micState?' '+session.micState:'')+'" id="mic" type="button" aria-label="Держи и говори">🎤</button><p class="hint" id="micHint">'+esc(sayMicHint())+'</p><div class="heard" id="heard">'+(session.heard?'«'+esc(session.heard)+'»':'')+'</div></div>';
-    h+=sayFormHtml();
+    if(sayByKeyboard()){
+      if(!canListen&&!isIOSDevice())h+='<p class="notice bad" style="margin-top:16px">Этот браузер не умеет распознавать речь. Напиши предложение в поле ниже.</p>';
+      h+=sayFormHtml();
+    }else h+='<div class="mic-wrap"><button class="mic'+(session.micState?' '+session.micState:'')+'" id="mic" type="button" aria-label="Держи и говори">🎤</button><p class="hint" id="micHint">'+esc(sayMicHint())+'</p><div class="heard" id="heard">'+(session.heard?'«'+esc(session.heard)+'»':'')+'</div></div>';
     if(session.sayMsg)h+='<p class="notice bad" style="margin-top:12px">'+esc(session.sayMsg)+(session.sayTrace?'<br><span class="small muted">Для отладки: '+esc(session.sayTrace)+'</span>':'')+'</p>';
     else if(session.marks)h+='<div class="result almost" role="status"><span class="mark">…</span><div class="body"><div>Распознано слов: '+session.marks.filter(Boolean).length+' из '+session.marks.length+'.</div><div class="small">Красным — что не распознано. Попробуй ещё раз или пропусти.</div></div></div>';
   }else if(session.grade==='skip'){
@@ -825,13 +826,17 @@ function renderSay(w){
   var foot=done?'<button class="btn primary" data-action="next">Далее</button>':'<button class="btn" data-action="say-skip">Пропустить</button>';
   return{html:h,foot:foot};
 }
-/* Поле ввода — второй способ ответить: диктовка через системную клавиатуру (на iPhone кнопка 🎤
-   на клавиатуре; сайт сам её запустить не может) или обычный набор. Текст уходит в то же
-   сравнение, что и распознанная речь (sayEvaluate). После проверки поле очищается. */
+/* Ветвление по платформе. На iOS распознавание в браузере не работает (ошибка WebKit,
+   docs/ios-speech-recognition.md), и кнопка микрофона не показывается: вместо неё поле ввода,
+   куда предложение надиктовывают через системную клавиатуру (кнопка 🎤 на клавиатуре; сайт сам
+   её запустить не может). В браузерах без распознавания — то же поле, обычный набор. На Android
+   и настольных браузерах — только кнопка микрофона. Текст из поля уходит в то же сравнение,
+   что и распознанная речь (sayEvaluate). После проверки поле очищается. */
+function sayByKeyboard(){return isIOSDevice()||!canListen;}
 function sayFormHtml(){
   var ios=isIOSDevice();
-  return '<form id="sayForm" class="say-form"><input type="text" id="sayInput" lang="el" inputmode="text" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" placeholder="'+(ios?'или надиктуй':'или напиши')+'" aria-label="Предложение по-гречески"><button type="submit" class="btn">Проверить</button></form>'
-    +'<p class="hint">'+(ios?'Переключи клавиатуру на греческую и нажми 🎤 в правом нижнем углу клавиатуры: это диктовка iPhone. Когда текст появится, нажми «Проверить».':'Можно написать предложение с клавиатуры, а на телефоне — надиктовать кнопкой 🎤 на клавиатуре.')+'</p>';
+  return '<form id="sayForm" class="say-form"><input type="text" id="sayInput" lang="el" inputmode="text" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" placeholder="'+(ios?'надиктуй сюда':'напиши предложение')+'" aria-label="Предложение по-гречески"><button type="submit" class="btn">Проверить</button></form>'
+    +(ios?'<p class="hint">Переключи клавиатуру на греческую и нажми 🎤 в правом нижнем углу клавиатуры: это диктовка iPhone. Когда текст появится, нажми «Проверить».</p>':'');
 }
 function sayCheckTyped(){
   if(!session||session.mode!=='say'||session.state!=='ask')return;
@@ -918,7 +923,7 @@ function micTestDone(a){
   if(view.name==='settings'){keepScroll=true;render();}
 }
 function micDown(ev){
-  if(!canListen||!session||session.mode!=='say'||session.state!=='ask')return;
+  if(sayByKeyboard()||!session||session.mode!=='say'||session.state!=='ask')return;
   ev.preventDefault();
   var a=newAtt();session.sayMsg='';
   if(!recBegin(a)){session.sayMsg='Не удалось включить микрофон.';render();return;}
@@ -1237,9 +1242,11 @@ function renderSettings(){
   h+='<label class="check"><input type="checkbox" data-action="set-autospeak"'+(s.autoSpeak?' checked':'')+'><span class="lbl">Озвучивать греческое слово при показе карточки</span></label>';
   h+='<div class="row"><button class="btn" data-action="test-speech">🔊 Проверить звук</button></div>';
   h+='<p class="small muted">Если не слышно: прибавь громкость кнопками сбоку телефона, а на iPhone ещё проверь переключатель беззвучного режима: в беззвучном режиме озвучка не звучит.</p>';
-  h+='<h3>Микрофон</h3><p class="small muted">Распознавание речи для режимов «Отработка лексики».</p>';
+  h+='<h3>Микрофон</h3>';
+  if(isIOSDevice())h+='<p class="small muted">На iPhone распознавание речи в браузере не используется: в режимах «Отработка лексики» предложение надиктовывают через клавиатуру (кнопка 🎤 на греческой клавиатуре).</p>';
+  else{h+='<p class="small muted">Распознавание речи для режимов «Отработка лексики».</p>';
   h+='<div class="row"><button class="btn" data-action="test-mic">'+(micTest.on?'■ Остановить':'🎤 Проверить микрофон')+'</button></div>';
-  if(micTest.msg)h+='<p class="notice '+(micTest.ok?'ok':'bad')+'">'+esc(micTest.msg)+(micTest.trace?'<br><span class="small muted">Для отладки: '+esc(micTest.trace)+'</span>':'')+'</p>';
+  if(micTest.msg)h+='<p class="notice '+(micTest.ok?'ok':'bad')+'">'+esc(micTest.msg)+(micTest.trace?'<br><span class="small muted">Для отладки: '+esc(micTest.trace)+'</span>':'')+'</p>';}
   h+='<h3>Прогресс набора «'+esc(set.title)+'»</h3>';
   h+='<p class="small muted">Изучено: '+learnedCount(set,null)+' / '+set.words.length+'. Отметка едина для обоих направлений.</p>';
   if(set.mix){h+='<p class="small muted">Сборный набор: прогресс хранится в уроках, из которых взяты слова. Сбрасывайте его по уроку, выбрав урок на главном экране.</p>';}
