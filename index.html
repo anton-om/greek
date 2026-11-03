@@ -24,7 +24,7 @@ var appZoom=1;
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Греческий">
-<meta name="build" content="2026-11-03-9">
+<meta name="build" content="2026-11-03-10">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap">
@@ -268,9 +268,9 @@ input[type=text].big{font-family:var(--display);font-size:24px;text-align:center
   <main id="screen"></main>
   <footer id="actions"></footer>
 </div>
-<script src="words.js?v=2026-11-03-9"></script>
-<script src="sentences.js?v=2026-11-03-9"></script>
-<script src="grammar.js?v=2026-11-03-9"></script>
+<script src="words.js?v=2026-11-03-10"></script>
+<script src="sentences.js?v=2026-11-03-10"></script>
+<script src="grammar.js?v=2026-11-03-10"></script>
 <script>
 (function(){
 'use strict';
@@ -463,6 +463,9 @@ var MODE_LIST=[
   {key:'say',mode:'say',dir:'gr',t:'Отработка лексики',dev:true,d:'Прочитай греческое предложение вслух в микрофон'},
   {key:'say-ru',mode:'say',dir:'ru',t:'Отработка лексики: с русского',dev:true,d:'Скажи по-гречески предложение по русскому переводу'}
 ];
+/* Режимы 9 и 10 на iPhone не показываются: распознавание речи в WebKit не работает
+   (docs/ios-speech-recognition.md), а диктовка через клавиатуру узнаёт слова хуже. */
+function modeList(){return isIOSDevice()?MODE_LIST.filter(function(m){return m.mode!=='say';}):MODE_LIST;}
 var MODE_TITLE={flash:'Карточки',tiles:'Учимся писать',type:'Пишем сами',quiz:'Варианты ответа',plural:'Множественное число',conj:'Спряжение глаголов',say:'Отработка лексики'};
 
 var screen=document.getElementById('screen');
@@ -564,7 +567,7 @@ function renderHome(){
   h+='<label class="check"><input type="checkbox" data-action="set-shuffle"'+(shuf?' checked':'')+'><span class="lbl">Перемешать порядок</span></label>';
   h+='<div class="prog"><div class="lab"><span>Изучено</span><b>'+lg+' / '+n+'</b></div><div class="bar"><i style="width:'+pct(lg,n)+'%"></i></div></div>';
   h+='</div>';
-  h+='<h3>Режимы</h3>'+(homeMsg?'<p class="notice bad" style="margin-bottom:10px">'+esc(homeMsg)+'</p>':'')+'<div class="modes">'+MODE_LIST.map(function(m,i){
+  h+='<h3>Режимы</h3>'+(homeMsg?'<p class="notice bad" style="margin-bottom:10px">'+esc(homeMsg)+'</p>':'')+'<div class="modes">'+modeList().map(function(m,i){
     return '<button class="mode" data-action="pick-mode" data-key="'+m.key+'"><span class="num">'+(i+1)+'</span><span class="txt"><div class="t">'+esc(m.t)+(m.dev?'<span class="badge-dev">в разработке</span>':'')+'</div><div class="d">'+esc(m.d)+'</div></span><span class="arr">›</span></button>';
   }).join('')+'</div>';
   if(!n){h+='<p class="notice" style="margin-top:16px">'+(set.mix?'Отметьте выше хотя бы один урок и хотя бы одну часть речи.':set.words.length?'Включите выше лексику и хотя бы одну часть речи.':'В этом наборе нет слов. Добавьте слова в words.js или импортируйте набор в настройках.')+'</p>';}
@@ -576,7 +579,7 @@ function renderHome(){
    Нажатие на режим сразу запускает тренировку. */
 function freshCount(set){return poolWords(set).filter(function(w){return !isLearned(set,null,w);}).length;}
 function startMode(key){
-  var m=MODE_LIST.filter(function(x){return x.key===key;})[0];if(!m)return;
+  var m=modeList().filter(function(x){return x.key===key;})[0];if(!m)return;
   var set=currentSet();
   if(!poolWords(set).length)return;
   if(!modePool(m.mode,poolWords(set)).length){homeMsg=m.mode==='plural'?'В выбранных словах нет существительных с формой множественного числа.':m.mode==='say'?'Для выбранных слов ещё нет предложений.':'В выбранных словах нет глаголов со спряжением.';render();return;}
@@ -1242,9 +1245,7 @@ function renderSettings(){
   h+='<label class="check"><input type="checkbox" data-action="set-autospeak"'+(s.autoSpeak?' checked':'')+'><span class="lbl">Озвучивать греческое слово при показе карточки</span></label>';
   h+='<div class="row"><button class="btn" data-action="test-speech">🔊 Проверить звук</button></div>';
   h+='<p class="small muted">Если не слышно: прибавь громкость кнопками сбоку телефона, а на iPhone ещё проверь переключатель беззвучного режима: в беззвучном режиме озвучка не звучит.</p>';
-  h+='<h3>Микрофон</h3>';
-  if(isIOSDevice())h+='<p class="small muted">На iPhone распознавание речи в браузере не используется: в режимах «Отработка лексики» предложение надиктовывают через клавиатуру (кнопка 🎤 на греческой клавиатуре).</p>';
-  else{h+='<p class="small muted">Распознавание речи для режимов «Отработка лексики».</p>';
+  if(!isIOSDevice()){h+='<h3>Микрофон</h3><p class="small muted">Распознавание речи для режимов «Отработка лексики».</p>';
   h+='<div class="row"><button class="btn" data-action="test-mic">'+(micTest.on?'■ Остановить':'🎤 Проверить микрофон')+'</button></div>';
   if(micTest.msg)h+='<p class="notice '+(micTest.ok?'ok':'bad')+'">'+esc(micTest.msg)+(micTest.trace?'<br><span class="small muted">Для отладки: '+esc(micTest.trace)+'</span>':'')+'</p>';}
   h+='<h3>Прогресс набора «'+esc(set.title)+'»</h3>';
@@ -1527,7 +1528,7 @@ function restoreResume(){
     if(d.setId&&d.setId!==currentSet().id){if(d.setId!==MIX_ID&&!allSets().some(function(x){return x.id===d.setId;}))return false;store.setId=d.setId;}
     var v=d.view,set=currentSet();
     if(v.name==='session'||v.name==='end'){
-      var sv=d.session;if(!sv)return false;
+      var sv=d.session;if(!sv||!modeList().some(function(m){return m.mode===sv.mode;}))return false;
       var byGr={};set.words.concat(extraOf(set)).forEach(function(w){byGr[w.gr]=w;});
       var res=function(k){var w=byGr[k];if(!w)throw new Error('missing word '+k);return w;};
       session={mode:sv.mode,dir:sv.dir,set:set,pool:modePool(sv.mode,poolWords(set)),sentIdx:sv.sentIdx||null,words:sv.words.map(res),scopeWords:sv.scopeWords.map(res),i:sv.i,
