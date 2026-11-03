@@ -32,5 +32,18 @@ Object.keys(G.verbs).forEach(function(k){if(!known[k]){console.log('  ОШИБК
 console.log('Существительных с мн. ч.: '+Object.keys(G.plural).filter(function(k){return G.plural[k];}).length+', глаголов со спряжением: '+Object.keys(G.verbs).length+'.');
 var tc={};S.forEach(function(s){s.words.concat(s.extra||[]).forEach(function(w){tc[w.t]=(tc[w.t]||0)+1;});});
 console.log('Темы: '+Object.keys(TOPICS).map(function(k){return TOPICS[k]+' '+(tc[k]||0);}).join(', ')+'.');
+// sentences.js: предложения режимов 9 и 10, по слову; ключ — слово из words.js, у каждого
+// слова по 5 разных предложений с переводом.
+require(require('path').join(__dirname,'..','sentences.js'));
+var SN=window.SENTENCES||{},sn=0,noSent=0;
+Object.keys(SN).forEach(function(k){
+  if(!known[k]){console.log('  ОШИБКА: предложения для слова не из words.js: '+k);errors++;return;}
+  var ss={};SN[k].forEach(function(x){sn++;var t=strip(x[0]||'');
+    if(!x[0]||!x[1]){console.log('  ОШИБКА: «'+k+'»: предложение без текста или перевода');errors++;}
+    if(ss[t]){console.log('  ОШИБКА: «'+k+'»: повтор предложения «'+x[0]+'»');errors++;}ss[t]=1;});
+  if(SN[k].length!==5){console.log('  ОШИБКА: «'+k+'»: предложений '+SN[k].length+' вместо 5');errors++;}
+});
+Object.keys(known).forEach(function(k){if(!SN[k]){console.log('  ОШИБКА: нет предложений в sentences.js: '+k);noSent++;errors++;}});
+console.log('Предложений: '+sn+', слов без предложений: '+noSent+'.');
 console.log(errors?'Ошибок: '+errors:'Ошибок нет.');
 process.exit(errors?1:0);
