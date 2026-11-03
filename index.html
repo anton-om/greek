@@ -24,7 +24,7 @@ var appZoom=1;
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Греческий">
-<meta name="build" content="2026-11-03-1">
+<meta name="build" content="2026-11-03-2">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap">
@@ -266,9 +266,9 @@ input[type=text].big{font-family:var(--display);font-size:24px;text-align:center
   <main id="screen"></main>
   <footer id="actions"></footer>
 </div>
-<script src="words.js?v=2026-11-03-1"></script>
-<script src="sentences.js?v=2026-11-03-1"></script>
-<script src="grammar.js?v=2026-11-03-1"></script>
+<script src="words.js?v=2026-11-03-2"></script>
+<script src="sentences.js?v=2026-11-03-2"></script>
+<script src="grammar.js?v=2026-11-03-2"></script>
 <script>
 (function(){
 'use strict';
@@ -603,7 +603,7 @@ function prepareItem(){
   session.flipped=false;session.state='ask';session.picked=[];session.typed='';session.grade=null;session.pickedOpt=null;session.hinted=false;
   var w=cur();if(!w)return;
   if(session.mode==='flash'&&session.dir==='gr'&&store.settings.autoSpeak)speak(w.gr);
-  if(session.mode==='say'){sayStop(true);session.heard='';session.marks=null;session.attempts=0;session.sayMsg='';
+  if(session.mode==='say'){sayStop(true);session.heard='';session.marks=null;session.attempts=0;session.sayMsg='';session.sayTrace='';
     session.sentIdx=session.sentIdx||{};if(session.sentIdx[w.gr]==null)session.sentIdx[w.gr]=pickSentence(w);}
   if(session.mode==='plural'){session.parts={a1:'',e1:'',a2:'',e2:''};}
   if(session.mode==='conj'){session.parts={pr:'',en:''};session.persons=session.persons||{};if(session.persons[w.gr]==null)session.persons[w.gr]=Math.floor(Math.random()*6);session.person=session.persons[w.gr];}
@@ -773,7 +773,6 @@ function checkPlural(){
    пока распознавание не проверено на устройствах. */
 var SR=window.SpeechRecognition||window.webkitSpeechRecognition;
 var canListen=!!SR;
-var rec=null,recBuf=null,recT0=0,recTimer=null;
 var SAY_NUM={'0':['μηδέν'],'1':['ένα','ένας','μία','μια'],'2':['δύο'],'3':['τρία','τρεις'],'4':['τέσσερα','τέσσερις'],'5':['πέντε'],'6':['έξι'],'7':['επτά','εφτά'],'8':['οκτώ','οχτώ'],'9':['εννέα','εννιά'],'10':['δέκα'],'12':['δώδεκα'],'30':['τριάντα']};
 Object.keys(SAY_NUM).forEach(function(k){SAY_NUM[k]=SAY_NUM[k].map(function(x){return norm(x);});});
 function sayTokens(s){return norm(String(s).replace(/[-–—'’]/g,' ')).split(' ').filter(Boolean);}
@@ -812,7 +811,7 @@ function renderSay(w){
   if(!done){
     if(!canListen)h+='<p class="notice bad" style="margin-top:16px">Этот браузер не умеет распознавать речь. Открой приложение в Chrome или Safari.</p>';
     else h+='<div class="mic-wrap"><button class="mic'+(session.micState?' '+session.micState:'')+'" id="mic" type="button" aria-label="Держи и говори">🎤</button><p class="hint" id="micHint">'+esc(sayMicHint())+'</p><div class="heard" id="heard">'+(session.heard?'«'+esc(session.heard)+'»':'')+'</div></div>';
-    if(session.sayMsg)h+='<p class="notice bad" style="margin-top:12px">'+esc(session.sayMsg)+'</p>';
+    if(session.sayMsg)h+='<p class="notice bad" style="margin-top:12px">'+esc(session.sayMsg)+(session.sayTrace?'<br><span class="small muted">Для отладки: '+esc(session.sayTrace)+'</span>':'')+'</p>';
     else if(session.marks)h+='<div class="result almost" role="status"><span class="mark">…</span><div class="body"><div>Распознано слов: '+session.marks.filter(Boolean).length+' из '+session.marks.length+'.</div><div class="small">Красным — что не распознано. Попробуй ещё раз или пропусти.</div></div></div>';
   }else if(session.grade==='skip'){
     h+='<div class="result bad" role="status"><span class="mark">→</span><div class="body"><div>Пропущено.</div>'+(gr?'':'<div class="ans">'+esc(w.gr)+'</div>')+'</div></div>';
@@ -827,55 +826,84 @@ function setMicState(st){
   var b=document.getElementById('mic');if(b){b.classList.toggle('on',st==='on');b.classList.toggle('busy',st==='busy');}
   var t=document.getElementById('micHint');if(t)t.textContent=sayMicHint();
 }
-function micDown(ev){
-  if(!canListen||!session||session.mode!=='say'||session.state!=='ask'||rec)return;
-  ev.preventDefault();
-  try{speechSynthesis.cancel();}catch(e){}
-  var r;try{r=new SR();}catch(e){session.sayMsg='Не удалось включить распознавание речи.';render();return;}
-  r.lang='el-GR';r.interimResults=true;r.continuous=true;r.maxAlternatives=5;
-  recBuf={finals:[],interim:'',err:null};recT0=Date.now();rec=r;session.sayMsg='';
+/* Один распознаватель на всё время работы: на iPhone новый экземпляр на каждую попытку
+   и режим continuous ломают повторные запуски (работает только первый раз). Каждая попытка —
+   объект att со своим буфером; события от прошлой попытки игнорируются. Итог подводится по
+   событию end, а если оно не пришло — через 2,5 секунды после отпускания кнопки. */
+var recObj=null,recAtt=null;
+function recEvent(name,detail){var a=recAtt;if(a)a.trace.push(name+(detail?':'+detail:'')+' '+(Date.now()-a.t0));}
+function getRec(){
+  if(recObj)return recObj;
+  var r=new SR();r.lang='el-GR';r.interimResults=true;r.maxAlternatives=5;r.continuous=!isIOSDevice();
+  r.onstart=function(){recEvent('start');};
+  r.onaudiostart=function(){recEvent('audio');};
+  r.onspeechstart=function(){recEvent('speech');};
   r.onresult=function(e){
+    var a=recAtt;if(!a||a.done)return;
     var fin=[],intr='';
-    for(var i=0;i<e.results.length;i++){var x=e.results[i];if(x.isFinal)fin.push(Array.prototype.map.call(x,function(a){return a.transcript;}));else intr+=x[0].transcript;}
-    recBuf.finals=fin;recBuf.interim=intr;
-    var el=document.getElementById('heard');if(el)el.textContent=fin.map(function(a){return a[0];}).concat(intr?[intr]:[]).join(' ');
+    for(var i=0;i<e.results.length;i++){var x=e.results[i];if(x.isFinal)fin.push(Array.prototype.map.call(x,function(q){return q.transcript;}));else intr+=x[0].transcript;}
+    /* Без continuous каждое событие несёт только свою фразу: дописываем к прежним. */
+    if(r.continuous){a.finals=fin;}else if(fin.length){a.finals=a.finals.concat(fin);}
+    a.interim=intr;recEvent('result');
+    var el=document.getElementById('heard');if(el)el.textContent=a.finals.map(function(q){return q[0];}).concat(intr?[intr]:[]).join(' ');
   };
-  r.onerror=function(e){if(recBuf)recBuf.err=e.error;};
-  r.onend=function(){if(rec!==r)return;rec=null;clearTimeout(recTimer);sayEvaluate();};
-  try{r.start();}catch(e){rec=null;session.sayMsg='Не удалось включить микрофон.';render();return;}
+  r.onerror=function(e){var a=recAtt;if(a&&!a.done)a.err=e.error;recEvent('error',e.error);};
+  r.onend=function(){var a=recAtt;recEvent('end');if(a&&!a.done)recFinish(a);};
+  recObj=r;return r;
+}
+function recFinish(a){
+  if(a.done)return;a.done=true;clearTimeout(a.timer);
+  if(recAtt===a)recAtt=null;
+  if(a.cancel)return;
+  sayEvaluate(a);
+}
+function micDown(ev){
+  if(!canListen||!session||session.mode!=='say'||session.state!=='ask')return;
+  ev.preventDefault();
+  if(recAtt){var old=recAtt;old.cancel=true;recFinish(old);try{recObj.abort();}catch(e){}}
+  try{if(window.speechSynthesis&&speechSynthesis.speaking)speechSynthesis.cancel();}catch(e){}
+  var a={finals:[],interim:'',err:null,t0:Date.now(),trace:[],done:false,timer:null};
+  recAtt=a;session.sayMsg='';
+  var r;try{r=getRec();}catch(e){recAtt=null;session.sayMsg='Не удалось включить распознавание речи.';render();return;}
+  try{r.start();}
+  catch(e){
+    /* Прошлый сеанс ещё не закрылся: пересоздаём распознаватель и пробуем снова. */
+    recEvent('restart');try{r.abort();}catch(e2){}recObj=null;
+    try{getRec().start();}catch(e3){recAtt=null;session.sayMsg='Не удалось включить микрофон.';render();return;}
+  }
   setMicState('on');
   var el=document.getElementById('heard');if(el)el.textContent='';
 }
 function micUp(){
-  if(!rec||!session||session.micState!=='on')return;
-  var r=rec;setMicState('busy');
-  /* Небольшая пауза перед stop(): иначе обрезается конец фразы. Если распознаватель
-     не ответил за 8 секунд, обрываем. */
-  setTimeout(function(){try{r.stop();}catch(e){}},300);
-  recTimer=setTimeout(function(){if(rec===r){try{r.abort();}catch(e){}rec=null;sayEvaluate();}},8000);
+  var a=recAtt;if(!a||a.done||a.released||!session||session.micState!=='on')return;
+  a.released=true;setMicState('busy');recEvent('release');
+  /* Небольшая пауза перед stop(): иначе обрезается конец фразы. */
+  setTimeout(function(){if(!a.done){try{recObj.stop();}catch(e){}}},300);
+  a.timer=setTimeout(function(){if(!a.done){recEvent('timeout');try{recObj.abort();}catch(e){}recFinish(a);}},2500);
 }
 function sayStop(silent){
-  if(rec){var r=rec;rec=null;try{r.abort();}catch(e){}}
-  clearTimeout(recTimer);if(session)session.micState='';
+  if(recAtt){var a=recAtt;a.cancel=true;recFinish(a);try{recObj.abort();}catch(e){}}
+  if(session)session.micState='';
 }
-function sayEvaluate(){
+function sayEvaluate(b){
   if(!session||session.mode!=='say'||session.state!=='ask'){if(session)session.micState='';return;}
   session.micState='';
-  var b=recBuf||{finals:[],interim:''},cands=[];
+  var cands=[];
   var base=b.finals.map(function(a){return a[0];}).concat(b.interim?[b.interim]:[]).join(' ').trim();
   if(base)cands.push(base);
   if(b.finals.length===1)b.finals[0].slice(1).forEach(function(a){if(a&&a.trim())cands.push((a+' '+(b.interim||'')).trim());});
   if(!cands.length){
-    var err=b.err,held=Date.now()-recT0;
+    var err=b.err,held=Date.now()-b.t0;
     session.sayMsg=(err==='not-allowed'||err==='service-not-allowed')?'Нет доступа к микрофону. Разреши его в настройках браузера.':
       err==='network'?'Для распознавания речи нужен интернет.':
       err==='language-not-supported'?'Браузер не распознаёт греческую речь.':
       held<900?'Держи кнопку нажатой всё время, пока говоришь.':'Ничего не распознано. Попробуй ещё раз.';
+    session.sayTrace=b.trace.join(', ');
     render();return;
   }
   var w=sayCur(),best=null;
   cands.forEach(function(c){var sc=sayScore(w.gr,c);if(!best||sc.hit>best.hit)best=sc;});
-  session.attempts++;session.heard=best.text;session.marks=best.marks;session.sayMsg='';
+  session.attempts++;session.heard=best.text;session.marks=best.marks;session.sayMsg='';session.sayTrace='';
   if(best.ok)finishSay(true);
   render();
 }
