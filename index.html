@@ -24,7 +24,7 @@ var appZoom=1;
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Греческий">
-<meta name="build" content="2026-11-03-4">
+<meta name="build" content="2026-11-03-5">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap">
@@ -266,9 +266,9 @@ input[type=text].big{font-family:var(--display);font-size:24px;text-align:center
   <main id="screen"></main>
   <footer id="actions"></footer>
 </div>
-<script src="words.js?v=2026-11-03-4"></script>
-<script src="sentences.js?v=2026-11-03-4"></script>
-<script src="grammar.js?v=2026-11-03-4"></script>
+<script src="words.js?v=2026-11-03-5"></script>
+<script src="sentences.js?v=2026-11-03-5"></script>
+<script src="grammar.js?v=2026-11-03-5"></script>
 <script>
 (function(){
 'use strict';
@@ -458,8 +458,8 @@ var MODE_LIST=[
   {key:'type',mode:'type',dir:'ru',t:'Пишем сами',d:'Введи греческое слово с клавиатуры'},
   {key:'plural',mode:'plural',dir:'ru',t:'Множественное число',d:'Артикль и окончание в единственном и множественном числе'},
   {key:'conj',mode:'conj',dir:'ru',t:'Спряжение глаголов',d:'Впиши местоимение и окончание по русской подсказке'},
-  {key:'say',mode:'say',dir:'gr',t:'Отработка лексики',d:'Прочитай греческое предложение вслух в микрофон'},
-  {key:'say-ru',mode:'say',dir:'ru',t:'Отработка лексики: с русского',d:'Скажи по-гречески предложение по русскому переводу'}
+  {key:'say',mode:'say',dir:'gr',t:'Отработка лексики',d:'В разработке. Прочитай греческое предложение вслух в микрофон'},
+  {key:'say-ru',mode:'say',dir:'ru',t:'Отработка лексики: с русского',d:'В разработке. Скажи по-гречески предложение по русскому переводу'}
 ];
 var MODE_TITLE={flash:'Карточки',tiles:'Учимся писать',type:'Пишем сами',quiz:'Варианты ответа',plural:'Множественное число',conj:'Спряжение глаголов',say:'Отработка лексики'};
 
@@ -832,13 +832,7 @@ function setMicState(st){
    событию end, а если оно не пришло — через 2,5 секунды после отпускания кнопки. */
 var recObj=null,recAtt=null;
 function recEvent(name,detail){var a=recAtt;if(a)a.trace.push(name+(detail?':'+detail:'')+' '+(Date.now()-a.t0));}
-/* Способ запуска распознавания (для отладки на iPhone, где повторные попытки дают тишину):
-   shared — один распознаватель на все попытки; fresh — новый на каждую попытку;
-   reset — новый, а перед ним getUserMedia со сразу остановленными дорожками, чтобы
-   iOS перевела аудиосессию в режим записи. Выбирается в настройках, раздел «Микрофон». */
-var REC_MODES=[['reset','Новый со сбросом микрофона'],['fresh','Новый распознаватель'],['shared','Общий распознаватель']];
-function recMode(){var m='';try{m=localStorage.getItem('greek-words:rec-mode')||'';}catch(e){}return REC_MODES.some(function(q){return q[0]===m;})?m:'reset';}
-/* Обработчики привязаны к попытке: у fresh/reset — к своей, у shared — к текущей recAtt. */
+/* Распознаватель создаётся на каждую попытку, его обработчики привязаны к ней. */
 function makeRec(own){
   var r=new SR();r.lang='el-GR';r.interimResults=true;r.maxAlternatives=5;r.continuous=!isIOSDevice();
   var att=function(){return own||recAtt;};
@@ -864,35 +858,22 @@ function recFinish(a){
   if(recAtt===a)recAtt=null;
   if(a.cancel)return;
   if(a.onDone)a.onDone(a);else sayEvaluate(a);
+  if(recNeedsReload())setTimeout(recReload,300);
 }
-/* Запуск попытки распознавания; false — не удалось сразу. */
+/* Ошибка WebKit на iPhone (bug 317741): после первого распознавания на странице следующие
+   получают тишину и обрываются с «aborted»; помогает только перезагрузка страницы. Поэтому
+   на iPhone после каждой попытки страница незаметно перезагружается с сохранением места
+   в упражнении (saveResume/restoreResume, как при автообновлении). */
+var recUsed=false;
+function recNeedsReload(){return recUsed&&isIOSDevice();}
+function recReload(){saveResume();try{location.replace(location.pathname+'?b='+encodeURIComponent(APP_BUILD));}catch(e){}}
+/* Запуск попытки распознавания; false — не удалось. */
 function recBegin(a){
   if(recAtt){var old=recAtt;old.cancel=true;recFinish(old);try{recObj.abort();}catch(e){}}
   try{if(window.speechSynthesis&&speechSynthesis.speaking)speechSynthesis.cancel();}catch(e){}
-  recAtt=a;var mode=recMode();a.trace.push('mode:'+mode);
-  function startNow(){
-    if(a.done)return false;
-    if(a.released){recFinish(a);return true;} /* кнопку отпустили, пока ждали микрофон */
-    try{
-      if(mode==='shared'){if(!recObj)recObj=makeRec(null);}else{recObj=makeRec(a);}
-      recObj.start();return true;
-    }catch(e){
-      /* Прошлый сеанс ещё не закрылся: пересоздаём распознаватель и пробуем снова. */
-      recEvent('restart');try{recObj.abort();}catch(e2){}
-      try{recObj=makeRec(mode==='shared'?null:a);recObj.start();return true;}catch(e3){return false;}
-    }
-  }
-  if(mode==='reset'&&navigator.mediaDevices&&navigator.mediaDevices.getUserMedia){
-    /* Если доступ к микрофону не ответил за 2 секунды, запускаем распознавание без сброса. */
-    var go=false,goOn=function(tag){if(go)return;go=true;recEvent(tag);if(!startNow()&&!a.done){a.err='start-failed';recFinish(a);}};
-    var gt=setTimeout(function(){goOn('gum-timeout');},2000);
-    navigator.mediaDevices.getUserMedia({audio:true}).then(function(st){
-      st.getTracks().forEach(function(t){t.stop();});clearTimeout(gt);goOn('gum');
-    },function(e){clearTimeout(gt);goOn('gum-err:'+(e&&e.name));});
-    return true;
-  }
-  if(!startNow()){recAtt=null;return false;}
-  return true;
+  recAtt=a;
+  try{recObj=makeRec(a);recObj.start();}catch(e){recAtt=null;return false;}
+  recUsed=true;return true;
 }
 function newAtt(){return {finals:[],interim:'',err:null,t0:Date.now(),trace:[],done:false,timer:null};}
 function attText(a){return a.finals.map(function(q){return q[0];}).concat(a.interim?[a.interim]:[]).join(' ').trim();}
@@ -907,6 +888,7 @@ var micTest={};
 function micTestStart(){
   keepScroll=true;
   if(!canListen){micTest={msg:'Этот браузер не умеет распознавать речь. Открой приложение в Chrome или Safari.',ok:false};render();return;}
+  if(recNeedsReload()){recReload();return;}
   var a=newAtt();a.onDone=micTestDone;
   if(!recBegin(a)){micTest={msg:'Не удалось включить микрофон.',ok:false};render();return;}
   micTest={on:true,msg:'Слушаю… Скажи что-нибудь по-гречески, например «Καλημέρα».',ok:true};render();
@@ -925,6 +907,7 @@ function micTestDone(a){
 function micDown(ev){
   if(!canListen||!session||session.mode!=='say'||session.state!=='ask')return;
   ev.preventDefault();
+  if(recNeedsReload()){recReload();return;}
   var a=newAtt();session.sayMsg='';
   if(!recBegin(a)){session.sayMsg='Не удалось включить микрофон.';render();return;}
   setMicState('on');
@@ -1243,7 +1226,6 @@ function renderSettings(){
   h+='<div class="row"><button class="btn" data-action="test-speech">🔊 Проверить звук</button></div>';
   h+='<p class="small muted">Если не слышно: прибавь громкость кнопками сбоку телефона, а на iPhone ещё проверь переключатель беззвучного режима: в беззвучном режиме озвучка не звучит.</p>';
   h+='<h3>Микрофон</h3><p class="small muted">Распознавание речи для режимов «Отработка лексики».</p>';
-  h+='<label class="small muted" for="recMode">Способ запуска (для отладки на iPhone)</label><div class="row" style="margin-top:4px"><select id="recMode" data-action="set-rec-mode">'+REC_MODES.map(function(q){return '<option value="'+q[0]+'"'+(recMode()===q[0]?' selected':'')+'>'+esc(q[1])+'</option>';}).join('')+'</select></div>';
   h+='<div class="row"><button class="btn" data-action="test-mic">'+(micTest.on?'■ Остановить':'🎤 Проверить микрофон')+'</button></div>';
   if(micTest.msg)h+='<p class="notice '+(micTest.ok?'ok':'bad')+'">'+esc(micTest.msg)+(micTest.trace?'<br><span class="small muted">Для отладки: '+esc(micTest.trace)+'</span>':'')+'</p>';
   h+='<h3>Прогресс набора «'+esc(set.title)+'»</h3>';
@@ -1407,7 +1389,6 @@ document.addEventListener('change',function(ev){
   var a=el.getAttribute('data-action');if(!a)return;
   if(a==='set-scope'){store.settings.scope=el.value;save();render();}
   else if(a==='set-shuffle'){store.settings.shuffle=el.checked;save();}
-  else if(a==='set-rec-mode'){try{localStorage.setItem('greek-words:rec-mode',el.value);}catch(e){}micTest={};keepScroll=true;render();}
   else if(a==='set-autospeak'){store.settings.autoSpeak=el.checked;save();}
 });
 document.addEventListener('input',function(ev){
@@ -1508,11 +1489,13 @@ function saveResume(){
     var data={view:view,setId:currentSet().id};
     if(session&&(view.name==='session'||view.name==='end')){
       var s=session;
-      data.session={mode:s.mode,dir:s.dir,i:s.i,requeued:!!s.requeued,hinted:!!s.hinted,parts:s.parts||null,sentIdx:s.sentIdx||null,person:s.person,persons:s.persons||null,flipped:!!s.flipped,state:s.state,picked:s.picked||[],typed:s.typed||'',
+      data.session={mode:s.mode,dir:s.dir,i:s.i,requeued:!!s.requeued,hinted:!!s.hinted,parts:s.parts||null,sentIdx:s.sentIdx||null,heard:s.heard||'',marks:s.marks||null,sayMsg:s.sayMsg||'',sayTrace:s.sayTrace||'',attempts:s.attempts||0,person:s.person,persons:s.persons||null,flipped:!!s.flipped,state:s.state,picked:s.picked||[],typed:s.typed||'',
         grade:s.grade,pickedOpt:s.pickedOpt,tiles:s.tiles,options:s.options,correctOpt:s.correctOpt,target:s.target,
         words:s.words.map(function(w){return w.gr;}),scopeWords:(s.scopeWords||[]).map(function(w){return w.gr;}),
         results:Array.prototype.map.call(s.results,function(r){return r?Object.assign({},r,{word:r.word.gr}):null;})};
     }
+    if(view.name==='settings'&&micTest.msg&&!micTest.on)data.micTest=micTest;
+    data.scroll=screen.scrollTop;
     sessionStorage.setItem(RESUME_KEY,JSON.stringify(data));
   }catch(e){}
 }
@@ -1528,10 +1511,12 @@ function restoreResume(){
       var byGr={};set.words.concat(extraOf(set)).forEach(function(w){byGr[w.gr]=w;});
       var res=function(k){var w=byGr[k];if(!w)throw new Error('missing word '+k);return w;};
       session={mode:sv.mode,dir:sv.dir,set:set,pool:modePool(sv.mode,poolWords(set)),sentIdx:sv.sentIdx||null,words:sv.words.map(res),scopeWords:sv.scopeWords.map(res),i:sv.i,
-        results:sv.results.map(function(r){return r?Object.assign({},r,{word:res(r.word)}):null;}),requeued:sv.requeued,hinted:!!sv.hinted,parts:sv.parts||null,person:sv.person,persons:sv.persons||null,
+        results:sv.results.map(function(r){return r?Object.assign({},r,{word:res(r.word)}):null;}),requeued:sv.requeued,hinted:!!sv.hinted,parts:sv.parts||null,heard:sv.heard||'',marks:sv.marks||null,sayMsg:sv.sayMsg||'',sayTrace:sv.sayTrace||'',attempts:sv.attempts||0,person:sv.person,persons:sv.persons||null,
         flipped:sv.flipped,state:sv.state,picked:sv.picked,typed:sv.typed,grade:sv.grade,pickedOpt:sv.pickedOpt,tiles:sv.tiles,options:sv.options,correctOpt:sv.correctOpt,target:sv.target};
       if(v.name==='session'&&!session.words[session.i])throw new Error('bad index');
     }
+    if(d.micTest)micTest=d.micTest;
+    resumeScroll=d.scroll||0;
     view=v;return true;
   }catch(e){session=null;view={name:'home'};return false;}
 }
@@ -1570,8 +1555,10 @@ function doImport(){
   settingsMsg='Импортировано слов: '+words.length+'. Набор «'+title+'» выбран.';render();
 }
 
+var resumeScroll=0;
 restoreResume();
 render();
+if(resumeScroll)screen.scrollTop=resumeScroll;
 })();
 </script>
 </body>
