@@ -24,7 +24,7 @@ var appZoom=1;
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Греческий">
-<meta name="build" content="2026-11-03-11">
+<meta name="build" content="2026-11-03-12">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap">
@@ -283,9 +283,9 @@ input[type=text].big{font-family:var(--display);font-size:24px;text-align:center
   <main id="screen"></main>
   <footer id="actions"></footer>
 </div>
-<script src="words.js?v=2026-11-03-11"></script>
-<script src="sentences.js?v=2026-11-03-11"></script>
-<script src="grammar.js?v=2026-11-03-11"></script>
+<script src="words.js?v=2026-11-03-12"></script>
+<script src="sentences.js?v=2026-11-03-12"></script>
+<script src="grammar.js?v=2026-11-03-12"></script>
 <script>
 (function(){
 'use strict';
@@ -448,17 +448,23 @@ var canSpeak=('speechSynthesis' in window)&&('SpeechSynthesisUtterance' in windo
    проверены на устройстве и не помогают: синтез речи глушится боковым переключателем. */
 /* raw — текст озвучивается как есть (предложения диалога), иначе берётся первый вариант слова.
    Две меры против «английского» произношения греческого в Chrome на компьютере: список голосов
-   там загружается асинхронно, и пока он пуст, ждём voiceschanged (не дольше 700 мс); а speak()
+   там загружается асинхронно (~1,5 с после загрузки страницы), и пока он пуст, фраза без голоса
+   уходит голосу по умолчанию, поэтому ждём список (проверено в Chrome 156 на macOS); а speak()
    сразу после cancel() прерванной фразы иногда идёт голосом по умолчанию, поэтому при
    прерывании говорим с задержкой 60 мс. На iPhone голоса доступны сразу, задержек нет. */
+var speakWait=0;
 function speak(text,raw){
   if(!canSpeak)return;
   try{
     var say=raw?String(text):primaryTarget(text);
     var vs=[];try{vs=speechSynthesis.getVoices()||[];}catch(e){}
-    if(!vs.length){var done=false;var go=function(){if(done)return;done=true;try{speechSynthesis.onvoiceschanged=null;}catch(e){}speakNow(say);};
-      speechSynthesis.onvoiceschanged=go;setTimeout(go,700);return;}
-    speakNow(say);
+    if(vs.length){speakNow(say);return;}
+    /* Список пуст (в Chrome он приходит через ~1,5 с после загрузки): ждём его событием и опросом,
+       не дольше 5 с; новое нажатие отменяет ожидающую фразу. */
+    var my=++speakWait,t0=Date.now();
+    var go=function(){if(my!==speakWait)return;speakWait++;clearInterval(iv);try{speechSynthesis.removeEventListener('voiceschanged',go);}catch(e){}speakNow(say);};
+    var iv=setInterval(function(){var n=0;try{n=(speechSynthesis.getVoices()||[]).length;}catch(e){}if(n||Date.now()-t0>5000)go();},100);
+    try{speechSynthesis.addEventListener('voiceschanged',go);}catch(e){}
   }catch(e){}
 }
 function speakNow(say){
