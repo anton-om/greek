@@ -24,7 +24,7 @@ var appZoom=1;
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Греческий">
-<meta name="build" content="2026-11-03-12">
+<meta name="build" content="2026-11-03-13">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap">
@@ -283,9 +283,9 @@ input[type=text].big{font-family:var(--display);font-size:24px;text-align:center
   <main id="screen"></main>
   <footer id="actions"></footer>
 </div>
-<script src="words.js?v=2026-11-03-12"></script>
-<script src="sentences.js?v=2026-11-03-12"></script>
-<script src="grammar.js?v=2026-11-03-12"></script>
+<script src="words.js?v=2026-11-03-13"></script>
+<script src="sentences.js?v=2026-11-03-13"></script>
+<script src="grammar.js?v=2026-11-03-13"></script>
 <script>
 (function(){
 'use strict';
@@ -477,14 +477,24 @@ function speakNow(say){
 }
 /* Голоса загружены, а греческого среди них нет: озвучка прозвучит не по-гречески. */
 function greekVoiceMissing(){var all=[];try{all=speechSynthesis.getVoices()||[];}catch(e){}return canSpeak&&all.length>0&&!greekVoices().length;}
-function voiceWarnHtml(){return greekVoiceMissing()?'<p class="notice bad" style="margin-top:10px">Греческий голос не найден, озвучка прозвучит неправильно. На Mac: Системные настройки → Универсальный доступ → Устный контент → Системный голос → Управление голосами → греческий (Melina). Подробнее: Настройки → Проверить звук.</p>':'';}
+/* Как поставить греческий голос: по платформе. Chrome читает список системных голосов при
+   запуске, поэтому после установки браузер нужно перезапустить. */
+function voiceInstallHint(){
+  var ua=navigator.userAgent;
+  if(/Android/i.test(ua))return 'На Android: Настройки → Система → Язык и ввод → Синтез речи → Google Text-to-speech → Установка голосовых данных → Ελληνικά.';
+  if(/Windows/i.test(ua))return 'На Windows: Параметры → Время и язык → Речь → Добавить голоса → Греческий; в Microsoft Edge греческий голос обычно есть сразу.';
+  if(/Macintosh/i.test(ua))return 'На Mac: Системные настройки → Универсальный доступ → Устный контент → Системный голос → Управление голосами → греческий (Melina).';
+  return 'Установи греческий голос синтеза речи в настройках системы.';
+}
+function voiceWarnHtml(){return greekVoiceMissing()?'<p class="notice bad" style="margin-top:10px">Греческий голос не найден: озвучка прозвучит английским голосом. '+voiceInstallHint()+' После установки перезапусти браузер. Проверка: Настройки → Проверить звук.</p>':'';}
 if(canSpeak){try{speechSynthesis.getVoices();}catch(e){}}
 function greekVoices(){var vs=[];try{vs=speechSynthesis.getVoices()||[];}catch(e){}return vs.filter(function(v){return /^el/i.test(v.lang);});}
 function speechStatus(){
   if(!canSpeak)return 'Ошибка: браузер не поддерживает синтез речи.';
   var g=greekVoices(),all=[];try{all=speechSynthesis.getVoices()||[];}catch(e){}
   if(g.length)return 'Греческий голос: '+g[0].name+'. Если слово не прозвучало, проверьте переключатель беззвучного режима на телефоне.';
-  return 'Ошибка: греческий голос не найден (всего голосов: '+all.length+'). На iPhone: Настройки → Универсальный доступ → Устный контент → Голоса → Греческий. На Android: настройки синтеза речи Google → установить греческий.';
+  if(!all.length)return 'Ошибка: браузер ещё не загрузил список голосов, нажми ещё раз через секунду.';
+  return 'Ошибка: греческий голос не найден (всего голосов: '+all.length+'). '+voiceInstallHint()+' На iPhone: Настройки → Универсальный доступ → Устный контент → Голоса → Греческий. После установки перезапусти браузер.';
 }
 
 /* ---------- views ---------- */
@@ -710,6 +720,7 @@ function renderFlash(w){
   var back=frontGr?'<div class="lang">Русский</div><div class="word ru">'+esc(w.ru)+'</div>':'<div class="lang">Греческий</div><div class="word">'+esc(w.gr)+'</div>';
   var mark=learned?'<div class="learned-mark">✓ изучено</div>':'';
   var h=progressHtml();
+  if(canSpeak)h+=voiceWarnHtml();
   h+='<div class="card-wrap"><div class="card'+(session.flipped?' flipped':'')+'" id="card" tabindex="0" role="button" aria-label="Карточка, нажмите чтобы перевернуть">'+
     '<div class="face front">'+mark+front+'</div><div class="face back">'+mark+back+'</div></div></div>';
   h+='<div class="card-tools">'+speakBtn(w.gr)+'<button class="chip'+(learned?' on':'')+'" data-action="toggle-learned">'+(learned?'✓ Изучено':'☆ Отметить изученным')+'</button></div>';
