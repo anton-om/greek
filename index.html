@@ -24,7 +24,7 @@ var appZoom=1;
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Греческий">
-<meta name="build" content="2026-11-03-13">
+<meta name="build" content="2026-11-03-14">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap">
@@ -283,9 +283,9 @@ input[type=text].big{font-family:var(--display);font-size:24px;text-align:center
   <main id="screen"></main>
   <footer id="actions"></footer>
 </div>
-<script src="words.js?v=2026-11-03-13"></script>
-<script src="sentences.js?v=2026-11-03-13"></script>
-<script src="grammar.js?v=2026-11-03-13"></script>
+<script src="words.js?v=2026-11-03-14"></script>
+<script src="sentences.js?v=2026-11-03-14"></script>
+<script src="grammar.js?v=2026-11-03-14"></script>
 <script>
 (function(){
 'use strict';
@@ -1034,7 +1034,7 @@ function finishSay(ok){
    Подсветка: слова вне набора и общего списка служебных слов — пунктир, объявленные моделью
    новые слова — синим. Подробнее: docs/dialog-mode.md. */
 var CLAUDE_URL='https://api.anthropic.com/v1/messages';
-var CLAUDE_MODELS=[['claude-opus-5-5','Claude Opus 5.5 — лучше понимает ученика, около 2 ¢ за реплику'],['claude-haiku-5-5','Claude Haiku 5.5 — дешевле в 30 раз']];
+var CLAUDE_MODELS=[['claude-opus-5-5','Claude Opus 5.5'],['claude-haiku-5-5','Claude Haiku 5.5']];
 function claudeKey(){return (store.settings&&store.settings.claudeKey||'').trim();}
 function claudeModel(){var m=store.settings&&store.settings.claudeModel;return CLAUDE_MODELS.some(function(x){return x[0]===m;})?m:CLAUDE_MODELS[0][0];}
 function dialogAvailable(){return !isIOSDevice()&&!!claudeKey();}
@@ -1456,7 +1456,7 @@ function renderSettings(){
   h+='<h3>Диалог</h3>';
   if(isIOSDevice()){h+='<p class="small muted">Режим «Диалог» (разговор по-гречески с моделью Claude) на iPhone и iPad недоступен: распознавание речи в браузере там не работает. Ключ API Claude для этого режима вводится в настройках на компьютере или Android.</p>';}
   else{
-    h+='<p class="small muted">Режим «Диалог»: разговор по-гречески с моделью Claude словами выбранного набора. Нужен ключ API из консоли Anthropic (platform.claude.com → API Keys): это отдельный от подписки Claude счёт с предоплатой, стоит поставить на ключ месячный лимит расходов. Ключ хранится только в этом браузере и отправляется только на api.anthropic.com. Без ключа режим не показывается.</p>';
+    h+='<p class="small muted">Режим «Диалог»: разговор по-гречески с моделью Claude словами выбранного набора. Нужен ключ API из консоли Anthropic.</p>';
     h+='<form id="keyForm" class="keyrow"><input type="password" id="keyInput" placeholder="sk-ant-…" autocomplete="off" spellcheck="false" aria-label="Ключ API Claude" value="'+esc(claudeKey())+'"><button type="submit" class="btn ghost">Сохранить</button></form>';
     if(claudeKey())h+='<div class="row"><button class="btn" data-action="key-test">Проверить ключ</button><button class="btn ghost" data-action="key-clear">Удалить</button></div>';
     h+='<label class="small muted" style="display:block">Модель <select id="modelSelect" aria-label="Модель">'+CLAUDE_MODELS.map(function(m){return '<option value="'+m[0]+'"'+(m[0]===claudeModel()?' selected':'')+'>'+esc(m[1])+'</option>';}).join('')+'</select></label>';
