@@ -24,7 +24,7 @@ var appZoom=1;
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Греческий">
-<meta name="build" content="2026-11-03-5">
+<meta name="build" content="2026-11-03-6">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap">
@@ -137,6 +137,7 @@ input[type=text].big{font-family:var(--display);font-size:24px;text-align:center
 .mode .txt{flex:1;min-width:0}
 .mode .t{font-weight:600}
 .mode .d{color:var(--muted);font-size:13.5px}
+.badge-dev{display:inline-block;margin-left:6px;padding:1px 7px;border-radius:999px;background:var(--warn-soft);color:var(--warn);font-size:11.5px;font-weight:600;vertical-align:2px;white-space:nowrap}
 .mode .arr{color:var(--muted)}
 
 .progress{height:4px;background:var(--line);border-radius:2px;overflow:hidden;margin-top:4px}
@@ -266,9 +267,9 @@ input[type=text].big{font-family:var(--display);font-size:24px;text-align:center
   <main id="screen"></main>
   <footer id="actions"></footer>
 </div>
-<script src="words.js?v=2026-11-03-5"></script>
-<script src="sentences.js?v=2026-11-03-5"></script>
-<script src="grammar.js?v=2026-11-03-5"></script>
+<script src="words.js?v=2026-11-03-6"></script>
+<script src="sentences.js?v=2026-11-03-6"></script>
+<script src="grammar.js?v=2026-11-03-6"></script>
 <script>
 (function(){
 'use strict';
@@ -458,8 +459,8 @@ var MODE_LIST=[
   {key:'type',mode:'type',dir:'ru',t:'Пишем сами',d:'Введи греческое слово с клавиатуры'},
   {key:'plural',mode:'plural',dir:'ru',t:'Множественное число',d:'Артикль и окончание в единственном и множественном числе'},
   {key:'conj',mode:'conj',dir:'ru',t:'Спряжение глаголов',d:'Впиши местоимение и окончание по русской подсказке'},
-  {key:'say',mode:'say',dir:'gr',t:'Отработка лексики',d:'В разработке. Прочитай греческое предложение вслух в микрофон'},
-  {key:'say-ru',mode:'say',dir:'ru',t:'Отработка лексики: с русского',d:'В разработке. Скажи по-гречески предложение по русскому переводу'}
+  {key:'say',mode:'say',dir:'gr',t:'Отработка лексики',dev:true,d:'Прочитай греческое предложение вслух в микрофон'},
+  {key:'say-ru',mode:'say',dir:'ru',t:'Отработка лексики: с русского',dev:true,d:'Скажи по-гречески предложение по русскому переводу'}
 ];
 var MODE_TITLE={flash:'Карточки',tiles:'Учимся писать',type:'Пишем сами',quiz:'Варианты ответа',plural:'Множественное число',conj:'Спряжение глаголов',say:'Отработка лексики'};
 
@@ -563,7 +564,7 @@ function renderHome(){
   h+='<div class="prog"><div class="lab"><span>Изучено</span><b>'+lg+' / '+n+'</b></div><div class="bar"><i style="width:'+pct(lg,n)+'%"></i></div></div>';
   h+='</div>';
   h+='<h3>Режимы</h3>'+(homeMsg?'<p class="notice bad" style="margin-bottom:10px">'+esc(homeMsg)+'</p>':'')+'<div class="modes">'+MODE_LIST.map(function(m,i){
-    return '<button class="mode" data-action="pick-mode" data-key="'+m.key+'"><span class="num">'+(i+1)+'</span><span class="txt"><div class="t">'+esc(m.t)+'</div><div class="d">'+esc(m.d)+'</div></span><span class="arr">›</span></button>';
+    return '<button class="mode" data-action="pick-mode" data-key="'+m.key+'"><span class="num">'+(i+1)+'</span><span class="txt"><div class="t">'+esc(m.t)+(m.dev?'<span class="badge-dev">в разработке</span>':'')+'</div><div class="d">'+esc(m.d)+'</div></span><span class="arr">›</span></button>';
   }).join('')+'</div>';
   if(!n){h+='<p class="notice" style="margin-top:16px">'+(set.mix?'Отметьте выше хотя бы один урок и хотя бы одну часть речи.':set.words.length?'Включите выше лексику и хотя бы одну часть речи.':'В этом наборе нет слов. Добавьте слова в words.js или импортируйте набор в настройках.')+'</p>';}
   return h;
@@ -800,6 +801,7 @@ function sayMicHint(){
 function renderSay(w){
   var gr=session.dir==='gr',done=session.state!=='ask';
   var h=progressHtml();
+  h+='<p class="notice" style="margin-top:10px">Режим в разработке: на iPhone распознавание речи пока работает нестабильно.</p>';
   h+='<div class="prompt"><div class="lang">'+(gr?'Греческий':'Русский')+'</div>';
   if(gr)h+='<div class="word sent">'+sayMarked(w)+'</div><div class="muted" style="margin-top:8px">'+esc(w.ru)+'</div>';
   else{h+='<div class="word ru sent">'+esc(w.ru)+'</div>';if(done||session.marks)h+='<div class="word sent" style="margin-top:10px">'+sayMarked(w)+'</div>';}
