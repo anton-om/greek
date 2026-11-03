@@ -24,7 +24,7 @@ var appZoom=1;
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Греческий">
-<meta name="build" content="2026-11-03-10">
+<meta name="build" content="2026-11-03-11">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap">
@@ -184,6 +184,21 @@ input[type=text].big{font-family:var(--display);font-size:24px;text-align:center
 .heard{align-self:stretch;min-height:1.4em;text-align:center;color:var(--muted);font-style:italic;font-size:15px}
 .mic-wrap .hint{margin-top:0}
 .say-form{display:flex;gap:8px;margin-top:16px}.say-form input{flex:1}.say-form .btn{flex:0 0 auto}
+.chat{display:flex;flex-direction:column;gap:10px;margin-top:12px}
+.bubble{max-width:88%;padding:12px 14px;border-radius:16px;font-size:17px;line-height:1.4}
+.bubble.ai{align-self:flex-start;background:var(--surface);box-shadow:var(--shadow);border-bottom-left-radius:6px}
+.bubble.me{align-self:flex-end;background:var(--accent);color:var(--accent-fg);border-bottom-right-radius:6px}
+.bubble .gr{font-family:var(--display);font-size:19px}
+.bubble .ru{color:var(--muted);font-size:15px;margin-top:6px}
+.bubble .tools{display:flex;gap:8px;margin-top:8px;flex-wrap:wrap}
+.bubble .nw{font-size:13.5px;color:var(--muted);margin-top:8px}
+.bubble .fix{margin-top:8px;padding-top:8px;border-top:1px solid rgba(255,255,255,.35);font-size:15px}
+.bubble .fix .small{opacity:.85;margin-top:2px}
+.bubble.typing{color:var(--muted);letter-spacing:3px}
+.sw.new{text-decoration:underline dotted;text-underline-offset:4px;color:var(--accent)}
+.sw.out{text-decoration:underline dotted;text-underline-offset:4px;color:var(--warn)}
+.mic.sm{width:50px;height:50px;font-size:22px;flex:0 0 auto;box-shadow:none}
+.keyrow{display:flex;gap:8px}.keyrow input{flex:1;font-family:ui-monospace,Menlo,monospace;font-size:14px}
 .result .mark{font-size:30px;font-weight:700;line-height:1;flex:0 0 auto}
 .result .body{flex:1;min-width:0}
 .result .body .ans{font-family:var(--display);font-size:24px;color:var(--fg);overflow-wrap:anywhere}
@@ -268,9 +283,9 @@ input[type=text].big{font-family:var(--display);font-size:24px;text-align:center
   <main id="screen"></main>
   <footer id="actions"></footer>
 </div>
-<script src="words.js?v=2026-11-03-10"></script>
-<script src="sentences.js?v=2026-11-03-10"></script>
-<script src="grammar.js?v=2026-11-03-10"></script>
+<script src="words.js?v=2026-11-03-11"></script>
+<script src="sentences.js?v=2026-11-03-11"></script>
+<script src="grammar.js?v=2026-11-03-11"></script>
 <script>
 (function(){
 'use strict';
@@ -431,14 +446,32 @@ var canSpeak=('speechSynthesis' in window)&&('SpeechSynthesisUtterance' in windo
 /* Озвучка в исходном виде первой версии: cancel() и сразу speak(). Обходы для беззвучного
    режима iPhone (беззвучный аудиофайл перед речью, navigator.audioSession.type='playback')
    проверены на устройстве и не помогают: синтез речи глушится боковым переключателем. */
-function speak(text){
+/* raw — текст озвучивается как есть (предложения диалога), иначе берётся первый вариант слова.
+   Две меры против «английского» произношения греческого в Chrome на компьютере: список голосов
+   там загружается асинхронно, и пока он пуст, ждём voiceschanged (не дольше 700 мс); а speak()
+   сразу после cancel() прерванной фразы иногда идёт голосом по умолчанию, поэтому при
+   прерывании говорим с задержкой 60 мс. На iPhone голоса доступны сразу, задержек нет. */
+function speak(text,raw){
   if(!canSpeak)return;
   try{
-    var u=new SpeechSynthesisUtterance(primaryTarget(text));u.lang='el-GR';u.rate=0.9;
-    var v=speechSynthesis.getVoices().filter(function(v){return /^el/i.test(v.lang);})[0];if(v)u.voice=v;
-    speechSynthesis.cancel();speechSynthesis.speak(u);
+    var say=raw?String(text):primaryTarget(text);
+    var vs=[];try{vs=speechSynthesis.getVoices()||[];}catch(e){}
+    if(!vs.length){var done=false;var go=function(){if(done)return;done=true;try{speechSynthesis.onvoiceschanged=null;}catch(e){}speakNow(say);};
+      speechSynthesis.onvoiceschanged=go;setTimeout(go,700);return;}
+    speakNow(say);
   }catch(e){}
 }
+function speakNow(say){
+  try{
+    var u=new SpeechSynthesisUtterance(say);u.lang='el-GR';u.rate=0.9;
+    var g=greekVoices(),v=g.filter(function(v){return /^el[-_]GR$/i.test(v.lang);})[0]||g[0];if(v)u.voice=v;
+    if(speechSynthesis.speaking||speechSynthesis.pending){speechSynthesis.cancel();setTimeout(function(){speechSynthesis.speak(u);},60);}
+    else{speechSynthesis.cancel();speechSynthesis.speak(u);}
+  }catch(e){}
+}
+/* Голоса загружены, а греческого среди них нет: озвучка прозвучит не по-гречески. */
+function greekVoiceMissing(){var all=[];try{all=speechSynthesis.getVoices()||[];}catch(e){}return canSpeak&&all.length>0&&!greekVoices().length;}
+function voiceWarnHtml(){return greekVoiceMissing()?'<p class="notice bad" style="margin-top:10px">Греческий голос не найден, озвучка прозвучит неправильно. На Mac: Системные настройки → Универсальный доступ → Устный контент → Системный голос → Управление голосами → греческий (Melina). Подробнее: Настройки → Проверить звук.</p>':'';}
 if(canSpeak){try{speechSynthesis.getVoices();}catch(e){}}
 function greekVoices(){var vs=[];try{vs=speechSynthesis.getVoices()||[];}catch(e){}return vs.filter(function(v){return /^el/i.test(v.lang);});}
 function speechStatus(){
@@ -461,12 +494,13 @@ var MODE_LIST=[
   {key:'plural',mode:'plural',dir:'ru',t:'Множественное число',d:'Артикль и окончание в единственном и множественном числе'},
   {key:'conj',mode:'conj',dir:'ru',t:'Спряжение глаголов',d:'Впиши местоимение и окончание по русской подсказке'},
   {key:'say',mode:'say',dir:'gr',t:'Отработка лексики',dev:true,d:'Прочитай греческое предложение вслух в микрофон'},
-  {key:'say-ru',mode:'say',dir:'ru',t:'Отработка лексики: с русского',dev:true,d:'Скажи по-гречески предложение по русскому переводу'}
+  {key:'say-ru',mode:'say',dir:'ru',t:'Отработка лексики: с русского',dev:true,d:'Скажи по-гречески предложение по русскому переводу'},
+  {key:'dialog',mode:'dialog',dir:'gr',t:'Диалог',dev:true,d:'Поговори по-гречески с Claude словами из набора'}
 ];
 /* Режимы 9 и 10 на iPhone не показываются: распознавание речи в WebKit не работает
    (docs/ios-speech-recognition.md), а диктовка через клавиатуру узнаёт слова хуже. */
-function modeList(){return isIOSDevice()?MODE_LIST.filter(function(m){return m.mode!=='say';}):MODE_LIST;}
-var MODE_TITLE={flash:'Карточки',tiles:'Учимся писать',type:'Пишем сами',quiz:'Варианты ответа',plural:'Множественное число',conj:'Спряжение глаголов',say:'Отработка лексики'};
+function modeList(){return MODE_LIST.filter(function(m){if(m.mode==='say')return !isIOSDevice();if(m.mode==='dialog')return dialogAvailable();return true;});}
+var MODE_TITLE={dialog:'Диалог',flash:'Карточки',tiles:'Учимся писать',type:'Пишем сами',quiz:'Варианты ответа',plural:'Множественное число',conj:'Спряжение глаголов',say:'Отработка лексики'};
 
 var screen=document.getElementById('screen');
 var APP_BUILD=(document.querySelector('meta[name=build]')||{}).content||'';
@@ -504,8 +538,10 @@ function render(){
   else if(view.name==='cheat'){title='Шпаргалка';html=renderCheat();}
   topTitle.textContent=title;
   var st=screen.scrollTop;screen.innerHTML=html;actions.innerHTML=foot;
-  screen.scrollTop=keepScroll?st:0;keepScroll=false;
+  screen.scrollTop=keepScroll?st:0;var keepScrollDone=keepScroll;keepScroll=false;
   var inp=document.getElementById('typeInput');if(inp&&session&&session.state==='ask'){inp.focus();}
+  if(session&&session.mode==='dialog'&&view.name==='session'&&session.topic){if(!keepScrollDone)screen.scrollTop=screen.scrollHeight;
+    var di=document.getElementById('dialogInput');if(di&&!session.busy&&window.matchMedia&&matchMedia('(hover:hover)').matches)di.focus();}
 }
 
 /* ---------- home ---------- */
@@ -570,6 +606,7 @@ function renderHome(){
   h+='<h3>Режимы</h3>'+(homeMsg?'<p class="notice bad" style="margin-bottom:10px">'+esc(homeMsg)+'</p>':'')+'<div class="modes">'+modeList().map(function(m,i){
     return '<button class="mode" data-action="pick-mode" data-key="'+m.key+'"><span class="num">'+(i+1)+'</span><span class="txt"><div class="t">'+esc(m.t)+(m.dev?'<span class="badge-dev">в разработке</span>':'')+'</div><div class="d">'+esc(m.d)+'</div></span><span class="arr">›</span></button>';
   }).join('')+'</div>';
+  if(!isIOSDevice()&&!claudeKey())h+='<p class="small muted" style="margin-top:8px">Режим «Диалог» (разговор по-гречески с Claude) появится после ввода ключа API в настройках.</p>';
   if(!n){h+='<p class="notice" style="margin-top:16px">'+(set.mix?'Отметьте выше хотя бы один урок и хотя бы одну часть речи.':set.words.length?'Включите выше лексику и хотя бы одну часть речи.':'В этом наборе нет слов. Добавьте слова в words.js или импортируйте набор в настройках.')+'</p>';}
   return h;
 }
@@ -588,6 +625,7 @@ function startMode(key){
   if(scope==='new'&&!freshCount(set))scope='all';
   view={name:'session',key:key,mode:m.mode,dir:m.dir,scope:scope,shuffle:store.settings.shuffle!==false};
   trackEvent('mode/'+key,m.t);
+  if(m.mode==='dialog'){startDialog();return;}
   startSession();
 }
 function plural(n,a,b,c){var m10=n%10,m100=n%100;if(m10===1&&m100!==11)return a;if(m10>=2&&m10<=4&&(m100<10||m100>=20))return b;return c;}
@@ -648,6 +686,7 @@ function progressHtml(){
 function speakBtn(text){return canSpeak?'<button class="chip" data-action="speak" data-text="'+esc(text)+'" aria-label="Озвучить">🔊 Озвучить</button>':'';}
 
 function renderSession(){
+  if(session.mode==='dialog')return renderDialog();
   var w=cur();if(!w)return{html:'<p>Нет слов.</p>',foot:'<button class="btn" data-action="home">На главную</button>'};
   if(session.mode==='flash')return renderFlash(w);
   if(session.mode==='tiles')return renderTiles(w);
@@ -806,6 +845,7 @@ function renderSay(w){
   var gr=session.dir==='gr',done=session.state!=='ask';
   var h=progressHtml();
   if(!done&&isIOSDevice())h+='<p class="notice" style="margin-top:10px">На iPhone распознавание речи в браузере сейчас не работает (ошибка iOS 27), поэтому предложение надиктовывают через клавиатуру.</p>';
+  h+=voiceWarnHtml();
   h+='<div class="prompt"><div class="lang">'+(gr?'Греческий':'Русский')+'</div>';
   if(gr)h+='<div class="word sent">'+sayMarked(w)+'</div><div class="muted" style="margin-top:8px">'+esc(w.ru)+'</div>';
   else{h+='<div class="word ru sent">'+esc(w.ru)+'</div>';if(done||session.marks)h+='<div class="word sent" style="margin-top:10px">'+sayMarked(w)+'</div>';}
@@ -875,6 +915,7 @@ function makeRec(own){
     if(r.continuous){a.finals=fin;}else if(fin.length){a.finals=a.finals.concat(fin);}
     a.interim=intr;ev('result');
     var el=document.getElementById('heard');if(el&&a.onDone==null)el.textContent=attText(a);
+    var di=document.getElementById('dialogInput');if(di&&a.onDone===dialogMicDone)di.value=attText(a);
   };
   r.onerror=function(e){var a=att();if(a&&!a.done)a.err=e.error;ev('error',e.error);};
   r.onend=function(){var a=att();ev('end');if(a&&!a.done)recFinish(a);};
@@ -926,9 +967,10 @@ function micTestDone(a){
   if(view.name==='settings'){keepScroll=true;render();}
 }
 function micDown(ev){
-  if(sayByKeyboard()||!session||session.mode!=='say'||session.state!=='ask')return;
+  if(sayByKeyboard()||!session||(session.mode!=='say'&&session.mode!=='dialog')||session.state!=='ask')return;
+  if(session.mode==='dialog'&&session.busy)return;
   ev.preventDefault();
-  var a=newAtt();session.sayMsg='';
+  var a=newAtt();session.sayMsg='';if(session.mode==='dialog')a.onDone=dialogMicDone;
   if(!recBegin(a)){session.sayMsg='Не удалось включить микрофон.';render();return;}
   setMicState('on');
   var el=document.getElementById('heard');if(el)el.textContent='';
@@ -966,6 +1008,152 @@ function finishSay(ok){
   sayStop();
   session.grade=ok?(session.hinted?'hint':'exact'):'skip';session.state='done';
   if(!session.results[session.i])session.results[session.i]={word:cur(),ok:ok,grade:session.grade,given:session.heard||'',attempts:session.attempts,sent:sayCur()};
+}
+/* ---------- режим 11: диалог с Claude ----------
+   Разговор по-гречески словами текущего набора. Запросы идут из браузера напрямую в
+   api.anthropic.com с ключом пользователя из настроек (localStorage); без ключа и на iOS режим
+   не показывается (на iOS не работает распознавание речи, см. docs/ios-speech-recognition.md).
+   Ответ модели — JSON по схеме: реплика, перевод, новые слова, исправление ошибки ученика.
+   Подсветка: слова вне набора и общего списка служебных слов — пунктир, объявленные моделью
+   новые слова — синим. Подробнее: docs/dialog-mode.md. */
+var CLAUDE_URL='https://api.anthropic.com/v1/messages';
+var CLAUDE_MODELS=[['claude-opus-5-5','Claude Opus 5.5 — лучше понимает ученика, около 2 ¢ за реплику'],['claude-haiku-5-5','Claude Haiku 5.5 — дешевле в 30 раз']];
+function claudeKey(){return (store.settings&&store.settings.claudeKey||'').trim();}
+function claudeModel(){var m=store.settings&&store.settings.claudeModel;return CLAUDE_MODELS.some(function(x){return x[0]===m;})?m:CLAUDE_MODELS[0][0];}
+function dialogAvailable(){return !isIOSDevice()&&!!claudeKey();}
+var DIALOG_TOPICS=[
+  {id:'family',t:'О себе и о семье',d:'Как тебя зовут, откуда ты, кто в твоей семье, чем занимаются',
+   p:'Тема разговора: ученик рассказывает о себе и своей семье — как его зовут, сколько ему лет, откуда он и где живёт, кто есть в его семье, чем они занимаются, что любят делать вместе. Спрашивай по одному вопросу, интересуйся деталями, рассказывай немного о себе в ответ.'}
+];
+var DIALOG_COMMON='ο η το οι τα τον την του της των τους τις ένα ένας μία μια έναν και ή αλλά όμως με σε στο στη στην στον στα στις στους από για να δεν μη μην όχι ναι τι ποιος ποια ποιο πού πότε πώς γιατί πόσο πόσα πόσοι πόσες εγώ εσύ αυτός αυτή αυτό εμείς εσείς αυτοί αυτές αυτά μου σου μας σας είμαι είσαι είναι είμαστε είστε έχω έχεις έχει έχουμε έχετε έχουν πολύ πολλά πολλοί πολλές λίγο εδώ εκεί τώρα σήμερα αύριο χθες καλά ευχαριστώ παρακαλώ γεια καλημέρα καλησπέρα καληνύχτα κύριε κυρία επίσης ακόμα μόνο κάθε πάλι λοιπόν ωραία μάλιστα εντάξει βέβαια ότι που όταν αν πως σαν ως μαζί χωρίς μετά πριν πάνω κάτω μέσα έξω κοντά μακριά'.split(' ');
+var DIALOG_SCHEMA={type:'object',properties:{reply:{type:'string',description:'Реплика по-гречески'},translation:{type:'string',description:'Точный русский перевод реплики'},new_words:{type:'array',items:{type:'object',properties:{gr:{type:'string'},ru:{type:'string'}},required:['gr','ru'],additionalProperties:false}},correction:{type:'string',description:'Краткое объяснение ошибки ученика по-русски или пустая строка'},corrected:{type:'string',description:'Фраза ученика в исправленном виде или пустая строка'}},required:['reply','translation','new_words','correction','corrected'],additionalProperties:false};
+function dialogSystem(){
+  var words=session.pool.map(function(w){return primaryTarget(w.gr)+' — '+w.ru;}).join('\n');
+  return 'Ты собеседник ученика, который учит греческий язык с нуля (уровень A1, родной язык русский). Веди с ним живой разговор по-гречески.\n'+session.topic.p+'\n\n'+
+    'Правила:\n'+
+    '1. Пиши только по-гречески: одно-два коротких простых предложения за реплику, настоящее время. Ученик знает артикли, настоящее время глаголов и множественное число существительных.\n'+
+    '2. Используй слова из списка ниже, а также артикли, местоимения, предлоги, союзы, числа, имена и самые частые слова (είμαι, έχω, ναι, όχι, και, πολύ, τι, πού, πώς).\n'+
+    '3. Слова вне списка допускаются, только если без них нельзя, не больше двух за реплику, и каждое такое слово перечисли в new_words с русским переводом (в словарной форме).\n'+
+    '4. Реагируй на то, что сказал ученик, и каждую реплику заканчивай одним вопросом, чтобы разговор продолжался.\n'+
+    '5. Если в реплике ученика есть ошибка (окончание, артикль, род, порядок слов, неверное слово), кратко по-русски объясни её в correction и дай его фразу в исправленном виде в corrected. Пропущенные ударения и опечатки ошибкой не считай. Если ошибок нет, оставь оба поля пустыми.\n'+
+    '6. В translation дай точный русский перевод своей реплики.\n\n'+
+    'Слова ученика:\n'+words;
+}
+function startDialog(){
+  var set=currentSet();
+  session={mode:'dialog',dir:'gr',set:set,pool:poolWords(set),words:[],scopeWords:[],results:[],i:0,state:'ask',topic:null,turns:[],messages:[],busy:false,err:'',typed:'',micState:'',usage:0};
+  view.name='session';render();
+}
+function dialogTopic(id){var t=DIALOG_TOPICS.filter(function(x){return x.id===id;})[0];if(!t||!session||session.mode!=='dialog')return;session.topic=t;dialogSend(null);}
+function claudeErr(status,j){
+  var m=(j&&j.error&&j.error.message)||'';
+  if(status===401)return 'Ошибка: ключ API не принят. Проверь его в настройках.';
+  if(status===403)return 'Ошибка: доступ запрещён. '+m;
+  if(status===429)return 'Ошибка: превышен лимит запросов или расходов. '+m;
+  if(status===529||status>=500)return 'Ошибка: сервис Claude перегружен, попробуй ещё раз.';
+  return 'Ошибка '+status+': '+(m||'неизвестная ошибка');
+}
+function claudeText(j){var t='';(j&&j.content||[]).forEach(function(b){if(b.type==='text')t+=b.text;});return t;}
+/* Запрос к Messages API. Для Opus и Sonnet включены серверные запасные модели на случай отказа
+   (fallbacks: default); если API их отвергает, повторяем запрос без них. */
+function claudeRequest(body,cb,noFallback){
+  var key=claudeKey();if(!key){cb('Ошибка: ключ API не задан.');return;}
+  var headers={'content-type':'application/json','x-api-key':key,'anthropic-version':'2026-10-21','anthropic-dangerous-direct-browser-access':'true'};
+  var b=Object.assign({},body);
+  if(!noFallback&&/^claude-(opus|sonnet|fable)/.test(b.model)){headers['anthropic-beta']='server-side-fallback-2026-07-01';b.fallbacks='default';}
+  fetch(CLAUDE_URL,{method:'POST',headers:headers,body:JSON.stringify(b)}).then(function(r){
+    return r.text().then(function(t){var j=null;try{j=JSON.parse(t);}catch(e){}
+      if(!r.ok){if(r.status===400&&b.fallbacks&&/fallback/i.test((j&&j.error&&j.error.message)||'')){claudeRequest(body,cb,true);return;}cb(claudeErr(r.status,j));return;}
+      cb(null,j);});
+  }).catch(function(){cb('Ошибка: нет связи с api.anthropic.com. Проверь интернет.');});
+}
+function dialogSend(text){
+  var s=session;if(!s||s.mode!=='dialog'||s.busy||!s.topic)return;
+  if(text!=null){text=String(text).trim();if(!text)return;s.turns.push({who:'me',text:text});s.messages.push({role:'user',content:text});}
+  else if(!s.messages.length){s.messages.push({role:'user',content:'Начни разговор: поздоровайся с учеником по-гречески и задай ему первый простой вопрос по теме.'});}
+  s.busy=true;s.err='';s.typed='';render();
+  var body={model:claudeModel(),max_tokens:4096,system:[{type:'text',text:dialogSystem(),cache_control:{type:'ephemeral'}}],messages:s.messages.slice(),output_config:{effort:'low',format:{type:'json_schema',schema:DIALOG_SCHEMA}}};
+  claudeRequest(body,function(err,j){
+    if(session!==s)return;s.busy=false;
+    if(!err&&j.stop_reason==='refusal')err='Ошибка: модель отказалась отвечать.';
+    if(!err&&j.stop_reason==='max_tokens')err='Ошибка: ответ оборвался, попробуй ещё раз.';
+    var data=null;if(!err){try{data=JSON.parse(claudeText(j));}catch(e){err='Ошибка: не удалось разобрать ответ модели.';}}
+    if(err){var last=s.messages[s.messages.length-1];
+      if(last&&last.role==='user'){s.messages.pop();if(s.turns.length&&s.turns[s.turns.length-1].who==='me')s.typed=s.turns.pop().text;}
+      s.err=err;render();return;}
+    s.messages.push({role:'assistant',content:claudeText(j)});
+    var t={who:'ai',gr:String(data.reply||'').trim(),ru:String(data.translation||'').trim(),newWords:(data.new_words||[]).filter(function(x){return x&&x.gr;}),showRu:false};
+    if(data.correction||data.corrected){for(var i=s.turns.length-1;i>=0;i--){if(s.turns[i].who==='me'){s.turns[i].correction=String(data.correction||'');s.turns[i].corrected=String(data.corrected||'');break;}}}
+    s.turns.push(t);if(j.usage)s.usage+=(j.usage.input_tokens||0)+(j.usage.output_tokens||0)+(j.usage.cache_read_input_tokens||0)+(j.usage.cache_creation_input_tokens||0);
+    render();if(store.settings.autoSpeak)speak(t.gr,true);
+  });
+}
+function dialogMicDone(a){
+  if(!session||session.mode!=='dialog')return;session.micState='';
+  var t=attText(a);if(t)session.typed=t;else session.err=recErrMsg(a.err,Date.now()-a.t0);
+  render();
+}
+function dialogEnd(){if(session&&session.mode==='dialog'&&session.turns.length)trackEvent('done/dialog','Завершено: Диалог');goHome();}
+/* Известные ученику формы: слова набора, их мн. ч. и спряжение, слова из предложений режимов 9–10, служебные слова. */
+function dialogKnown(){
+  if(session.known)return session.known;var k={};
+  function add(x){sayTokens(String(x).replace(/\//g,' ')).forEach(function(t){k[t]=1;});}
+  DIALOG_COMMON.forEach(add);
+  session.pool.forEach(function(w){add(w.gr);var pl=pluralOf(w);if(pl)add(pl);var f=verbForms(w);if(f)f.forEach(add);sentencesFor(w).forEach(function(x){add(x[0]);});});
+  session.known=k;return k;
+}
+function dialogMarked(t){
+  var known=dialogKnown(),nw={};t.newWords.forEach(function(x){sayTokens(x.gr).forEach(function(q){nw[q]=1;});});
+  var first=true;
+  return t.gr.split(/(\s+)/).map(function(word){
+    if(!word||/^\s+$/.test(word))return esc(word);
+    var toks=sayTokens(word);if(!toks.length)return esc(word);
+    var isNew=toks.some(function(q){return nw[q];});
+    var ok=toks.every(function(q){return known[q]||known[q.replace(/ν$/,'')]||/^\d+$/.test(q);});
+    var name=!first&&/^[Α-ΩΆΈΉΊΌΎΏ]/.test(word);first=false;
+    var cls=isNew?'new':(ok||name)?'':'out';
+    return cls?'<span class="sw '+cls+'" title="'+(cls==='new'?'новое слово':'нет в наборе')+'">'+esc(word)+'</span>':esc(word);
+  }).join('');
+}
+function renderDialog(){
+  var s=session,h='';
+  if(!s.topic){
+    h+='<h3 style="margin-top:14px">Тема разговора</h3><div class="modes">'+DIALOG_TOPICS.map(function(t){return '<button class="mode" data-action="dialog-topic" data-id="'+t.id+'"><span class="txt"><div class="t">'+esc(t.t)+'</div><div class="d">'+esc(t.d)+'</div></span><span class="arr">›</span></button>';}).join('')+'</div>';
+    h+='<p class="hint">Собеседник — модель Claude ('+esc(claudeModel())+'). Она говорит словами набора «'+esc(s.set.title)+'», новые слова помечает и переводит, ошибки объясняет по-русски.</p>';
+    return {html:h,foot:'<button class="btn" data-action="home">На главную</button>'};
+  }
+  h+=voiceWarnHtml();
+  h+='<div class="chat">';
+  s.turns.forEach(function(t,i){
+    if(t.who==='me'){h+='<div class="bubble me">'+esc(t.text)+(t.correction||t.corrected?'<div class="fix">'+(t.corrected?'✎ '+esc(t.corrected):'')+(t.correction?'<div class="small">'+esc(t.correction)+'</div>':'')+'</div>':'')+'</div>';}
+    else{h+='<div class="bubble ai"><div class="gr">'+dialogMarked(t)+'</div>'+(t.showRu?'<div class="ru">'+esc(t.ru)+'</div>':'')+
+      '<div class="tools"><button class="chip" data-action="dialog-ru" data-i="'+i+'">'+(t.showRu?'Скрыть перевод':'Перевод')+'</button>'+(canSpeak?'<button class="chip" data-action="speak-raw" data-text="'+esc(t.gr)+'" aria-label="Озвучить">🔊</button>':'')+'</div>'+
+      (t.newWords.length?'<div class="nw">Новые слова: '+t.newWords.map(function(x){return esc(x.gr)+' — '+esc(x.ru);}).join(', ')+'</div>':'')+'</div>';}
+  });
+  if(s.busy)h+='<div class="bubble ai typing">•••</div>';
+  if(s.err)h+='<p class="notice bad">'+esc(s.err)+'</p>'+(s.typed?'':'<div class="row"><button class="btn" data-action="dialog-retry">Повторить</button></div>');
+  h+='</div>';
+  h+='<form id="dialogForm" class="say-form"><input type="text" id="dialogInput" lang="el" inputmode="text" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" placeholder="Ответь по-гречески" value="'+esc(s.typed||'')+'"'+(s.busy?' disabled':'')+'>'+
+    (canListen?'<button type="button" class="mic sm'+(s.micState?' '+s.micState:'')+'" id="mic" aria-label="Держи и говори">🎤</button>':'')+
+    '<button type="submit" class="btn primary"'+(s.busy?' disabled':'')+'>Отправить</button></form>';
+  h+='<p class="hint" id="micHint">'+esc(canListen?(s.micState?sayMicHint():'Напиши по-гречески или держи 🎤 и говори, потом отправь.'):'Напиши ответ по-гречески.')+'</p>';
+  return {html:h,foot:'<button class="btn" data-action="dialog-end">Завершить</button>'};
+}
+/* Настройки: ключ API и модель. */
+function keySave(){
+  var inp=document.getElementById('keyInput');var v=inp?inp.value.trim():'';keepScroll=true;
+  if(!v){settingsMsg='Ошибка: ключ пустой. Чтобы убрать ключ, нажми «Удалить».';render();return;}
+  store.settings.claudeKey=v;save();
+  settingsMsg=v.indexOf('sk-ant-')===0?'Ключ сохранён. Режим «Диалог» появился в списке режимов.':'Ключ сохранён, но обычно ключ API начинается с «sk-ant-». Проверь его кнопкой ниже.';
+  render();
+}
+function keyClear(){store.settings.claudeKey='';save();settingsMsg='Ключ удалён, режим «Диалог» скрыт.';keepScroll=true;render();}
+function keyTest(){
+  settingsMsg='Проверяю ключ…';keepScroll=true;render();
+  claudeRequest({model:claudeModel(),max_tokens:512,messages:[{role:'user',content:'Ответь по-гречески одной короткой фразой: поздоровайся.'}]},function(err,j){
+    settingsMsg=err?err:(j.stop_reason==='refusal'?'Ошибка: модель отказалась отвечать.':'Ключ работает. Модель '+(j.model||claudeModel())+' ответила: «'+claudeText(j).trim()+'»');
+    if(view.name==='settings'){keepScroll=true;render();}
+  });
 }
 function renderQuiz(w){
   var qGr=session.dir==='gr';
@@ -1248,6 +1436,14 @@ function renderSettings(){
   if(!isIOSDevice()){h+='<h3>Микрофон</h3><p class="small muted">Распознавание речи для режимов «Отработка лексики».</p>';
   h+='<div class="row"><button class="btn" data-action="test-mic">'+(micTest.on?'■ Остановить':'🎤 Проверить микрофон')+'</button></div>';
   if(micTest.msg)h+='<p class="notice '+(micTest.ok?'ok':'bad')+'">'+esc(micTest.msg)+(micTest.trace?'<br><span class="small muted">Для отладки: '+esc(micTest.trace)+'</span>':'')+'</p>';}
+  h+='<h3>Диалог</h3>';
+  if(isIOSDevice()){h+='<p class="small muted">Режим «Диалог» (разговор по-гречески с моделью Claude) на iPhone и iPad недоступен: распознавание речи в браузере там не работает. Ключ API Claude для этого режима вводится в настройках на компьютере или Android.</p>';}
+  else{
+    h+='<p class="small muted">Режим «Диалог»: разговор по-гречески с моделью Claude словами выбранного набора. Нужен ключ API из консоли Anthropic (platform.claude.com → API Keys): это отдельный от подписки Claude счёт с предоплатой, стоит поставить на ключ месячный лимит расходов. Ключ хранится только в этом браузере и отправляется только на api.anthropic.com. Без ключа режим не показывается.</p>';
+    h+='<form id="keyForm" class="keyrow"><input type="password" id="keyInput" placeholder="sk-ant-…" autocomplete="off" spellcheck="false" aria-label="Ключ API Claude" value="'+esc(claudeKey())+'"><button type="submit" class="btn ghost">Сохранить</button></form>';
+    if(claudeKey())h+='<div class="row"><button class="btn" data-action="key-test">Проверить ключ</button><button class="btn ghost" data-action="key-clear">Удалить</button></div>';
+    h+='<label class="small muted" style="display:block">Модель <select id="modelSelect" aria-label="Модель">'+CLAUDE_MODELS.map(function(m){return '<option value="'+m[0]+'"'+(m[0]===claudeModel()?' selected':'')+'>'+esc(m[1])+'</option>';}).join('')+'</select></label>';
+  }
   h+='<h3>Прогресс набора «'+esc(set.title)+'»</h3>';
   h+='<p class="small muted">Изучено: '+learnedCount(set,null)+' / '+set.words.length+'. Отметка едина для обоих направлений.</p>';
   if(set.mix){h+='<p class="small muted">Сборный набор: прогресс хранится в уроках, из которых взяты слова. Сбрасывайте его по уроку, выбрав урок на главном экране.</p>';}
@@ -1368,6 +1564,13 @@ document.addEventListener('click',function(ev){
     case 'retry':prepareItem();render();break;
     case 'next':next();break;
     case 'say-skip':if(session&&session.mode==='say'&&session.state==='ask'){finishSay(false);render();}break;
+    case 'dialog-topic':dialogTopic(el.getAttribute('data-id'));break;
+    case 'dialog-ru':if(session&&session.turns){var dt=session.turns[+el.getAttribute('data-i')];if(dt){dt.showRu=!dt.showRu;keepScroll=true;render();}}break;
+    case 'dialog-retry':dialogSend(null);break;
+    case 'dialog-end':dialogEnd();break;
+    case 'speak-raw':speak(el.getAttribute('data-text'),true);break;
+    case 'key-test':keyTest();break;
+    case 'key-clear':keyClear();break;
     case 'opt':{
       if(session.state!=='ask')break;
       var kk=+el.getAttribute('data-k');session.pickedOpt=kk;
@@ -1396,6 +1599,7 @@ document.addEventListener('click',function(ev){
 
 document.addEventListener('change',function(ev){
   var el=ev.target;
+  if(el.id==='modelSelect'){store.settings.claudeModel=el.value;save();return;}
   if(el.id==='setSelect'){store.setId=el.value;
     if(el.value===MIX_ID&&!allSets().some(function(x){return store.mix&&store.mix[x.id];})){store.mix={_pos:Object.assign({},POS_DEFAULT),_posV:2};allSets().forEach(function(s){store.mix[s.id]={w:true,x:false};});}
     save();render();return;}
@@ -1422,6 +1626,8 @@ document.addEventListener('input',function(ev){
 document.addEventListener('submit',function(ev){
   if(ev.target.id==='typeForm'){ev.preventDefault();if(session.state==='ask')checkTyped();else next();}
   if(ev.target.id==='sayForm'){ev.preventDefault();sayCheckTyped();}
+  if(ev.target.id==='dialogForm'){ev.preventDefault();var di=document.getElementById('dialogInput');dialogSend(di?di.value:'');}
+  if(ev.target.id==='keyForm'){ev.preventDefault();keySave();}
   if(ev.target.id==='gramForm'){ev.preventDefault();if(session.state==='ask'){if(session.mode==='conj')checkConj();else checkPlural();}else next();}
 });
 document.addEventListener('keydown',function(ev){
@@ -1510,7 +1716,7 @@ function saveResume(){
     var data={view:view,setId:currentSet().id};
     if(session&&(view.name==='session'||view.name==='end')){
       var s=session;
-      data.session={mode:s.mode,dir:s.dir,i:s.i,requeued:!!s.requeued,hinted:!!s.hinted,parts:s.parts||null,sentIdx:s.sentIdx||null,heard:s.heard||'',marks:s.marks||null,sayMsg:s.sayMsg||'',sayTrace:s.sayTrace||'',attempts:s.attempts||0,person:s.person,persons:s.persons||null,flipped:!!s.flipped,state:s.state,picked:s.picked||[],typed:s.typed||'',
+      data.session={mode:s.mode,dir:s.dir,i:s.i,turns:s.turns||null,messages:s.messages||null,topic:s.topic?s.topic.id:null,usage:s.usage||0,requeued:!!s.requeued,hinted:!!s.hinted,parts:s.parts||null,sentIdx:s.sentIdx||null,heard:s.heard||'',marks:s.marks||null,sayMsg:s.sayMsg||'',sayTrace:s.sayTrace||'',attempts:s.attempts||0,person:s.person,persons:s.persons||null,flipped:!!s.flipped,state:s.state,picked:s.picked||[],typed:s.typed||'',
         grade:s.grade,pickedOpt:s.pickedOpt,tiles:s.tiles,options:s.options,correctOpt:s.correctOpt,target:s.target,
         words:s.words.map(function(w){return w.gr;}),scopeWords:(s.scopeWords||[]).map(function(w){return w.gr;}),
         results:Array.prototype.map.call(s.results,function(r){return r?Object.assign({},r,{word:r.word.gr}):null;})};
@@ -1529,12 +1735,16 @@ function restoreResume(){
     var v=d.view,set=currentSet();
     if(v.name==='session'||v.name==='end'){
       var sv=d.session;if(!sv||!modeList().some(function(m){return m.mode===sv.mode;}))return false;
+      if(sv.mode==='dialog'){var msgs=sv.messages||[],trs=sv.turns||[],typed=sv.typed||'';
+        if(msgs.length&&msgs[msgs.length-1].role==='user'&&msgs.length>1){msgs.pop();if(trs.length&&trs[trs.length-1].who==='me')typed=trs.pop().text;}
+        session={mode:'dialog',dir:'gr',set:set,pool:poolWords(set),words:[],scopeWords:[],results:[],i:0,state:'ask',topic:DIALOG_TOPICS.filter(function(t){return t.id===sv.topic;})[0]||null,turns:trs,messages:msgs,busy:false,err:'',typed:typed,micState:'',usage:sv.usage||0};}
+      else{
       var byGr={};set.words.concat(extraOf(set)).forEach(function(w){byGr[w.gr]=w;});
       var res=function(k){var w=byGr[k];if(!w)throw new Error('missing word '+k);return w;};
       session={mode:sv.mode,dir:sv.dir,set:set,pool:modePool(sv.mode,poolWords(set)),sentIdx:sv.sentIdx||null,words:sv.words.map(res),scopeWords:sv.scopeWords.map(res),i:sv.i,
         results:sv.results.map(function(r){return r?Object.assign({},r,{word:res(r.word)}):null;}),requeued:sv.requeued,hinted:!!sv.hinted,parts:sv.parts||null,heard:sv.heard||'',marks:sv.marks||null,sayMsg:sv.sayMsg||'',sayTrace:sv.sayTrace||'',attempts:sv.attempts||0,person:sv.person,persons:sv.persons||null,
         flipped:sv.flipped,state:sv.state,picked:sv.picked,typed:sv.typed,grade:sv.grade,pickedOpt:sv.pickedOpt,tiles:sv.tiles,options:sv.options,correctOpt:sv.correctOpt,target:sv.target};
-      if(v.name==='session'&&!session.words[session.i])throw new Error('bad index');
+      if(v.name==='session'&&!session.words[session.i])throw new Error('bad index');}
     }
     if(d.micTest)micTest=d.micTest;
     resumeScroll=d.scroll||0;
