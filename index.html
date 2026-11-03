@@ -24,7 +24,7 @@ var appZoom=1;
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Греческий">
-<meta name="build" content="2026-11-03-2">
+<meta name="build" content="2026-11-03-3">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap">
@@ -266,9 +266,9 @@ input[type=text].big{font-family:var(--display);font-size:24px;text-align:center
   <main id="screen"></main>
   <footer id="actions"></footer>
 </div>
-<script src="words.js?v=2026-11-03-2"></script>
-<script src="sentences.js?v=2026-11-03-2"></script>
-<script src="grammar.js?v=2026-11-03-2"></script>
+<script src="words.js?v=2026-11-03-3"></script>
+<script src="sentences.js?v=2026-11-03-3"></script>
+<script src="grammar.js?v=2026-11-03-3"></script>
 <script>
 (function(){
 'use strict';
@@ -855,22 +855,55 @@ function recFinish(a){
   if(a.done)return;a.done=true;clearTimeout(a.timer);
   if(recAtt===a)recAtt=null;
   if(a.cancel)return;
-  sayEvaluate(a);
+  if(a.onDone)a.onDone(a);else sayEvaluate(a);
 }
-function micDown(ev){
-  if(!canListen||!session||session.mode!=='say'||session.state!=='ask')return;
-  ev.preventDefault();
+/* Запуск попытки распознавания; false — не удалось. */
+function recBegin(a){
   if(recAtt){var old=recAtt;old.cancel=true;recFinish(old);try{recObj.abort();}catch(e){}}
   try{if(window.speechSynthesis&&speechSynthesis.speaking)speechSynthesis.cancel();}catch(e){}
-  var a={finals:[],interim:'',err:null,t0:Date.now(),trace:[],done:false,timer:null};
-  recAtt=a;session.sayMsg='';
-  var r;try{r=getRec();}catch(e){recAtt=null;session.sayMsg='Не удалось включить распознавание речи.';render();return;}
+  recAtt=a;
+  var r;try{r=getRec();}catch(e){recAtt=null;return false;}
   try{r.start();}
   catch(e){
     /* Прошлый сеанс ещё не закрылся: пересоздаём распознаватель и пробуем снова. */
     recEvent('restart');try{r.abort();}catch(e2){}recObj=null;
-    try{getRec().start();}catch(e3){recAtt=null;session.sayMsg='Не удалось включить микрофон.';render();return;}
+    try{getRec().start();}catch(e3){recAtt=null;return false;}
   }
+  return true;
+}
+function newAtt(){return {finals:[],interim:'',err:null,t0:Date.now(),trace:[],done:false,timer:null};}
+function attText(a){return a.finals.map(function(q){return q[0];}).concat(a.interim?[a.interim]:[]).join(' ').trim();}
+function recErrMsg(err,held){
+  return (err==='not-allowed'||err==='service-not-allowed')?'Нет доступа к микрофону. Разреши его в настройках браузера.':
+    err==='network'?'Для распознавания речи нужен интернет.':
+    err==='language-not-supported'?'Браузер не распознаёт греческую речь.':
+    held<900?'Держи кнопку нажатой всё время, пока говоришь.':'Ничего не распознано. Попробуй ещё раз.';
+}
+/* Проверка микрофона в настройках: слушаем до 6 секунд или до нажатия «Остановить». */
+var micTest={};
+function micTestStart(){
+  keepScroll=true;
+  if(!canListen){micTest={msg:'Этот браузер не умеет распознавать речь. Открой приложение в Chrome или Safari.',ok:false};render();return;}
+  var a=newAtt();a.onDone=micTestDone;
+  if(!recBegin(a)){micTest={msg:'Не удалось включить микрофон.',ok:false};render();return;}
+  micTest={on:true,msg:'Слушаю… Скажи что-нибудь по-гречески, например «Καλημέρα».',ok:true};render();
+  a.timer=setTimeout(function(){micTestStop();},6000);
+}
+function micTestStop(){
+  var a=recAtt;if(!a||a.done||a.onDone!==micTestDone)return;
+  try{recObj.stop();}catch(e){}
+  clearTimeout(a.timer);a.timer=setTimeout(function(){if(!a.done){recEvent('timeout');try{recObj.abort();}catch(e){}recFinish(a);}},2500);
+}
+function micTestDone(a){
+  var t=attText(a);
+  micTest=t?{msg:'Распознано: «'+t+'». Микрофон и распознавание работают.',ok:true}:{msg:recErrMsg(a.err,9999),ok:false,trace:a.trace.join(', ')};
+  if(view.name==='settings'){keepScroll=true;render();}
+}
+function micDown(ev){
+  if(!canListen||!session||session.mode!=='say'||session.state!=='ask')return;
+  ev.preventDefault();
+  var a=newAtt();session.sayMsg='';
+  if(!recBegin(a)){session.sayMsg='Не удалось включить микрофон.';render();return;}
   setMicState('on');
   var el=document.getElementById('heard');if(el)el.textContent='';
 }
@@ -893,11 +926,7 @@ function sayEvaluate(b){
   if(base)cands.push(base);
   if(b.finals.length===1)b.finals[0].slice(1).forEach(function(a){if(a&&a.trim())cands.push((a+' '+(b.interim||'')).trim());});
   if(!cands.length){
-    var err=b.err,held=Date.now()-b.t0;
-    session.sayMsg=(err==='not-allowed'||err==='service-not-allowed')?'Нет доступа к микрофону. Разреши его в настройках браузера.':
-      err==='network'?'Для распознавания речи нужен интернет.':
-      err==='language-not-supported'?'Браузер не распознаёт греческую речь.':
-      held<900?'Держи кнопку нажатой всё время, пока говоришь.':'Ничего не распознано. Попробуй ещё раз.';
+    session.sayMsg=recErrMsg(b.err,Date.now()-b.t0);
     session.sayTrace=b.trace.join(', ');
     render();return;
   }
@@ -1188,7 +1217,11 @@ function renderSettings(){
   h+='<h3>Версия</h3><p class="small muted">Сборка '+esc(APP_BUILD)+'. Приложение само проверяет обновления при каждом открытии.</p><div class="row"><button class="btn" data-action="check-update">Проверить обновление</button></div>';
   h+='<h3>Озвучка</h3>';
   h+='<label class="check"><input type="checkbox" data-action="set-autospeak"'+(s.autoSpeak?' checked':'')+'><span class="lbl">Озвучивать греческое слово при показе карточки</span></label>';
-  h+='<div class="row"><button class="btn" data-action="test-speech">🔊 Проверить озвучку</button></div>';
+  h+='<div class="row"><button class="btn" data-action="test-speech">🔊 Проверить звук</button></div>';
+  h+='<p class="small muted">Если не слышно: прибавь громкость кнопками сбоку телефона, а на iPhone ещё проверь переключатель беззвучного режима: в беззвучном режиме озвучка не звучит.</p>';
+  h+='<h3>Микрофон</h3><p class="small muted">Распознавание речи для режимов «Отработка лексики».</p>';
+  h+='<div class="row"><button class="btn" data-action="test-mic">'+(micTest.on?'■ Остановить':'🎤 Проверить микрофон')+'</button></div>';
+  if(micTest.msg)h+='<p class="notice '+(micTest.ok?'ok':'bad')+'">'+esc(micTest.msg)+(micTest.trace?'<br><span class="small muted">Для отладки: '+esc(micTest.trace)+'</span>':'')+'</p>';
   h+='<h3>Прогресс набора «'+esc(set.title)+'»</h3>';
   h+='<p class="small muted">Изучено: '+learnedCount(set,null)+' / '+set.words.length+'. Отметка едина для обоих направлений.</p>';
   if(set.mix){h+='<p class="small muted">Сборный набор: прогресс хранится в уроках, из которых взяты слова. Сбрасывайте его по уроку, выбрав урок на главном экране.</p>';}
@@ -1228,7 +1261,7 @@ function parseImport(text){
 }
 
 /* ---------- actions ---------- */
-function goHome(){sayStop();view={name:'home'};session=null;render();}
+function goHome(){sayStop();micTest={};view={name:'home'};session=null;render();}
 
 /* ---------- установка на экран «Домой» ----------
    Android/Chrome: системный диалог через beforeinstallprompt. iPhone: API нет, показываем
@@ -1270,8 +1303,9 @@ document.addEventListener('click',function(ev){
       else if(view.name==='session'||view.name==='end')goHome();
       else goHome();
       break;
-    case 'settings':view={name:'settings'};settingsMsg='';render();break;
+    case 'settings':view={name:'settings'};settingsMsg='';micTest={};render();break;
     case 'check-update':checkUpdate(true);break;
+    case 'test-mic':if(micTest.on)micTestStop();else micTestStart();break;
     case 'test-speech':speak('Καλημέρα');settingsMsg=speechStatus();render();break;
     case 'cheat':view={name:'cheat'};trackEvent('cheat','Шпаргалка');render();break;
     case 'fold':folds[el.getAttribute('data-key')]=!folds[el.getAttribute('data-key')];keepScroll=true;render();break;
