@@ -24,7 +24,7 @@ var appZoom=1;
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Греческий">
-<meta name="build" content="2026-11-04-1">
+<meta name="build" content="2026-11-05-1">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap">
@@ -288,9 +288,9 @@ input[type=text].big{font-family:var(--display);font-size:24px;text-align:center
   <main id="screen"></main>
   <footer id="actions"></footer>
 </div>
-<script src="words.js?v=2026-11-04-1"></script>
-<script src="sentences.js?v=2026-11-04-1"></script>
-<script src="grammar.js?v=2026-11-04-1"></script>
+<script src="words.js?v=2026-11-05-1"></script>
+<script src="sentences.js?v=2026-11-05-1"></script>
+<script src="grammar.js?v=2026-11-05-1"></script>
 <script>
 (function(){
 'use strict';
@@ -833,16 +833,30 @@ function checkPlural(){
 /* ---------- режимы 9 и 10: отработка лексики голосом ----------
    Распознавание — Web Speech API браузера (Chrome, Safari), язык el-GR. Кнопку микрофона держат,
    пока говорят. Предложение засчитано, если все его слова распознаны по порядку (без учёта
-   ударений, регистра и знаков препинания; лишние слова не мешают). Нераспознанное можно
+   ударений, регистра и знаков препинания; лишние слова не мешают). Слова сравниваются по
+   звучанию (sayPhon): распознаватель выбирает написание сам и часто отдаёт омофон
+   (τις/της, φίλη/φύλη), а произнесено это одинаково. Из вариантов распознавания для каждого
+   куска фразы берётся тот, с которым совпадает больше слов. Нераспознанное можно
    повторить сколько угодно раз или пропустить; в очередь сеанса оно не возвращается,
    пока распознавание не проверено на устройствах. */
 var SR=window.SpeechRecognition||window.webkitSpeechRecognition;
 var canListen=!!SR;
 var SAY_NUM={'0':['μηδέν'],'1':['ένα','ένας','μία','μια'],'2':['δύο'],'3':['τρία','τρεις'],'4':['τέσσερα','τέσσερις'],'5':['πέντε'],'6':['έξι'],'7':['επτά','εφτά'],'8':['οκτώ','οχτώ'],'9':['εννέα','εννιά'],'10':['δέκα'],'12':['δώδεκα'],'30':['τριάντα']};
-Object.keys(SAY_NUM).forEach(function(k){SAY_NUM[k]=SAY_NUM[k].map(function(x){return norm(x);});});
+/* Звучание слова без ударений: ι/η/υ/ει/οι/υι → ι, αι → ε, ο/ω → ο, ου → u, αυ/ευ → αv/εv,
+   μπ/ντ/γκ/γγ → b/d/g, двойные буквы схлопываются, ς → σ. Слова с одинаковым ключом звучат
+   одинаково, так что произношение не прощается, прощается только выбор написания. */
+function sayPhon(t){
+  return String(t).replace(/ου/g,'u').replace(/([αε])υ/g,'$1v').replace(/ει|οι|υι/g,'ι').replace(/αι/g,'ε')
+    .replace(/[ηυ]/g,'ι').replace(/ω/g,'ο').replace(/ς/g,'σ').replace(/μπ/g,'b').replace(/ντ/g,'d').replace(/γ[γκ]/g,'g').replace(/(.)\1+/g,'$1');
+}
+Object.keys(SAY_NUM).forEach(function(k){SAY_NUM[k]=SAY_NUM[k].map(function(x){return sayPhon(norm(x));});});
 function sayTokens(s){return norm(String(s).replace(/[-–—'’]/g,' ')).split(' ').filter(Boolean);}
 /* Конечное ν (τον, την, έναν) в речи часто проглатывается — сравниваем без него. */
-function sayEq(a,b){if(a===b||a.replace(/ν$/,'')===b.replace(/ν$/,''))return true;return (SAY_NUM[a]||[]).indexOf(b)>=0||(SAY_NUM[b]||[]).indexOf(a)>=0;}
+function sayEq(a,b){
+  var x=sayPhon(a),y=sayPhon(b);
+  if(x===y||x.replace(/ν$/,'')===y.replace(/ν$/,''))return true;
+  return (SAY_NUM[a]||[]).indexOf(y)>=0||(SAY_NUM[b]||[]).indexOf(x)>=0;
+}
 function sayScore(target,heard){
   var t=sayTokens(target),h=sayTokens(heard),n=t.length,m=h.length,i,j,L=[];
   for(i=0;i<=n;i++){L.push([]);for(j=0;j<=m;j++)L[i][j]=(i&&j)?(sayEq(t[i-1],h[j-1])?L[i-1][j-1]+1:Math.max(L[i-1][j],L[i][j-1])):0;}
@@ -1008,17 +1022,19 @@ function sayStop(silent){
 function sayEvaluate(b){
   if(!session||session.mode!=='say'||session.state!=='ask'){if(session)session.micState='';return;}
   session.micState='';
-  var cands=[];
-  var base=b.finals.map(function(a){return a[0];}).concat(b.interim?[b.interim]:[]).join(' ').trim();
-  if(base)cands.push(base);
-  if(b.finals.length===1)b.finals[0].slice(1).forEach(function(a){if(a&&a.trim())cands.push((a+' '+(b.interim||'')).trim());});
-  if(!cands.length){
+  /* Фраза приходит кусками (finals), у каждого до пяти вариантов. Для каждого куска по очереди
+     оставляем вариант, с которым совпадает больше всего слов во всей фразе. */
+  var segs=b.finals.map(function(a){return a.filter(function(x){return x&&x.trim();});}).filter(function(a){return a.length;});
+  if(b.interim&&b.interim.trim())segs.push([b.interim]);
+  if(!segs.length){
     session.sayMsg=recErrMsg(b.err,Date.now()-b.t0);
     session.sayTrace=b.trace.join(', ');
     render();return;
   }
-  var w=sayCur(),best=null;
-  cands.forEach(function(c){var sc=sayScore(w.gr,c);if(!best||sc.hit>best.hit)best=sc;});
+  var w=sayCur(),pick=segs.map(function(){return 0;});
+  var text=function(){return segs.map(function(a,i){return a[pick[i]];}).join(' ').trim();};
+  var best=sayScore(w.gr,text());
+  segs.forEach(function(a,i){for(var k=1;k<a.length&&!best.ok;k++){var old=pick[i];pick[i]=k;var sc=sayScore(w.gr,text());if(sc.hit>best.hit)best=sc;else pick[i]=old;}});
   session.attempts++;session.heard=best.text;session.marks=best.marks;session.sayMsg='';session.sayTrace='';
   if(best.ok)finishSay(true);
   render();
