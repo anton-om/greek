@@ -24,7 +24,7 @@ var appZoom=1;
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Греческий">
-<meta name="build" content="2026-11-05-16">
+<meta name="build" content="2026-11-05-17">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap">
@@ -294,9 +294,9 @@ input[type=text].big{font-family:var(--display);font-size:24px;text-align:center
   <main id="screen"></main>
   <footer id="actions"></footer>
 </div>
-<script src="words.js?v=2026-11-05-16"></script>
-<script src="sentences.js?v=2026-11-05-16"></script>
-<script src="grammar.js?v=2026-11-05-16"></script>
+<script src="words.js?v=2026-11-05-17"></script>
+<script src="sentences.js?v=2026-11-05-17"></script>
+<script src="grammar.js?v=2026-11-05-17"></script>
 <script>
 (function(){
 'use strict';
@@ -1852,7 +1852,7 @@ function renderSettings(){
        (связка ключей iCloud на iPhone) подставляет сохранённый ранее ключ вместо вставленного. Поле всегда
        пустое, сохранённый ключ показан строкой ниже. */
     if(claudeKey()){var kk=claudeKey(),kp=AI_PROVIDERS[aiProvider()];h+='<p class="small" style="margin:0 0 6px">Сохранён ключ '+(kp?esc(kp.name):'(не распознан)')+': <code>'+esc(kk.slice(0,10)+'…'+kk.slice(-4))+'</code></p>';}
-    h+='<form id="keyForm" class="keyrow"><input type="text" id="keyInput" class="keyfield" name="greek-api-key" placeholder="'+(claudeKey()?'новый ключ':'sk-ant-…, sk-proj-…, sk-or-…')+'" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false" inputmode="text" aria-label="Ключ API"><button type="submit" class="btn ghost">Сохранить</button></form><p class="small muted" id="keyHint" style="margin:4px 0 0;min-height:1.2em"></p>';
+    h+='<form id="keyForm" class="keyrow"><input type="text" id="keyInput" class="keyfield" name="greek-api-key" placeholder="'+(claudeKey()?'новый ключ':'sk-ant-…, sk-proj-…, sk-or-…')+'" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false" inputmode="text" aria-label="Ключ API"><button type="button" class="btn ghost" data-action="key-eye" aria-label="Показать ключ">👁</button><button type="submit" class="btn ghost">Сохранить</button></form><p class="small muted" id="keyHint" style="margin:4px 0 0;min-height:1.2em"></p>';
     h+=settingsMsgHtml('key');
     var pv=AI_PROVIDERS[aiProvider()];
     if(pv){
@@ -1996,6 +1996,7 @@ document.addEventListener('click',function(ev){
     case 'dialog-end':dialogEnd();break;
     case 'speak-raw':speak(el.getAttribute('data-text'),true);break;
     case 'key-test':keyTest();break;
+    case 'key-eye':{var ki=document.getElementById('keyInput');if(ki){ki.classList.toggle('keyfield');ki.focus();}break;}
     case 'key-clear':keyClear();break;
     case 'opt':{
       if(session.state!=='ask')break;
@@ -2049,7 +2050,7 @@ document.addEventListener('input',function(ev){
   if(el.id==='importText')view.importText=el.value;
   if(el.id==='importTitle')view.importTitle=el.value;
   if(el.id==='dictQ')filterDict(el.value);
-  if(el.id==='keyInput'){var kh=document.getElementById('keyHint');if(kh){var kv=aiKeyClean(el.value),kpid=aiProviderOf(kv);kh.textContent=el.value.trim()?(kpid?'Похоже на ключ '+AI_PROVIDERS[kpid].name+'.':'Не похоже на ключ: должен начинаться с sk-ant-, sk-or- или sk-.'):'';}}
+  if(el.id==='keyInput'){var kh=document.getElementById('keyHint');if(kh){var kv=aiKeyClean(el.value),kpid=aiProviderOf(kv);kh.textContent=el.value.trim()?('Вставлено: '+kv.slice(0,12)+'… ('+kv.length+' символов) — '+(kpid?'похоже на ключ '+AI_PROVIDERS[kpid].name+'.':'не похоже на ключ: должен начинаться с sk-ant-, sk-or- или sk-.')):'';}}
 });
 document.addEventListener('submit',function(ev){
   if(ev.target.id==='typeForm'){ev.preventDefault();if(session.state==='ask')checkTyped();else next();}
