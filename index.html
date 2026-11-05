@@ -24,7 +24,7 @@ var appZoom=1;
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Греческий">
-<meta name="build" content="2026-11-05-2">
+<meta name="build" content="2026-11-05-3">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap">
@@ -288,9 +288,9 @@ input[type=text].big{font-family:var(--display);font-size:24px;text-align:center
   <main id="screen"></main>
   <footer id="actions"></footer>
 </div>
-<script src="words.js?v=2026-11-05-2"></script>
-<script src="sentences.js?v=2026-11-05-2"></script>
-<script src="grammar.js?v=2026-11-05-2"></script>
+<script src="words.js?v=2026-11-05-3"></script>
+<script src="sentences.js?v=2026-11-05-3"></script>
+<script src="grammar.js?v=2026-11-05-3"></script>
 <script>
 (function(){
 'use strict';
@@ -516,12 +516,12 @@ var MODE_LIST=[
   {key:'conj',mode:'conj',dir:'ru',t:'Спряжение глаголов',d:'Впиши местоимение и окончание по русской подсказке'},
   {key:'say',mode:'say',dir:'gr',t:'Отработка лексики',dev:true,d:'Прочитай греческое предложение вслух в микрофон'},
   {key:'say-ru',mode:'say',dir:'ru',t:'Отработка лексики: с русского',dev:true,d:'Скажи по-гречески предложение по русскому переводу'},
-  {key:'dialog',mode:'dialog',dir:'gr',t:'Занятие с Claude',dev:true,d:'Скажи по-русски, чем заняться, и говори с Claude голосом: диалог, слова, вопросы'}
+  {key:'dialog',mode:'dialog',dir:'gr',t:'Занятие с ИИ',dev:true,d:'Скажи по-русски, чем заняться, и говори с языковой моделью голосом: диалог, слова, вопросы'}
 ];
 /* Режимы 9 и 10 на iPhone не показываются: распознавание речи в WebKit не работает
    (docs/ios-speech-recognition.md), а диктовка через клавиатуру узнаёт слова хуже. */
 function modeList(){return MODE_LIST.filter(function(m){if(m.mode==='say')return !isIOSDevice();if(m.mode==='dialog')return dialogAvailable();return true;});}
-var MODE_TITLE={dialog:'Занятие с Claude',flash:'Карточки',tiles:'Учимся писать',type:'Пишем сами',quiz:'Варианты ответа',plural:'Множественное число',conj:'Спряжение глаголов',say:'Отработка лексики'};
+var MODE_TITLE={dialog:'Занятие с ИИ',flash:'Карточки',tiles:'Учимся писать',type:'Пишем сами',quiz:'Варианты ответа',plural:'Множественное число',conj:'Спряжение глаголов',say:'Отработка лексики'};
 
 var screen=document.getElementById('screen');
 var APP_BUILD=(document.querySelector('meta[name=build]')||{}).content||'';
@@ -627,7 +627,7 @@ function renderHome(){
   h+='<h3>Режимы</h3>'+(homeMsg?'<p class="notice bad" style="margin-bottom:10px">'+esc(homeMsg)+'</p>':'')+'<div class="modes">'+modeList().map(function(m,i){
     return '<button class="mode" data-action="pick-mode" data-key="'+m.key+'"><span class="num">'+(i+1)+'</span><span class="txt"><div class="t">'+esc(m.t)+(m.dev?'<span class="badge-dev">в разработке</span>':'')+'</div><div class="d">'+esc(m.d)+'</div></span><span class="arr">›</span></button>';
   }).join('')+'</div>';
-  if(!isIOSDevice()&&canListen&&!claudeKey())h+='<p class="small muted" style="margin-top:8px">Режим «Занятие с Claude» (разговор голосом по-гречески) появится после ввода ключа API в настройках.</p>';
+  if(!isIOSDevice()&&canListen&&!aiProvider())h+='<p class="small muted" style="margin-top:8px">Режим «Занятие с ИИ» (разговор голосом по-гречески) появится после ввода ключа API в настройках.</p>';
   if(!n){h+='<p class="notice" style="margin-top:16px">'+(set.mix?'Отметьте выше хотя бы один урок и хотя бы одну часть речи.':set.words.length?'Включите выше лексику и хотя бы одну часть речи.':'В этом наборе нет слов. Добавьте слова в words.js или импортируйте набор в настройках.')+'</p>';}
   return h;
 }
@@ -1045,19 +1045,36 @@ function finishSay(ok){
   session.grade=ok?(session.hinted?'hint':'exact'):'skip';session.state='done';
   if(!session.results[session.i])session.results[session.i]={word:cur(),ok:ok,grade:session.grade,given:session.heard||'',attempts:session.attempts,sent:sayCur()};
 }
-/* ---------- режим 11: диалог с Claude ----------
-   Разговор по-гречески словами текущего набора. Запросы идут из браузера напрямую в
-   api.anthropic.com с ключом пользователя из настроек (localStorage); без ключа и на iOS режим
-   не показывается (на iOS не работает распознавание речи, см. docs/ios-speech-recognition.md).
-   Ответ модели — JSON по схеме: реплика, перевод, новые слова, исправление ошибки ученика.
-   Подсветка: слова вне набора и общего списка служебных слов — пунктир, объявленные моделью
-   новые слова — синим. Подробнее: docs/dialog-mode.md. */
-var CLAUDE_URL='https://api.anthropic.com/v1/messages';
-var CLAUDE_MODELS=[['claude-opus-5-5','Claude Opus 5.5'],['claude-haiku-5-5','Claude Haiku 5.5']];
+/* ---------- режим 11: занятие с ИИ ----------
+   Голосовое занятие словами текущего набора. Запросы идут из браузера напрямую к провайдеру с
+   ключом пользователя из настроек (localStorage). Принимаются три вида ключа, провайдер
+   определяется по началу ключа: Anthropic (sk-ant-), OpenRouter (sk-or-), OpenAI (остальные sk-).
+   Без ключа и на iOS режим не показывается (на iOS не работает распознавание речи,
+   см. docs/ios-speech-recognition.md). Ответ модели — JSON по схеме: реплика, перевод, новые
+   слова, исправление ошибки ученика. Подробнее: docs/dialog-mode.md. */
+var AI_PROVIDERS={
+  anthropic:{name:'Anthropic',url:'https://api.anthropic.com/v1/messages',host:'api.anthropic.com',
+    models:[['claude-opus-5-5','Claude Opus 5.5'],['claude-sonnet-5-5','Claude Sonnet 5.5'],['claude-haiku-5-5','Claude Haiku 5.5']]},
+  openai:{name:'OpenAI',url:'https://api.openai.com/v1/chat/completions',host:'api.openai.com',
+    models:[['gpt-6.1-sol','GPT-6.1 Sol'],['gpt-6.1-terra','GPT-6.1 Terra'],['gpt-6-luna','GPT-6 Luna']]},
+  openrouter:{name:'OpenRouter',url:'https://openrouter.ai/api/v1/chat/completions',host:'openrouter.ai',
+    models:[['anthropic/claude-opus-5.5','Claude Opus 5.5'],['anthropic/claude-sonnet-5.5','Claude Sonnet 5.5'],['openai/gpt-6.1-sol','GPT-6.1 Sol'],['openai/gpt-6.1-terra','GPT-6.1 Terra'],['google/gemini-4-argon','Gemini 4 Argon'],['google/gemini-3.8-flash','Gemini 3.8 Flash']]}
+};
 function claudeKey(){return (store.settings&&store.settings.claudeKey||'').trim();}
-function claudeModel(){var m=store.settings&&store.settings.claudeModel;return CLAUDE_MODELS.some(function(x){return x[0]===m;})?m:CLAUDE_MODELS[0][0];}
-function dialogAvailable(){return !isIOSDevice()&&canListen&&!!claudeKey();}
-/* Режим 11 «Занятие с Claude»: голосовое занятие. Ученик говорит (микрофон слушает постоянно),
+/* Провайдер по ключу; '' — ключа нет или он не похож ни на один из трёх видов. */
+function aiProviderOf(key){
+  if(!key)return '';
+  if(key.indexOf('sk-ant-')===0)return 'anthropic';
+  if(key.indexOf('sk-or-')===0)return 'openrouter';
+  if(key.indexOf('sk-')===0)return 'openai';
+  return '';
+}
+function aiProvider(){return aiProviderOf(claudeKey());}
+function aiModels(){var pv=AI_PROVIDERS[aiProvider()];return pv?pv.models:[];}
+/* Первая модель списка — по умолчанию: самая сильная у провайдера, она же лучше всего знает греческий. */
+function claudeModel(){var m=store.settings&&store.settings.claudeModel,list=aiModels();return list.some(function(x){return x[0]===m;})?m:(list.length?list[0][0]:'');}
+function dialogAvailable(){return !isIOSDevice()&&canListen&&!!aiProvider();}
+/* Режим 11 «Занятие с ИИ»: голосовое занятие. Ученик говорит (микрофон слушает постоянно),
    модель отвечает частями на греческом и русском, каждая часть озвучивается своим голосом, после
    озвучки микрофон включается снова. Распознаватель понимает один язык за раз, поэтому у
    сеанса есть язык речи ученика (lang): модель подсказывает его в next_lang, ученик может
@@ -1094,27 +1111,67 @@ function startDialog(){
   s.turns.push(t);view.name='session';s.phase='speak';render();
   dialogSpeak(t.parts,function(){if(session!==s)return;s.lang='ru';dialogListen();});
 }
-function claudeErr(status,j){
-  var m=(j&&j.error&&j.error.message)||'';
+function aiErr(status,j){
+  var m=(j&&j.error&&(j.error.message||j.error.msg))||(j&&typeof j.error==='string'?j.error:'')||'';
   if(status===401)return 'Ошибка: ключ API не принят. Проверь его в настройках.';
+  if(status===402)return 'Ошибка: на счёте нет средств. '+m;
   if(status===403)return 'Ошибка: доступ запрещён. '+m;
+  if(status===404)return 'Ошибка: модель недоступна по этому ключу. '+m;
   if(status===429)return 'Ошибка: превышен лимит запросов или расходов. '+m;
-  if(status===529||status>=500)return 'Ошибка: сервис Claude перегружен, попробуй ещё раз.';
+  if(status===529||status>=500)return 'Ошибка: сервис перегружен, попробуй ещё раз.';
   return 'Ошибка '+status+': '+(m||'неизвестная ошибка');
 }
-function claudeText(j){var t='';(j&&j.content||[]).forEach(function(b){if(b.type==='text')t+=b.text;});return t;}
-/* Запрос к Messages API. Для Opus и Sonnet включены серверные запасные модели на случай отказа
-   (fallbacks: default); если API их отвергает, повторяем запрос без них. */
-function claudeRequest(body,cb,noFallback){
-  var key=claudeKey();if(!key){cb('Ошибка: ключ API не задан.');return;}
-  var headers={'content-type':'application/json','x-api-key':key,'anthropic-version':'2026-10-21','anthropic-dangerous-direct-browser-access':'true'};
-  var b=Object.assign({},body);
-  if(!noFallback&&/^claude-(opus|sonnet|fable)/.test(b.model)){headers['anthropic-beta']='server-side-fallback-2026-07-01';b.fallbacks='default';}
-  fetch(CLAUDE_URL,{method:'POST',headers:headers,body:JSON.stringify(b)}).then(function(r){
+/* Единый запрос к модели. req: {system, messages:[{role,content}], schema (необязательно), maxTokens}.
+   Ответ cb(err, {text, stop:'end'|'refusal'|'max_tokens', model, tokens}). Anthropic — Messages API со
+   структурированным ответом и серверными запасными моделями (fallbacks: default; если API их
+   отвергает, повторяем без них); OpenAI и OpenRouter — chat/completions с response_format
+   json_schema (strict). У OpenAI усилие рассуждения low; если параметр отвергнут, повторяем без него. */
+function aiRequest(req,cb,retry){
+  var key=claudeKey(),pid=aiProviderOf(key),pv=AI_PROVIDERS[pid];
+  if(!pv){cb('Ошибка: ключ API не задан или не распознан.');return;}
+  var headers={'content-type':'application/json'},body,model=claudeModel();
+  if(pid==='anthropic'){
+    headers['x-api-key']=key;headers['anthropic-version']='2026-10-21';headers['anthropic-dangerous-direct-browser-access']='true';
+    body={model:model,max_tokens:req.maxTokens||4096,messages:req.messages};
+    if(req.system)body.system=[{type:'text',text:req.system,cache_control:{type:'ephemeral'}}];
+    if(req.schema)body.output_config={effort:'low',format:{type:'json_schema',schema:req.schema}};
+    if(!retry&&/^claude-(opus|sonnet|fable)/.test(model)){headers['anthropic-beta']='server-side-fallback-2026-07-01';body.fallbacks='default';}
+  }else{
+    headers['authorization']='Bearer '+key;
+    if(pid==='openrouter'){headers['HTTP-Referer']='https://anton-om.github.io/greek/';headers['X-Title']='Greek words';}
+    var msgs=req.messages.slice();if(req.system)msgs.unshift({role:'system',content:req.system});
+    body={model:model,messages:msgs,max_completion_tokens:req.maxTokens||4096};
+    if(req.schema)body.response_format={type:'json_schema',json_schema:{name:'lesson',strict:true,schema:req.schema}};
+    if(pid==='openai'&&!retry)body.reasoning_effort='low';
+  }
+  fetch(pv.url,{method:'POST',headers:headers,body:JSON.stringify(body)}).then(function(r){
     return r.text().then(function(t){var j=null;try{j=JSON.parse(t);}catch(e){}
-      if(!r.ok){if(r.status===400&&b.fallbacks&&/fallback/i.test((j&&j.error&&j.error.message)||'')){claudeRequest(body,cb,true);return;}cb(claudeErr(r.status,j));return;}
-      cb(null,j);});
-  }).catch(function(){cb('Ошибка: нет связи с api.anthropic.com. Проверь интернет.');});
+      if(!r.ok){
+        var m=(j&&j.error&&j.error.message)||'';
+        if(r.status===400&&!retry&&(body.fallbacks&&/fallback/i.test(m)||body.reasoning_effort&&/reasoning/i.test(m))){aiRequest(req,cb,true);return;}
+        cb(aiErr(r.status,j));return;}
+      cb(null,aiParse(pid,j));});
+  }).catch(function(){cb('Ошибка: нет связи с '+pv.host+'. Проверь интернет.');});
+}
+function aiParse(pid,j){
+  var out={text:'',stop:'end',model:j&&j.model||'',tokens:0};
+  if(pid==='anthropic'){
+    (j&&j.content||[]).forEach(function(b){if(b.type==='text')out.text+=b.text;});
+    if(j.stop_reason==='refusal')out.stop='refusal';else if(j.stop_reason==='max_tokens')out.stop='max_tokens';
+    if(j.usage)out.tokens=(j.usage.input_tokens||0)+(j.usage.output_tokens||0)+(j.usage.cache_read_input_tokens||0)+(j.usage.cache_creation_input_tokens||0);
+  }else{
+    var ch=j&&j.choices&&j.choices[0]||{},msg=ch.message||{};
+    out.text=typeof msg.content==='string'?msg.content:(msg.content||[]).map(function(b){return b.text||'';}).join('');
+    if(msg.refusal)out.stop='refusal';else if(ch.finish_reason==='length')out.stop='max_tokens';
+    if(j.usage)out.tokens=(j.usage.prompt_tokens||0)+(j.usage.completion_tokens||0);
+  }
+  return out;
+}
+/* JSON из ответа: как есть, а если модель обернула его в текст или ограду ``` — по первой и последней скобке. */
+function aiJson(text){
+  try{return JSON.parse(text);}catch(e){}
+  var a=text.indexOf('{'),b=text.lastIndexOf('}');if(a>=0&&b>a){try{return JSON.parse(text.slice(a,b+1));}catch(e){}}
+  return null;
 }
 function dialogSend(text){
   var s=session;if(!s||s.mode!=='dialog'||s.busy)return;
@@ -1122,18 +1179,17 @@ function dialogSend(text){
   if(text){s.turns.push({who:'me',text:text,lang:s.lang});s.messages.push({role:'user',content:text});}
   if(!s.messages.length||s.messages[s.messages.length-1].role!=='user')return;
   s.busy=true;s.phase='think';s.err='';s.heard='';render();
-  var body={model:claudeModel(),max_tokens:4096,system:[{type:'text',text:dialogSystem(),cache_control:{type:'ephemeral'}}],messages:s.messages.slice(),output_config:{effort:'low',format:{type:'json_schema',schema:DIALOG_SCHEMA}}};
-  claudeRequest(body,function(err,j){
+  aiRequest({system:dialogSystem(),messages:s.messages.slice(),schema:DIALOG_SCHEMA,maxTokens:4096},function(err,j){
     if(session!==s)return;s.busy=false;
-    if(!err&&j.stop_reason==='refusal')err='Ошибка: модель отказалась отвечать.';
-    if(!err&&j.stop_reason==='max_tokens')err='Ошибка: ответ оборвался, попробуй ещё раз.';
-    var data=null;if(!err){try{data=JSON.parse(claudeText(j));}catch(e){err='Ошибка: не удалось разобрать ответ модели.';}}
+    if(!err&&j.stop==='refusal')err='Ошибка: модель отказалась отвечать.';
+    if(!err&&j.stop==='max_tokens')err='Ошибка: ответ оборвался, попробуй ещё раз.';
+    var data=null;if(!err){data=aiJson(j.text);if(!data||typeof data!=='object')err='Ошибка: не удалось разобрать ответ модели.';}
     if(err){s.err=err;s.phase='idle';render();return;}
-    s.messages.push({role:'assistant',content:claudeText(j)});
+    s.messages.push({role:'assistant',content:j.text});
     var parts=(data.parts||[]).map(function(p){return {lang:p&&p.lang==='ru'?'ru':'el',text:String(p&&p.text||'').trim()};}).filter(function(p){return p.text;});
     var t={who:'ai',parts:parts,ru:String(data.translation||'').trim(),newWords:(data.new_words||[]).filter(function(x){return x&&x.gr;}),showRu:false};
     if(data.correction||data.corrected){for(var i=s.turns.length-1;i>=0;i--){if(s.turns[i].who==='me'){s.turns[i].correction=String(data.correction||'');s.turns[i].corrected=String(data.corrected||'');break;}}}
-    s.turns.push(t);if(j.usage)s.usage+=(j.usage.input_tokens||0)+(j.usage.output_tokens||0)+(j.usage.cache_read_input_tokens||0)+(j.usage.cache_creation_input_tokens||0);
+    s.turns.push(t);s.usage+=j.tokens||0;
     s.phase='speak';render();
     dialogSpeak(t.parts,function(){if(session!==s)return;s.lang=data.next_lang==='ru'?'ru':'el';dialogListen();});
   });
@@ -1209,7 +1265,7 @@ function dialogReplay(i){
   var was=s.phase==='listen';dialogStop();s.phase='speak';keepScroll=true;render();
   dialogSpeak(t.parts,function(){if(session!==s)return;if(was)dialogListen();else{s.phase='idle';keepScroll=true;render();}});
 }
-function dialogEnd(){if(session&&session.mode==='dialog'&&session.turns.length>1)trackEvent('done/dialog','Завершено: Занятие с Claude');goHome();}
+function dialogEnd(){if(session&&session.mode==='dialog'&&session.turns.length>1)trackEvent('done/dialog','Завершено: Занятие с ИИ');goHome();}
 /* Известные ученику формы: слова набора, их мн. ч. и спряжение, слова из предложений режимов 9–10, служебные слова. */
 function dialogKnown(){
   if(session.known)return session.known;var k={};
@@ -1252,22 +1308,24 @@ function renderDialog(){
     (s.phase==='listen'?'<button class="btn" data-action="dialog-pause">⏸ Пауза</button>':'<button class="btn primary" data-action="dialog-listen"'+(s.busy?' disabled':'')+'>🎤 Слушать</button>')+
     '<button class="btn ghost" data-action="dialog-lang">Я говорю '+dialogLangName(s.lang)+' ⇄</button>'+
     (s.err&&s.messages.length&&s.messages[s.messages.length-1].role==='user'?'<button class="btn" data-action="dialog-retry">Повторить запрос</button>':'')+'</div>';
-  h+='<p class="hint">Говори, когда горит «Слушаю»: фраза уходит сама после паузы. Claude отвечает голосом; русские части озвучиваются, если в системе есть русский голос.</p>';
+  h+='<p class="hint">Говори, когда горит «Слушаю»: фраза уходит сама после паузы. Модель отвечает голосом; русские части озвучиваются, если в системе есть русский голос.</p>';
   return {html:h,foot:'<button class="btn" data-action="dialog-end">Завершить</button>'};
 }
 /* Настройки: ключ API и модель. */
 function keySave(){
   var inp=document.getElementById('keyInput');var v=inp?inp.value.trim():'';keepScroll=true;
   if(!v){settingsMsg='Ошибка: ключ пустой. Чтобы убрать ключ, нажми «Удалить».';render();return;}
+  var pid=aiProviderOf(v);
+  if(!pid){settingsMsg='Ошибка: ключ не распознан. Принимаются ключи Anthropic (начинаются с sk-ant-), OpenRouter (sk-or-) и OpenAI (sk-proj- или sk-).';render();return;}
   store.settings.claudeKey=v;save();
-  settingsMsg=v.indexOf('sk-ant-')===0?'Ключ сохранён. Режим «Занятие с Claude» появился в списке режимов.':'Ключ сохранён, но обычно ключ API начинается с «sk-ant-». Проверь его кнопкой ниже.';
+  settingsMsg='Ключ '+AI_PROVIDERS[pid].name+' сохранён. Режим «Занятие с ИИ» появился в списке режимов, модель по умолчанию — '+aiModels()[0][1]+'.';
   render();
 }
-function keyClear(){store.settings.claudeKey='';save();settingsMsg='Ключ удалён, режим «Занятие с Claude» скрыт.';keepScroll=true;render();}
+function keyClear(){store.settings.claudeKey='';save();settingsMsg='Ключ удалён, режим «Занятие с ИИ» скрыт.';keepScroll=true;render();}
 function keyTest(){
   settingsMsg='Проверяю ключ…';keepScroll=true;render();
-  claudeRequest({model:claudeModel(),max_tokens:512,messages:[{role:'user',content:'Ответь по-гречески одной короткой фразой: поздоровайся.'}]},function(err,j){
-    settingsMsg=err?err:(j.stop_reason==='refusal'?'Ошибка: модель отказалась отвечать.':'Ключ работает. Модель '+(j.model||claudeModel())+' ответила: «'+claudeText(j).trim()+'»');
+  aiRequest({messages:[{role:'user',content:'Ответь по-гречески одной короткой фразой: поздоровайся.'}],maxTokens:512},function(err,j){
+    settingsMsg=err?err:(j.stop==='refusal'?'Ошибка: модель отказалась отвечать.':'Ключ работает. Модель '+(j.model||claudeModel())+' ответила: «'+j.text.trim()+'»');
     if(view.name==='settings'){keepScroll=true;render();}
   });
 }
@@ -1552,14 +1610,18 @@ function renderSettings(){
   if(!isIOSDevice()){h+='<h3>Микрофон</h3><p class="small muted">Распознавание речи для режимов «Отработка лексики».</p>';
   h+='<div class="row"><button class="btn" data-action="test-mic">'+(micTest.on?'■ Остановить':'🎤 Проверить микрофон')+'</button></div>';
   if(micTest.msg)h+='<p class="notice '+(micTest.ok?'ok':'bad')+'">'+esc(micTest.msg)+(micTest.trace?'<br><span class="small muted">Для отладки: '+esc(micTest.trace)+'</span>':'')+'</p>';}
-  h+='<h3>Занятие с Claude</h3>';
-  if(isIOSDevice()){h+='<p class="small muted">Режим «Занятие с Claude» (разговор голосом по-гречески с моделью Claude) на iPhone и iPad недоступен: распознавание речи в браузере там не работает. Ключ API Claude для этого режима вводится в настройках на компьютере или Android.</p>';}
+  h+='<h3>Занятие с ИИ</h3>';
+  if(isIOSDevice()){h+='<p class="small muted">Режим «Занятие с ИИ» (разговор голосом по-гречески с языковой моделью) на iPhone и iPad недоступен: распознавание речи в браузере там не работает. Ключ API для этого режима вводится в настройках на компьютере или Android.</p>';}
   else{
-    h+='<p class="small muted">Режим «Занятие с Claude»: разговор голосом по-гречески с моделью Claude словами выбранного набора. Нужен ключ API из консоли Anthropic.</p>';
+    h+='<p class="small muted">Режим «Занятие с ИИ»: разговор голосом по-гречески с языковой моделью словами выбранного набора. Нужен ключ API одного из трёх видов: Anthropic (начинается с sk-ant-), OpenAI (sk-proj- или sk-) или OpenRouter (sk-or-).</p>';
     if(!canListen)h+='<p class="notice bad">Этот браузер не умеет распознавать речь, режим не появится. Открой приложение в Chrome или Safari.</p>';
-    h+='<form id="keyForm" class="keyrow"><input type="password" id="keyInput" placeholder="sk-ant-…" autocomplete="off" spellcheck="false" aria-label="Ключ API Claude" value="'+esc(claudeKey())+'"><button type="submit" class="btn ghost">Сохранить</button></form>';
-    if(claudeKey())h+='<div class="row"><button class="btn" data-action="key-test">Проверить ключ</button><button class="btn ghost" data-action="key-clear">Удалить</button></div>';
-    h+='<label class="small muted" style="display:block">Модель <select id="modelSelect" aria-label="Модель">'+CLAUDE_MODELS.map(function(m){return '<option value="'+m[0]+'"'+(m[0]===claudeModel()?' selected':'')+'>'+esc(m[1])+'</option>';}).join('')+'</select></label>';
+    h+='<form id="keyForm" class="keyrow"><input type="password" id="keyInput" placeholder="sk-ant-…, sk-proj-…, sk-or-…" autocomplete="off" spellcheck="false" aria-label="Ключ API" value="'+esc(claudeKey())+'"><button type="submit" class="btn ghost">Сохранить</button></form>';
+    var pv=AI_PROVIDERS[aiProvider()];
+    if(pv){
+      h+='<div class="row"><button class="btn" data-action="key-test">Проверить ключ</button><button class="btn ghost" data-action="key-clear">Удалить</button></div>';
+      h+='<label class="small muted" style="display:block">Ключ '+esc(pv.name)+', модель <select id="modelSelect" aria-label="Модель">'+pv.models.map(function(m){return '<option value="'+m[0]+'"'+(m[0]===claudeModel()?' selected':'')+'>'+esc(m[1])+'</option>';}).join('')+'</select></label>';
+      h+='<p class="small muted" style="margin-top:4px">Первая в списке — самая сильная модель провайдера, она же лучше всего понимает греческий. Ключ хранится только в этом браузере и отправляется только на '+esc(pv.host)+'.</p>';
+    }
   }
   h+='<h3>Прогресс набора «'+esc(set.title)+'»</h3>';
   h+='<p class="small muted">Изучено: '+learnedCount(set,null)+' / '+set.words.length+'. Отметка едина для обоих направлений.</p>';

@@ -1,11 +1,11 @@
-# Режим 11 «Занятие с Claude»: голосовое занятие с моделью
+# Режим 11 «Занятие с ИИ»: голосовое занятие с языковой моделью
 
 Добавлен 2026-11-03 (сборка 2026-11-03-11) как текстовый диалог по теме; 2026-11-04 (сборка
 2026-11-04-1) переделан в голосовое занятие без выбора темы. Ученик говорит, микрофон слушает
-постоянно, модель Claude отвечает голосом и держится в рамках слов выбранного набора. Чем
+постоянно, модель отвечает голосом и держится в рамках слов выбранного набора. Чем
 заняться, ученик говорит сам по-русски в начале: поговорить на тему, поучить слова в разговоре,
 отработать диалог, спросить про грамматику. Код: раздел «режим 11» в `index.html`
-(`startDialog`, `dialogListen`, `dialogSend`, `dialogSpeak`, `renderDialog`, `claudeRequest`).
+(`startDialog`, `dialogListen`, `dialogSend`, `dialogSpeak`, `renderDialog`, `aiRequest`).
 
 ## Голосовой цикл
 
@@ -32,29 +32,49 @@
 - В браузерах без Web Speech API (Firefox) режим скрыт даже с ключом, в настройках об этом
   предупреждение: ввод только голосом.
 
-## Ключ и модель
+## Ключ, провайдер и модель
 
-Ключ API из консоли Anthropic (platform.claude.com → API Keys) хранится в `store.settings.claudeKey`
-(localStorage этого браузера) и уходит только в запросах на `api.anthropic.com`. Это отдельный от
-подписки Claude счёт с предоплатой; на ключ стоит поставить месячный лимит расходов. Кнопка
-«Проверить ключ» делает короткий запрос и показывает ответ модели.
+Принимаются три вида ключа API (с 2026-11-05, сборка 2026-11-05-3); провайдер определяется по
+началу ключа в `aiProviderOf()`:
 
-Модель выбирается в настройках: `claude-opus-5-5` (по умолчанию) или `claude-haiku-5-5`. Оценка
-стоимости реплики с полным списком слов набора в подсказке: Opus около 2 центов, Haiku около
-0,06 цента; системная подсказка помечена `cache_control`, так что при повторных репликах её чтение
-дешевле.
+| Начало ключа | Провайдер | Куда идут запросы | Модели (первая — по умолчанию) |
+|---|---|---|---|
+| `sk-ant-` | Anthropic | `api.anthropic.com/v1/messages` | claude-opus-5-5, claude-sonnet-5-5, claude-haiku-5-5 |
+| `sk-or-` | OpenRouter | `openrouter.ai/api/v1/chat/completions` | anthropic/claude-opus-5.5, anthropic/claude-sonnet-5.5, openai/gpt-6.1-sol, openai/gpt-6.1-terra, google/gemini-4-argon, google/gemini-3.8-flash |
+| другое `sk-` (`sk-proj-`) | OpenAI | `api.openai.com/v1/chat/completions` | gpt-6.1-sol, gpt-6.1-terra, gpt-6-luna |
+
+Ключ хранится в `store.settings.claudeKey` (localStorage этого браузера; имя поля историческое) и
+уходит только к своему провайдеру. Ключ с другим началом не сохраняется, настройки объясняют, какие
+принимаются. Это отдельные от подписок счета с предоплатой; на ключ стоит поставить месячный лимит
+расходов. Кнопка «Проверить ключ» делает короткий запрос и показывает ответ модели.
+
+Модель выбирается в настройках из списка провайдера (`AI_PROVIDERS` в `index.html`); первая в
+списке — самая сильная модель провайдера, она и считается лучшей для греческого. Список OpenRouter
+намеренно короткий: только модели Anthropic, OpenAI и Google, у которых греческий надёжен; идентификаторы
+взяты из открытого списка `openrouter.ai/api/v1/models` 2026-11-05. Выбранная модель хранится в
+`store.settings.claudeModel`; если она не из списка текущего провайдера, берётся первая.
 
 ## Запрос
 
-`POST https://api.anthropic.com/v1/messages` прямо из страницы, заголовки `x-api-key`,
-`anthropic-version: 2026-10-21`, `anthropic-dangerous-direct-browser-access: true` (без него API
-отвергает запросы из браузера). Для Opus и Sonnet добавляются `fallbacks: "default"` и заголовок
-`anthropic-beta: server-side-fallback-2026-07-01` (серверная запасная модель при отказе
-классификаторов); если API вернёт 400 с упоминанием fallback, запрос повторяется без них.
+Единая функция `aiRequest({system, messages, schema, maxTokens}, cb)` возвращает
+`{text, stop, model, tokens}` независимо от провайдера.
 
-Тело: `system` с правилами и списком слов (`dialogSystem()`), история `messages`,
-`output_config.effort: "low"`, структурированный ответ `output_config.format` по схеме
-`DIALOG_SCHEMA`:
+Anthropic: `POST /v1/messages`, заголовки `x-api-key`, `anthropic-version: 2026-10-21`,
+`anthropic-dangerous-direct-browser-access: true` (без него API отвергает запросы из браузера);
+`system` с `cache_control`, `output_config.effort: "low"` и структурированный ответ
+`output_config.format`. Для Opus и Sonnet добавляются `fallbacks: "default"` и заголовок
+`anthropic-beta: server-side-fallback-2026-07-01`; если API вернёт 400 с упоминанием fallback,
+запрос повторяется без них.
+
+OpenAI и OpenRouter: `POST /v1/chat/completions`, заголовок `Authorization: Bearer`, системная
+подсказка первым сообщением `role: system`, `max_completion_tokens`, структурированный ответ
+`response_format: {type: "json_schema", json_schema: {name, strict: true, schema}}`. У OpenAI
+передаётся `reasoning_effort: "low"`; если API отвергает параметр (400 с упоминанием reasoning),
+запрос повторяется без него. OpenRouter получает ещё `HTTP-Referer` и `X-Title`. Оба сервиса
+отвечают на CORS-preflight из браузера (проверено curl 2026-11-05 с Origin сайта).
+
+Ответ разбирается `aiJson()`: как JSON целиком, а если модель обернула его в текст или ограду
+` ``` `, по первой и последней фигурной скобке. Схема `DIALOG_SCHEMA`:
 
 | Поле | Что |
 |---|---|
