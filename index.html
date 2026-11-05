@@ -24,7 +24,7 @@ var appZoom=1;
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Греческий">
-<meta name="build" content="2026-11-05-23">
+<meta name="build" content="2026-11-05-24">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap">
@@ -294,9 +294,9 @@ input[type=text].big{font-family:var(--display);font-size:24px;text-align:center
   <main id="screen"></main>
   <footer id="actions"></footer>
 </div>
-<script src="words.js?v=2026-11-05-23"></script>
-<script src="sentences.js?v=2026-11-05-23"></script>
-<script src="grammar.js?v=2026-11-05-23"></script>
+<script src="words.js?v=2026-11-05-24"></script>
+<script src="sentences.js?v=2026-11-05-24"></script>
+<script src="grammar.js?v=2026-11-05-24"></script>
 <script>
 (function(){
 'use strict';
@@ -1146,7 +1146,10 @@ var AI_PROVIDERS={
   anthropic:{name:'Anthropic',url:'https://api.anthropic.com/v1/messages',host:'api.anthropic.com',
     models:[['claude-opus-5-5','Claude Opus 5.5'],['claude-sonnet-5-5','Claude Sonnet 5.5'],['claude-haiku-5-5','Claude Haiku 5.5']]},
   google:{name:'Google',url:'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions',host:'generativelanguage.googleapis.com',
-    models:[['gemini-3.8-flash','Gemini 3.8 Flash 🎤 (бесплатно)',true],['gemini-3.5-flash-lite','Gemini 3.5 Flash-Lite 🎤 (бесплатно)',true],['gemini-4-argon','Gemini 4 Argon 🎤 (платно)',true]]},
+    /* На бесплатном уровне новые модели часто отвечают 503 «high demand» (проверено 2026-11-05:
+       3.8 Flash, 3.6 Flash и 3.5 Flash-Lite — 503, 3.1 Flash-Lite — ответ за 4 с); запасная модель при 503 — 3.1 Flash-Lite. */
+    models:[['gemini-3.1-flash-lite','Gemini 3.1 Flash-Lite 🎤 (бесплатно, стабильно)',true],['gemini-3.8-flash','Gemini 3.8 Flash 🎤 (бесплатно, часто перегружена)',true],['gemini-3.6-flash','Gemini 3.6 Flash 🎤 (бесплатно)',true],['gemini-3.5-flash-lite','Gemini 3.5 Flash-Lite 🎤 (бесплатно)',true],['gemini-4-argon','Gemini 4 Argon 🎤 (платно)',true]],
+    fallback:'gemini-3.1-flash-lite'},
   openai:{name:'OpenAI',url:'https://api.openai.com/v1/chat/completions',host:'api.openai.com',
     models:[['gpt-6.1-sol','GPT-6.1 Sol'],['gpt-6.1-terra','GPT-6.1 Terra'],['gpt-audio','GPT Audio 🎤',true],['gpt-audio-mini','GPT Audio Mini 🎤',true]]},
   openrouter:{name:'OpenRouter',url:'https://openrouter.ai/api/v1/chat/completions',host:'openrouter.ai',
@@ -1239,6 +1242,7 @@ function aiErr(status,j){
   if(status===403)return 'Ошибка: доступ запрещён. '+m;
   if(status===404)return 'Ошибка: модель недоступна по этому ключу. '+m;
   if(status===429)return 'Ошибка: превышен лимит запросов или расходов. '+m;
+  if(status===503)return 'Ошибка: модель перегружена ('+(m||'high demand')+'). Попробуй ещё раз или выбери другую модель в настройках.';
   if(status===529||status>=500)return 'Ошибка: сервис перегружен, попробуй ещё раз.';
   return 'Ошибка '+status+': '+(m||'неизвестная ошибка');
 }
@@ -1250,7 +1254,7 @@ function aiErr(status,j){
 function aiRequest(req,cb,retry){
   var key=claudeKey(),pid=aiProviderOf(key),pv=AI_PROVIDERS[pid];
   if(!pv){cb('Ошибка: ключ API не задан или не распознан.');return;}
-  var headers={'content-type':'application/json'},body,model=claudeModel();
+  var headers={'content-type':'application/json'},body,model=retry==='fallback-model'?pv.fallback:claudeModel();
   if(pid==='anthropic'){
     headers['x-api-key']=key;headers['anthropic-version']='2026-10-21';headers['anthropic-dangerous-direct-browser-access']='true';
     body={model:model,max_tokens:req.maxTokens||4096,messages:req.messages};
@@ -1282,6 +1286,8 @@ function aiRequest(req,cb,retry){
         var m=(j&&j.error&&j.error.message)||'';
         if(r.status===400&&!retry&&(body.fallbacks&&/fallback/i.test(m)||(body.reasoning_effort||body.reasoning)&&/reasoning/i.test(m))){done=true;clearTimeout(timer);aiRequest(req,cb,true);return;}
         if(r.status===400&&retry!=='noschema'&&body.response_format&&/response_format|json_schema|structured|schema/i.test(m)){done=true;clearTimeout(timer);aiRequest(req,cb,'noschema');return;}
+        /* Google на бесплатном уровне часто отвечает 503 «high demand» (иногда через минуту): один повтор запасной моделью. */
+        if(r.status===503&&pv.fallback&&model!==pv.fallback&&retry!=='fallback-model'){done=true;clearTimeout(timer);aiRequest(req,cb,'fallback-model');return;}
         fin(aiErr(r.status,j)+(m?'':' '+String(t||'').slice(0,160)));return;}
       var parsed;try{parsed=aiParse(pid,j);}catch(e){fin('Ошибка: не удалось разобрать ответ модели: '+String(t||'').slice(0,160));return;}
       fin(null,parsed);});
@@ -1544,14 +1550,14 @@ function renderDialog(){
   return {html:h,foot:'<button class="btn" data-action="dialog-end">Завершить</button>'};
 }
 /* Настройки: ключ API и модель. */
+/* «Проверить»: сохраняет ключ из поля (если он изменился) и делает пробный запрос. */
 function keySave(){
   var inp=document.getElementById('keyInput');var raw=inp?inp.value.trim():'',v=aiKeyClean(raw);keepScroll=true;settingsMsgAt='key';
-  if(!raw){settingsMsg='Ошибка: ключ пустой. Чтобы убрать ключ, нажми «Удалить».';render();return;}
+  if(!raw){settingsMsg='Ошибка: ключ пустой. Вставь ключ в поле и нажми «Проверить».';render();return;}
   var pid=aiProviderOf(v);
   if(!pid){settingsMsg='Ошибка: ключ не распознан. Принимаются ключи Anthropic (начинаются с sk-ant-), OpenRouter (sk-or-), OpenAI (sk-proj- или sk-) и Google (AQ.… или AIza…).';render();return;}
-  store.settings.claudeKey=v;save();
-  settingsMsg='Ключ '+AI_PROVIDERS[pid].name+' сохранён. Режим «Занятие с ИИ» появился в списке режимов, модель по умолчанию — '+aiModels()[0][1]+'.';
-  render();
+  if(v!==claudeKey()){store.settings.claudeKey=v;save();}
+  keyTest();
 }
 function keyClear(){store.settings.claudeKey='';save();settingsMsg='Ключ удалён, режим «Занятие с ИИ» скрыт.';settingsMsgAt='key';keepScroll=true;render();}
 var keyTestTimer=null;
@@ -1869,12 +1875,10 @@ function renderSettings(){
     /* Поле ключа — обычное текстовое с маскировкой через CSS, а не type=password: иначе менеджер паролей
        (связка ключей iCloud на iPhone) подставляет сохранённый ранее ключ вместо вставленного. Поле всегда
        пустое, сохранённый ключ показан строкой ниже. */
-    if(claudeKey()){var kk=claudeKey(),kp=AI_PROVIDERS[aiProvider()];h+='<p class="small" style="margin:0 0 6px">Сохранён ключ '+(kp?esc(kp.name):'(не распознан)')+': <code>'+esc(kk.slice(0,10)+'…'+kk.slice(-4))+'</code></p>';}
-    h+='<form id="keyForm" class="keyrow"><input type="text" id="keyInput" class="keyfield" name="greek-api-key" placeholder="'+(claudeKey()?'новый ключ':'sk-ant-…, sk-proj-…, sk-or-…')+'" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false" inputmode="text" aria-label="Ключ API"><button type="button" class="btn ghost" data-action="key-eye" aria-label="Показать ключ">👁</button><button type="submit" class="btn ghost">Сохранить</button></form><p class="small muted" id="keyHint" style="margin:4px 0 0;min-height:1.2em"></p>';
+    h+='<form id="keyForm" class="keyrow"><input type="text" id="keyInput" class="keyfield" name="greek-api-key" value="'+esc(claudeKey())+'" placeholder="sk-ant-…, sk-or-…, sk-…, AQ.…" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false" inputmode="text" aria-label="Ключ API"><button type="button" class="btn ghost" data-action="key-eye" aria-label="Показать ключ">👁</button><button type="submit" class="btn">Проверить</button>'+(claudeKey()?'<button type="button" class="btn ghost" data-action="key-clear">Удалить</button>':'')+'</form><p class="small muted" id="keyHint" style="margin:4px 0 0;min-height:1.2em">'+(claudeKey()?'Ключ '+esc(AI_PROVIDERS[aiProvider()].name)+'.':'')+'</p>';
     h+=settingsMsgHtml('key');
     var pv=AI_PROVIDERS[aiProvider()];
     if(pv){
-      h+='<div class="row"><button class="btn" data-action="key-test">Проверить ключ</button><button class="btn ghost" data-action="key-clear">Удалить</button></div>';
       h+='<label class="small muted" style="display:block">Ключ '+esc(pv.name)+', модель <select id="modelSelect" aria-label="Модель">'+pv.models.map(function(m){return '<option value="'+m[0]+'"'+(m[0]===claudeModel()?' selected':'')+'>'+esc(m[1])+'</option>';}).join('')+'</select></label>';
       h+='<p class="small muted" style="margin-top:4px">Ключ хранится только в этом браузере и отправляется только на '+esc(pv.host)+'.</p>';
       var pid=aiProvider(),can=aiAudioPossible(),mode=aiAudioMode();
@@ -2013,7 +2017,7 @@ document.addEventListener('click',function(ev){
     case 'dialog-retry':dialogRetry();break;
     case 'dialog-end':dialogEnd();break;
     case 'speak-raw':speak(el.getAttribute('data-text'),true);break;
-    case 'key-test':keyTest();break;
+    case 'key-test':keySave();break;
     case 'key-eye':{var ki=document.getElementById('keyInput');if(ki){ki.classList.toggle('keyfield');ki.focus();}break;}
     case 'key-clear':keyClear();break;
     case 'opt':{
@@ -2068,7 +2072,7 @@ document.addEventListener('input',function(ev){
   if(el.id==='importText')view.importText=el.value;
   if(el.id==='importTitle')view.importTitle=el.value;
   if(el.id==='dictQ')filterDict(el.value);
-  if(el.id==='keyInput'){var kh=document.getElementById('keyHint');if(kh){var kv=aiKeyClean(el.value),kpid=aiProviderOf(kv);kh.textContent=el.value.trim()?('Вставлено: '+kv.slice(0,12)+'… ('+kv.length+' символов) — '+(kpid?'похоже на ключ '+AI_PROVIDERS[kpid].name+'.':'не похоже на ключ: должен начинаться с sk-ant-, sk-or-, sk-, AQ. или AIza.')):'';}}
+  if(el.id==='keyInput'){var kh=document.getElementById('keyHint');if(kh){var kv=aiKeyClean(el.value),kpid=aiProviderOf(kv);kh.textContent=el.value.trim()?(kv.slice(0,8)+'… ('+kv.length+' символов) — '+(kpid?'ключ '+AI_PROVIDERS[kpid].name+'.':'не похоже на ключ: должен начинаться с sk-ant-, sk-or-, sk-, AQ. или AIza.')):'';}}
 });
 document.addEventListener('submit',function(ev){
   if(ev.target.id==='typeForm'){ev.preventDefault();if(session.state==='ask')checkTyped();else next();}
