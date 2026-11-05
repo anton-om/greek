@@ -24,7 +24,7 @@ var appZoom=1;
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Греческий">
-<meta name="build" content="2026-11-05-7">
+<meta name="build" content="2026-11-05-8">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap">
@@ -291,9 +291,9 @@ input[type=text].big{font-family:var(--display);font-size:24px;text-align:center
   <main id="screen"></main>
   <footer id="actions"></footer>
 </div>
-<script src="words.js?v=2026-11-05-7"></script>
-<script src="sentences.js?v=2026-11-05-7"></script>
-<script src="grammar.js?v=2026-11-05-7"></script>
+<script src="words.js?v=2026-11-05-8"></script>
+<script src="sentences.js?v=2026-11-05-8"></script>
+<script src="grammar.js?v=2026-11-05-8"></script>
 <script>
 (function(){
 'use strict';
@@ -583,6 +583,7 @@ function render(){
   topTitle.textContent=title;
   var st=screen.scrollTop;screen.innerHTML=html;actions.innerHTML=foot;
   screen.scrollTop=keepScroll?st:0;var keepScrollDone=keepScroll;keepScroll=false;
+  if(view.name==='settings'&&settingsMsgAt){var smn=screen.querySelector('.notice');if(smn&&smn.scrollIntoView)smn.scrollIntoView({block:'nearest'});}
   var inp=document.getElementById('typeInput');if(inp&&session&&session.state==='ask'){inp.focus();}
   if(session&&session.mode==='dialog'&&view.name==='session'&&!keepScrollDone)screen.scrollTop=screen.scrollHeight;
 }
@@ -1338,7 +1339,7 @@ function renderDialog(){
 }
 /* Настройки: ключ API и модель. */
 function keySave(){
-  var inp=document.getElementById('keyInput');var v=inp?inp.value.trim():'';keepScroll=true;
+  var inp=document.getElementById('keyInput');var v=inp?inp.value.trim():'';keepScroll=true;settingsMsgAt='key';
   if(!v){settingsMsg='Ошибка: ключ пустой. Чтобы убрать ключ, нажми «Удалить».';render();return;}
   var pid=aiProviderOf(v);
   if(!pid){settingsMsg='Ошибка: ключ не распознан. Принимаются ключи Anthropic (начинаются с sk-ant-), OpenRouter (sk-or-) и OpenAI (sk-proj- или sk-).';render();return;}
@@ -1346,9 +1347,9 @@ function keySave(){
   settingsMsg='Ключ '+AI_PROVIDERS[pid].name+' сохранён. Режим «Занятие с ИИ» появился в списке режимов, модель по умолчанию — '+aiModels()[0][1]+'.';
   render();
 }
-function keyClear(){store.settings.claudeKey='';save();settingsMsg='Ключ удалён, режим «Занятие с ИИ» скрыт.';keepScroll=true;render();}
+function keyClear(){store.settings.claudeKey='';save();settingsMsg='Ключ удалён, режим «Занятие с ИИ» скрыт.';settingsMsgAt='key';keepScroll=true;render();}
 function keyTest(){
-  settingsMsg='Проверяю ключ…';keepScroll=true;render();
+  settingsMsg='Проверяю ключ…';settingsMsgAt='key';keepScroll=true;render();
   aiRequest({messages:[{role:'user',content:'Ответь по-гречески одной короткой фразой: поздоровайся.'}],maxTokens:512},function(err,j){
     settingsMsg=err?err:(j.stop==='refusal'?'Ошибка: модель отказалась отвечать.':'Ключ работает. Модель '+(j.model||claudeModel())+' ответила: «'+j.text.trim()+'»');
     if(view.name==='settings'){keepScroll=true;render();}
@@ -1633,15 +1634,18 @@ function renderCheat(){
 }
 
 /* ---------- settings ---------- */
-var settingsMsg='';var confirmReset=false;var confirmDelete=null;var folds={};var keepScroll=false;
+var settingsMsg='',settingsMsgAt='';var confirmReset=false;var confirmDelete=null;var folds={};var keepScroll=false;
+/* Сообщение настроек показывается в том разделе, к которому относится (settingsMsgAt: 'key',
+   'speech' или '' — вверху экрана): экран длинный, и сообщение вверху при сохранённой прокрутке не видно. */
+function settingsMsgHtml(at){return settingsMsg&&settingsMsgAt===at?'<p class="notice '+(settingsMsg.indexOf('Ошибка')===0?'bad':'ok')+'" style="margin-top:8px">'+esc(settingsMsg)+'</p>':'';}
 function renderSettings(){
   var set=currentSet();var s=store.settings;
   var h='<div class="stack" style="margin-top:8px">';
-  if(settingsMsg){h+='<p class="notice '+(settingsMsg.indexOf('Ошибка')===0?'bad':'ok')+'">'+esc(settingsMsg)+'</p>';}
+  h+=settingsMsgHtml('');
   h+='<h3>Версия</h3><p class="small muted">Сборка '+esc(APP_BUILD)+'. Приложение само проверяет обновления при каждом открытии.</p><div class="row"><button class="btn" data-action="check-update">Проверить обновление</button></div>';
   h+='<h3>Озвучка</h3>';
   h+='<label class="check"><input type="checkbox" data-action="set-autospeak"'+(s.autoSpeak?' checked':'')+'><span class="lbl">Озвучивать греческое слово при показе карточки</span></label>';
-  h+='<div class="row"><button class="btn" data-action="test-speech">🔊 Проверить звук</button></div>';
+  h+='<div class="row"><button class="btn" data-action="test-speech">🔊 Проверить звук</button></div>'+settingsMsgHtml('speech');
   h+='<p class="small muted">Если не слышно: прибавь громкость кнопками сбоку телефона, а на iPhone ещё проверь переключатель беззвучного режима: в беззвучном режиме озвучка не звучит.</p>';
   if(!isIOSDevice()){h+='<h3>Микрофон</h3><p class="small muted">Распознавание речи для режимов «Отработка лексики».</p>';
   h+='<div class="row"><button class="btn" data-action="test-mic">'+(micTest.on?'■ Остановить':'🎤 Проверить микрофон')+'</button></div>';
@@ -1652,6 +1656,7 @@ function renderSettings(){
     h+='<p class="small muted">Режим «Занятие с ИИ»: разговор голосом по-гречески с языковой моделью словами выбранного набора. Нужен ключ API одного из трёх видов: Anthropic (начинается с sk-ant-), OpenAI (sk-proj- или sk-) или OpenRouter (sk-or-).</p>';
     if(!canListen)h+='<p class="notice bad">Этот браузер не умеет распознавать речь, режим не появится. Открой приложение в Chrome или Safari.</p>';
     h+='<form id="keyForm" class="keyrow"><input type="password" id="keyInput" placeholder="sk-ant-…, sk-proj-…, sk-or-…" autocomplete="off" spellcheck="false" aria-label="Ключ API" value="'+esc(claudeKey())+'"><button type="submit" class="btn ghost">Сохранить</button></form>';
+    h+=settingsMsgHtml('key');
     var pv=AI_PROVIDERS[aiProvider()];
     if(pv){
       h+='<div class="row"><button class="btn" data-action="key-test">Проверить ключ</button><button class="btn ghost" data-action="key-clear">Удалить</button></div>';
@@ -1739,10 +1744,10 @@ document.addEventListener('click',function(ev){
       else if(view.name==='session'||view.name==='end')goHome();
       else goHome();
       break;
-    case 'settings':view={name:'settings'};settingsMsg='';micTest={};render();break;
+    case 'settings':view={name:'settings'};settingsMsg='';settingsMsgAt='';micTest={};render();break;
     case 'check-update':checkUpdate(true);break;
     case 'test-mic':if(micTest.on)micTestStop();else micTestStart();break;
-    case 'test-speech':speak('Καλημέρα');settingsMsg=speechStatus();render();break;
+    case 'test-speech':speak('Καλημέρα');settingsMsg=speechStatus();settingsMsgAt='speech';keepScroll=true;render();break;
     case 'cheat':view={name:'cheat'};trackEvent('cheat','Шпаргалка');render();break;
     case 'dict':view={name:'dict'};trackEvent('dict','Словарь');render();break;
     case 'fold':folds[el.getAttribute('data-key')]=!folds[el.getAttribute('data-key')];keepScroll=true;render();break;
@@ -1804,13 +1809,13 @@ document.addEventListener('click',function(ev){
     case 'restart':{var all=uniqWords(session.words);if(view.shuffle)shuffle(all);startSession(all);break;}
     case 'reset-progress':confirmReset=true;render();break;
     case 'reset-progress-no':confirmReset=false;render();break;
-    case 'reset-progress-yes':{var s=currentSet();s.words.concat(extraOf(s)).forEach(function(w){setLearned(s,null,w,false);});confirmReset=false;settingsMsg='Прогресс набора «'+s.title+'» сброшен.';render();break;}
+    case 'reset-progress-yes':{var s=currentSet();s.words.concat(extraOf(s)).forEach(function(w){setLearned(s,null,w,false);});confirmReset=false;settingsMsgAt='';settingsMsg='Прогресс набора «'+s.title+'» сброшен.';render();break;}
     case 'import':doImport();break;
     case 'delete-set':confirmDelete=el.getAttribute('data-id');render();break;
     case 'delete-set-no':confirmDelete=null;render();break;
     case 'delete-set-yes':{
       var id=el.getAttribute('data-id');store.custom=(store.custom||[]).filter(function(c){return c.id!==id;});
-      if(store.setId===id)store.setId=null;save();confirmDelete=null;settingsMsg='Набор удалён.';render();break;
+      if(store.setId===id)store.setId=null;save();confirmDelete=null;settingsMsgAt='';settingsMsg='Набор удалён.';render();break;
     }
   }
 });
@@ -1977,15 +1982,15 @@ function reloadForUpdate(remote,manual){
   location.replace(location.pathname+'?b='+encodeURIComponent(remote));return true;
 }
 function checkUpdate(manual){
-  if(!window.fetch||!APP_BUILD){if(manual){settingsMsg='Проверка недоступна.';render();}return;}
+  if(!window.fetch||!APP_BUILD){if(manual){settingsMsgAt='';settingsMsg='Проверка недоступна.';render();}return;}
   var url=location.pathname.replace(/[^\/]*$/,'')+'index.html?u='+Date.now();
   fetch(url,{cache:'no-store'}).then(function(r){return r.text();}).then(function(t){
     var m=t.match(/<meta name="build" content="([^"]+)"/);var remote=m?m[1]:'';
     if(remote&&remote!==APP_BUILD){
       if(reloadForUpdate(remote,manual))return;
     }
-    if(manual){settingsMsg=remote===APP_BUILD?'У вас последняя версия.':'Не удалось сравнить версии.';render();}
-  }).catch(function(){if(manual){settingsMsg='Ошибка: нет связи с сервером.';render();}});
+    if(manual){settingsMsgAt='';settingsMsg=remote===APP_BUILD?'У вас последняя версия.':'Не удалось сравнить версии.';render();}
+  }).catch(function(){if(manual){settingsMsgAt='';settingsMsg='Ошибка: нет связи с сервером.';render();}});
 }
 checkUpdate(false);
 /* Офлайн: service worker (sw.js) кеширует страницу, файлы данных и иконки; см. docs/backend.md. */
@@ -1995,13 +2000,13 @@ document.addEventListener('visibilitychange',function(){if(document.visibilitySt
 function doImport(){
   var title=(document.getElementById('importTitle')||{}).value||'';var text=(document.getElementById('importText')||{}).value||'';
   var words=parseImport(text);
-  if(!words.length){settingsMsg='Ошибка: не удалось разобрать ни одной строки. Нужен формат «греческий<TAB>русский» или «греческий - русский».';render();return;}
+  if(!words.length){settingsMsgAt='';settingsMsg='Ошибка: не удалось разобрать ни одной строки. Нужен формат «греческий<TAB>русский» или «греческий - русский».';render();return;}
   title=title.trim()||('Мой набор '+((store.custom||[]).length+1));
   var id='custom-'+Date.now().toString(36);
   store.custom=store.custom||[];store.custom.push({id:id,title:title,words:words});
   store.setId=id;save();
   view.importText='';view.importTitle='';
-  settingsMsg='Импортировано слов: '+words.length+'. Набор «'+title+'» выбран.';render();
+  settingsMsgAt='';settingsMsg='Импортировано слов: '+words.length+'. Набор «'+title+'» выбран.';render();
 }
 
 var resumeScroll=0;
