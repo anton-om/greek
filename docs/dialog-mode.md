@@ -85,7 +85,7 @@
 | `sk-ant-` | Anthropic | `api.anthropic.com/v1/messages` | claude-opus-5-5, claude-sonnet-5-5, claude-haiku-5-5 |
 | `sk-or-` | OpenRouter | `openrouter.ai/api/v1/chat/completions` | anthropic/claude-opus-5.5, anthropic/claude-sonnet-5.5, openai/gpt-6.1-sol, openai/gpt-6.1-terra, google/gemini-4-argon, google/gemini-3.8-flash |
 | другое `sk-` (`sk-proj-`) | OpenAI | `api.openai.com/v1/chat/completions` | gpt-6.1-sol, gpt-6.1-terra, gpt-audio 🎤, gpt-audio-mini 🎤 |
-| `AIza` | Google (Gemini API, ключ из AI Studio) | `generativelanguage.googleapis.com/v1beta/openai/chat/completions` (OpenAI-совместимый слой, `Authorization: Bearer`, `input_audio` wav, `response_format` json_schema, `reasoning_effort`) | gemini-3.8-flash 🎤, gemini-3.5-flash-lite 🎤 (бесплатный уровень), gemini-4-argon 🎤 (платно) |
+| `AQ.` (новый формат AI Studio) или `AIza` | Google (Gemini API, ключ из AI Studio) | `generativelanguage.googleapis.com/v1beta/openai/chat/completions` (OpenAI-совместимый слой, `Authorization: Bearer`, `input_audio` wav, `response_format` json_schema, `reasoning_effort`) | gemini-3.8-flash 🎤, gemini-3.5-flash-lite 🎤 (бесплатный уровень), gemini-4-argon 🎤 (платно) |
 
 Бесплатный уровень Gemini API (с 2026-11-05-21): ключ с aistudio.google.com/apikey без платёжного
 счёта, модели Flash бесплатны с дневным лимитом, звук на входе включён; Google на бесплатном
