@@ -24,7 +24,7 @@ var appZoom=1;
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Греческий">
-<meta name="build" content="2026-11-05-6">
+<meta name="build" content="2026-11-05-7">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap">
@@ -137,6 +137,7 @@ input[type=text].big{font-family:var(--display);font-size:24px;text-align:center
 .mode .txt{flex:1;min-width:0}
 .mode .t{font-weight:600}
 .mode .d{color:var(--muted);font-size:13.5px}
+.badge-dev.off{background:var(--bad-soft);color:var(--bad)}.mode.off{opacity:.6}
 .badge-dev{display:inline-block;margin-left:6px;padding:1px 7px;border-radius:999px;background:var(--warn-soft);color:var(--warn);font-size:11.5px;font-weight:600;vertical-align:2px;white-space:nowrap}
 .mode .arr{color:var(--muted)}
 
@@ -290,9 +291,9 @@ input[type=text].big{font-family:var(--display);font-size:24px;text-align:center
   <main id="screen"></main>
   <footer id="actions"></footer>
 </div>
-<script src="words.js?v=2026-11-05-6"></script>
-<script src="sentences.js?v=2026-11-05-6"></script>
-<script src="grammar.js?v=2026-11-05-6"></script>
+<script src="words.js?v=2026-11-05-7"></script>
+<script src="sentences.js?v=2026-11-05-7"></script>
+<script src="grammar.js?v=2026-11-05-7"></script>
 <script>
 (function(){
 'use strict';
@@ -521,9 +522,9 @@ var MODE_LIST=[
   {key:'type',mode:'type',dir:'ru',t:'Пишем сами',d:'Введи греческое слово с клавиатуры'},
   {key:'plural',mode:'plural',dir:'ru',t:'Множественное число',d:'Артикль и окончание в единственном и множественном числе'},
   {key:'conj',mode:'conj',dir:'ru',t:'Спряжение глаголов',d:'Впиши местоимение и окончание по русской подсказке'},
-  {key:'say',mode:'say',dir:'gr',t:'Отработка лексики',dev:true,d:'Прочитай греческое предложение вслух в микрофон'},
-  {key:'say-ru',mode:'say',dir:'ru',t:'Отработка лексики: с русского',dev:true,d:'Скажи по-гречески предложение по русскому переводу'},
-  {key:'dialog',mode:'dialog',dir:'gr',t:'Занятие с ИИ',dev:true,d:'Скажи по-русски, чем заняться, и говори с языковой моделью голосом: диалог, слова, вопросы'}
+  {key:'say',mode:'say',dir:'gr',t:'Отработка лексики',dev:true,net:true,d:'Прочитай греческое предложение вслух в микрофон'},
+  {key:'say-ru',mode:'say',dir:'ru',t:'Отработка лексики: с русского',dev:true,net:true,d:'Скажи по-гречески предложение по русскому переводу'},
+  {key:'dialog',mode:'dialog',dir:'gr',t:'Занятие с ИИ',dev:true,net:true,d:'Скажи по-русски, чем заняться, и говори с языковой моделью голосом: диалог, слова, вопросы'}
 ];
 /* Режимы 9 и 10 на iPhone не показываются: распознавание речи в WebKit не работает
    (docs/ios-speech-recognition.md), а диктовка через клавиатуру узнаёт слова хуже. */
@@ -539,7 +540,21 @@ var APP_BUILD=(document.querySelector('meta[name=build]')||{}).content||'';
    Кроме просмотров страницы отправляются события: запуск режима (mode/<режим>), завершение
    тренировки (done/<режим>), открытие шпаргалки (cheat) и первое открытие на устройстве (new-device). */
 var ANALYTICS_CODE='learn-greek';
-function trackEvent(path,title){try{if(window.goatcounter&&window.goatcounter.count)window.goatcounter.count({path:path,title:title||path,event:true});}catch(e){}}
+/* Без сети (или пока счётчик не загрузился) события копятся в localStorage и досылаются, когда
+   сеть появится: та же схема нужна будущему бэкенду статистики (docs/backend.md). */
+var EVENT_QUEUE='greek-words:events';
+function isOnline(){return navigator.onLine!==false;}
+function trackEvent(path,title){
+  if(isOnline()&&window.goatcounter&&window.goatcounter.count){try{window.goatcounter.count({path:path,title:title||path,event:true});}catch(e){}return;}
+  try{var q=JSON.parse(localStorage.getItem(EVENT_QUEUE)||'[]');q.push([path,title||path]);if(q.length>200)q=q.slice(-200);localStorage.setItem(EVENT_QUEUE,JSON.stringify(q));}catch(e){}
+}
+function flushEvents(){
+  if(!isOnline()||!(window.goatcounter&&window.goatcounter.count))return;
+  var q=[];try{q=JSON.parse(localStorage.getItem(EVENT_QUEUE)||'[]');localStorage.removeItem(EVENT_QUEUE);}catch(e){}
+  q.forEach(function(ev){try{window.goatcounter.count({path:ev[0],title:ev[1],event:true});}catch(e){}});
+}
+window.addEventListener('online',function(){flushEvents();keepScroll=true;render();});
+window.addEventListener('offline',function(){keepScroll=true;render();});
 /* «Новое устройство»: событие new-device уходит один раз на браузер (отметка в localStorage),
    чтобы считать устройства накопительно; GoatCounter сам уникальность помнит только в пределах дня. */
 function trackNewDevice(){
@@ -549,7 +564,7 @@ function trackNewDevice(){
     if(window.goatcounter&&window.goatcounter.count){clearInterval(t);trackEvent('new-device','Новое устройство');try{localStorage.setItem(k,String(Date.now()));}catch(e){}}
     else if(++tries>50)clearInterval(t);},200);
 }
-if(ANALYTICS_CODE){var gcs=document.createElement('script');gcs.async=true;gcs.src='https://gc.zgo.at/count.js';gcs.setAttribute('data-goatcounter','https://'+ANALYTICS_CODE+'.goatcounter.com/count');document.head.appendChild(gcs);trackNewDevice();}
+if(ANALYTICS_CODE){var gcs=document.createElement('script');gcs.async=true;gcs.onload=function(){setTimeout(flushEvents,500);};gcs.src='https://gc.zgo.at/count.js';gcs.setAttribute('data-goatcounter','https://'+ANALYTICS_CODE+'.goatcounter.com/count');document.head.appendChild(gcs);trackNewDevice();}
 var actions=document.getElementById('actions');
 var topTitle=document.getElementById('topTitle');
 var backBtn=document.getElementById('backBtn');
@@ -633,7 +648,8 @@ function renderHome(){
   h+='</div>';
   h+='<h3>Словарь</h3><button class="mode" data-action="dict"><span class="num">Αβ</span><span class="txt"><div class="t">Словарь набора</div><div class="d">'+esc(set.title)+': '+n+' '+plural(n,'слово','слова','слов')+'. Поиск, озвучка, отметки изученного</div></span><span class="arr">›</span></button>';
   h+='<h3>Режимы</h3>'+(homeMsg?'<p class="notice bad" style="margin-bottom:10px">'+esc(homeMsg)+'</p>':'')+'<div class="modes">'+modeList().map(function(m,i){
-    return '<button class="mode" data-action="pick-mode" data-key="'+m.key+'"><span class="num">'+(i+1)+'</span><span class="txt"><div class="t">'+esc(m.t)+(m.dev?'<span class="badge-dev">в разработке</span>':'')+'</div><div class="d">'+esc(m.d)+'</div></span><span class="arr">›</span></button>';
+    var off=m.net&&!isOnline();
+    return '<button class="mode'+(off?' off':'')+'" data-action="pick-mode" data-key="'+m.key+'"><span class="num">'+(i+1)+'</span><span class="txt"><div class="t">'+esc(m.t)+(off?'<span class="badge-dev off">нет сети</span>':m.dev?'<span class="badge-dev">в разработке</span>':'')+'</div><div class="d">'+esc(m.d)+'</div></span><span class="arr">›</span></button>';
   }).join('')+'</div>';
   if(!isIOSDevice()&&canListen&&!aiProvider())h+='<p class="small muted" style="margin-top:8px">Режим «Занятие с ИИ» (разговор голосом по-гречески) появится после ввода ключа API в настройках.</p>';
   if(!n){h+='<p class="notice" style="margin-top:16px">'+(set.mix?'Отметьте выше хотя бы один урок и хотя бы одну часть речи.':set.words.length?'Включите выше лексику и хотя бы одну часть речи.':'В этом наборе нет слов. Добавьте слова в words.js или импортируйте набор в настройках.')+'</p>';}
@@ -646,6 +662,7 @@ function renderHome(){
 function freshCount(set){return poolWords(set).filter(function(w){return !isLearned(set,null,w);}).length;}
 function startMode(key){
   var m=modeList().filter(function(x){return x.key===key;})[0];if(!m)return;
+  if(m.net&&!isOnline()){homeMsg='Режим «'+m.t+'» работает только с интернетом: распознавание речи и модель живут в сети.';render();return;}
   var set=currentSet();
   if(!poolWords(set).length)return;
   if(!modePool(m.mode,poolWords(set)).length){homeMsg=m.mode==='plural'?'В выбранных словах нет существительных с формой множественного числа.':m.mode==='say'?'Для выбранных слов ещё нет предложений.':'В выбранных словах нет глаголов со спряжением.';render();return;}
@@ -1971,6 +1988,8 @@ function checkUpdate(manual){
   }).catch(function(){if(manual){settingsMsg='Ошибка: нет связи с сервером.';render();}});
 }
 checkUpdate(false);
+/* Офлайн: service worker (sw.js) кеширует страницу, файлы данных и иконки; см. docs/backend.md. */
+if('serviceWorker' in navigator){try{navigator.serviceWorker.register('sw.js');}catch(e){}}
 document.addEventListener('visibilitychange',function(){if(document.visibilityState==='visible')checkUpdate(false);});
 
 function doImport(){
