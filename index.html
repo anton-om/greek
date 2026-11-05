@@ -24,7 +24,7 @@ var appZoom=1;
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Греческий">
-<meta name="build" content="2026-11-05-13">
+<meta name="build" content="2026-11-05-14">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap">
@@ -196,6 +196,8 @@ input[type=text].big{font-family:var(--display);font-size:24px;text-align:center
 .bubble .fix{margin-top:8px;padding-top:8px;border-top:1px solid rgba(255,255,255,.35);font-size:15px}
 .bubble .fix .small{opacity:.85;margin-top:2px}
 .bubble.typing{color:var(--muted);letter-spacing:3px}
+.dots{display:inline-flex;gap:4px;vertical-align:middle;margin-right:4px}.dots i{width:11px;height:11px;border-radius:50%;display:inline-block}.dots i.g{background:var(--good)}.dots i.y{background:var(--warn)}.dots i.r{background:var(--bad)}
+.bubble.me .dots i{box-shadow:0 0 0 1px rgba(255,255,255,.6)}
 .sw.new{text-decoration:underline dotted;text-underline-offset:4px;color:var(--accent)}
 .sw.out{text-decoration:underline dotted;text-underline-offset:4px;color:var(--warn)}
 .mic.sm{width:50px;height:50px;font-size:22px;flex:0 0 auto;box-shadow:none}
@@ -291,9 +293,9 @@ input[type=text].big{font-family:var(--display);font-size:24px;text-align:center
   <main id="screen"></main>
   <footer id="actions"></footer>
 </div>
-<script src="words.js?v=2026-11-05-13"></script>
-<script src="sentences.js?v=2026-11-05-13"></script>
-<script src="grammar.js?v=2026-11-05-13"></script>
+<script src="words.js?v=2026-11-05-14"></script>
+<script src="sentences.js?v=2026-11-05-14"></script>
+<script src="grammar.js?v=2026-11-05-14"></script>
 <script>
 (function(){
 'use strict';
@@ -945,7 +947,7 @@ function sayAiHtml(){
   var h='';
   if(session.aiBusy)h+='<p class="notice" style="margin-top:12px">Отправляю запись в ИИ…</p>';
   else if(session.wav&&aiAudioPossible()&&!sayAudioOnly())h+='<div class="row" style="margin-top:12px;justify-content:center"><button class="btn" data-action="say-ai">🤖 Отправить запись в ИИ</button></div>';
-  if(session.aiMsg)h+='<div class="result '+(session.aiOk?'ok':'almost')+'" role="status"><span class="mark">🤖</span><div class="body"><div>ИИ услышал: «'+esc(session.aiHeard||'')+'»</div><div class="small">'+esc(session.aiMsg)+'</div></div></div>';
+  if(session.aiMsg)h+='<div class="result '+(session.aiOk?'ok':'almost')+'" role="status"><span class="mark">🤖</span><div class="body"><div>'+scoreDots(session.aiScore)+' ИИ услышал: «'+esc(session.aiHeard||'')+'»</div><div class="small">'+esc(session.aiMsg)+'</div></div></div>';
   return h;
 }
 function sayByKeyboard(){return !sayAudioOnly()&&(isIOSDevice()||!canListen);}
@@ -1070,7 +1072,7 @@ function sayAiCheck(wav){
   aiSpeechCheck(wav,sayCur().gr,function(err,res){
     if(session!==s)return;s.aiBusy=false;s.micState='';
     if(err){s.sayMsg=err;render();return;}
-    s.aiHeard=res.heard;s.aiMsg=res.feedback||(res.ok?'Произнесено хорошо.':'');
+    s.aiHeard=res.heard;s.aiScore=res.score;s.aiMsg=res.feedback||(res.ok?'Произнесено хорошо.':'');
     if(s.state==='ask'){
       var sc=sayScore(sayCur().gr,res.heard||'');s.attempts++;s.heard=res.heard||'';s.marks=sc.marks;s.sayMsg='';s.sayTrace='';s.aiOk=sc.ok;
       if(sc.ok)finishSay(true);
@@ -1078,25 +1080,24 @@ function sayAiCheck(wav){
     render();
   });
 }
+/* Оценка произношения 0–6 тремя кружками: 6 — три зелёных, 5 — два зелёных и жёлтый, 4 — зелёный и два
+   жёлтых, 3 — три жёлтых, 2 — два жёлтых и красный, 1 — жёлтый и два красных, 0 — три красных. */
+function scoreNum(v){var n=parseInt(v,10);return isNaN(n)?null:Math.max(0,Math.min(6,n));}
+function scoreDots(n){
+  if(n==null)return '';
+  var c=n>=3?['g','g','g'].map(function(x,i){return i<n-3?'g':'y';}):['y','y','y'].map(function(x,i){return i<n?'y':'r';});
+  return '<span class="dots" title="Произношение: '+n+' из 6" aria-label="Произношение '+n+' из 6">'+c.map(function(k){return '<i class="'+k+'"></i>';}).join('')+'</span>';
+}
 function aiSpeechCheck(wav,target,cb){
-  var pid=aiProvider();
   var sys='Ты проверяешь произношение ученика, который учит греческий с нуля (родной язык русский). Ученик читает вслух предложение: «'+target+'». '+
     'Верни JSON. heard — что он произнёс на самом деле, дословно, греческими буквами с ударениями (если сказал что-то другое или по-русски, запиши как есть); не подгоняй под образец. '+
-    'ok — true, если предложение произнесено целиком и понятно носителю. feedback — по-русски одна-три короткие фразы: что именно не так (ударение не на том слоге, не тот гласный или согласный, пропущенное слово) или что хорошо.';
-  var schema={type:'object',properties:{heard:{type:'string'},ok:{type:'boolean'},feedback:{type:'string'}},required:['heard','ok','feedback'],additionalProperties:false};
+    'ok — true, если предложение произнесено целиком и понятно носителю. score — оценка произношения от 0 до 6: 6 — ошибок нет, 5 — одна мелкая неточность, 4 — заметный акцент, но всё понятно, 3 — есть ошибки в ударениях или звуках, 2 — понятно с трудом, 1 — почти непонятно, 0 — сказано не то. feedback — по-русски одна-три короткие фразы: что именно не так (ударение не на том слоге, не тот гласный или согласный, пропущенное слово) или что хорошо.';
+  var schema={type:'object',properties:{heard:{type:'string'},ok:{type:'boolean'},score:{type:'integer',minimum:0,maximum:6},feedback:{type:'string'}},required:['heard','ok','score','feedback'],additionalProperties:false};
   var finish=function(err,j){
     if(err){cb(err);return;}
     var d=aiJson(j.text);if(!d||typeof d!=='object'){cb('Ошибка: не удалось разобрать ответ модели.');return;}
-    cb(null,{heard:String(d.heard||'').trim(),ok:!!d.ok,feedback:String(d.feedback||'').trim()});
+    cb(null,{heard:String(d.heard||'').trim(),ok:!!d.ok,score:scoreNum(d.score),feedback:String(d.feedback||'').trim()});
   };
-  if(pid==='openai'){
-    aiTranscribe(wav,function(err,text){
-      if(err){cb(err);return;}
-      aiRequest({system:sys.replace('Верни JSON. heard — что он произнёс на самом деле, дословно, греческими буквами с ударениями (если сказал что-то другое или по-русски, запиши как есть); не подгоняй под образец. ','Запись уже расшифрована: «'+text+'». Верни JSON: heard — эта расшифровка как есть. '),
-        messages:[{role:'user',content:'Расшифровка речи ученика: «'+text+'»'}],schema:schema,maxTokens:1024},finish);
-    });
-    return;
-  }
   aiRequest({system:sys,messages:[{role:'user',content:[{type:'text',text:'Запись речи ученика.'},{type:'input_audio',input_audio:{data:b64(wav),format:'wav'}}]}],schema:schema,maxTokens:1024},finish);
 }
 function sayStop(silent){
@@ -1140,16 +1141,16 @@ var AI_PROVIDERS={
   anthropic:{name:'Anthropic',url:'https://api.anthropic.com/v1/messages',host:'api.anthropic.com',
     models:[['claude-opus-5-5','Claude Opus 5.5'],['claude-sonnet-5-5','Claude Sonnet 5.5'],['claude-haiku-5-5','Claude Haiku 5.5']]},
   openai:{name:'OpenAI',url:'https://api.openai.com/v1/chat/completions',host:'api.openai.com',
-    models:[['gpt-6.1-sol','GPT-6.1 Sol'],['gpt-6.1-terra','GPT-6.1 Terra'],['gpt-6-luna','GPT-6 Luna']]},
+    models:[['gpt-6.1-sol','GPT-6.1 Sol'],['gpt-6.1-terra','GPT-6.1 Terra'],['gpt-audio','GPT Audio 🎤',true],['gpt-audio-mini','GPT Audio Mini 🎤',true]]},
   openrouter:{name:'OpenRouter',url:'https://openrouter.ai/api/v1/chat/completions',host:'openrouter.ai',
     models:[['google/gemini-3.8-flash','Gemini 3.8 Flash 🎤',true],['google/gemini-4-argon','Gemini 4 Argon 🎤',true],['openai/gpt-audio','GPT Audio 🎤',true],['anthropic/claude-opus-5.5','Claude Opus 5.5'],['anthropic/claude-sonnet-5.5','Claude Sonnet 5.5'],['openai/gpt-6.1-sol','GPT-6.1 Sol'],['openai/gpt-6.1-terra','GPT-6.1 Terra']]}
 };
 /* Речь ученика в режиме 11: 'model' — запись голоса (WAV 16 кГц) уходит модели, она сама понимает
-   греческий и русский; 'browser' — распознаёт браузер и уходит текст. Запись возможна с ключом
-   OpenAI (транскрипция gpt-transcribe, затем любая модель) и с OpenRouter при модели с пометкой 🎤
-   (звук прямо в модель). Claude звук не принимает. */
+   греческий и русский; 'browser' — распознаёт браузер и уходит текст. Запись возможна только с
+   моделью с пометкой 🎤 (слушает звук сама): у OpenAI это GPT Audio, у OpenRouter — Gemini и
+   GPT Audio. Claude звук не принимает. */
 function aiModelAudio(){var m=claudeModel();return aiModels().some(function(x){return x[0]===m&&x[2];});}
-function aiAudioPossible(){var pid=aiProvider();return pid==='openai'||(pid==='openrouter'&&aiModelAudio());}
+function aiAudioPossible(){return aiModelAudio();}
 function aiAudioMode(){return aiAudioPossible()&&(isIOSDevice()||store.settings.aiAudio!=='browser')?'model':'browser';}
 /* Режимы 9–10: запись голоса для проверки через модель. На iPhone (и без распознавания в
    браузере) это единственный способ, на остальных платформах — дополнение к браузерному. */
@@ -1188,7 +1189,8 @@ var DIALOG_SCHEMA={type:'object',properties:{
 /* Схема для записи голоса: плюс heard — что сказал ученик, дословно, на языке речи. */
 function dialogSchema(audio){
   var sc=JSON.parse(JSON.stringify(DIALOG_SCHEMA));
-  if(audio){sc.properties.heard={type:'string',description:'Дословно услышанная реплика ученика на языке его речи'};sc.required.unshift('heard');}
+  if(audio){sc.properties.heard={type:'string',description:'Дословно услышанная реплика ученика на языке его речи'};sc.required.unshift('heard');
+    sc.properties.score={type:['integer','null'],description:'Оценка греческого произношения ученика от 0 до 6, null если он говорил по-русски'};sc.required.push('score');}
   return sc;
 }
 function dialogSystem(audio){
@@ -1209,7 +1211,7 @@ function dialogSystem(audio){
     '5. Если в греческой реплике ученика есть ошибка (окончание, артикль, род, порядок слов, неверное слово), кратко по-русски объясни её в correction и дай его фразу в исправленном виде в corrected. Пропущенные ударения и похожие на ошибку распознавания слова ошибкой не считай. Если ошибок нет, оставь оба поля пустыми.\n'+
     '6. В translation дай точный русский перевод греческих частей реплики (пустая строка, если их нет).\n'+
     '7. В next_lang укажи ru, если ждёшь ответа по-русски (выбор задания, ответ на вопрос по-русски), иначе el.\n'+
-    (audio?'8. Реплика ученика приходит записью голоса. Сначала определи, на каком языке он говорит, греческом или русском, и запиши услышанное дословно в heard на языке речи (греческий — греческими буквами, с ударениями). Если в греческой речи слышна явная ошибка произношения (ударение не на том слоге, не тот гласный), кратко отметь её в correction по-русски.\n':'')+'\n'+
+    (audio?'8. Реплика ученика приходит записью голоса. Сначала определи, на каком языке он говорит, греческом или русском, и запиши услышанное дословно в heard на языке речи (греческий — греческими буквами, с ударениями). Если в греческой речи слышна явная ошибка произношения (ударение не на том слоге, не тот гласный), кратко отметь её в correction по-русски. В score поставь оценку греческого произношения от 0 до 6 (6 — ошибок нет, 4 — заметный акцент, но понятно, 2 — понятно с трудом, 0 — не разобрать); если ученик говорил по-русски — null.\n':'')+'\n'+
     'Слова сегодняшнего набора (акцент): '+focus+'\n\n'+
     'Вся лексика курса:\n'+words;
 }
@@ -1255,7 +1257,7 @@ function aiRequest(req,cb,retry){
     if(pid==='openrouter'){body.max_tokens=req.maxTokens||4096;if(!retry)body.reasoning={effort:'low'};if(/audio/.test(model))body.modalities=['text'];}
     else body.max_completion_tokens=req.maxTokens||4096;
     if(req.schema&&retry!=='noschema')body.response_format={type:'json_schema',json_schema:{name:'lesson',strict:true,schema:req.schema}};
-    if(pid==='openai'&&!retry)body.reasoning_effort='low';
+    if(pid==='openai'){if(/audio/.test(model))body.modalities=['text'];else if(!retry)body.reasoning_effort='low';}
   }
   fetch(pv.url,{method:'POST',headers:headers,body:JSON.stringify(body)}).then(function(r){
     return r.text().then(function(t){var j=null;try{j=JSON.parse(t);}catch(e){}
@@ -1266,17 +1268,6 @@ function aiRequest(req,cb,retry){
         cb(aiErr(r.status,j));return;}
       cb(null,aiParse(pid,j));});
   }).catch(function(){cb('Ошибка: нет связи с '+pv.host+'. Проверь интернет.');});
-}
-/* Транскрипция записи ключом OpenAI: gpt-transcribe сам определяет язык (греческий или русский). */
-function aiTranscribe(wav,cb,retryModel){
-  var key=claudeKey();if(aiProviderOf(key)!=='openai'){cb('Ошибка: транскрипция доступна только с ключом OpenAI.');return;}
-  var fd=new FormData();fd.append('file',new Blob([wav],{type:'audio/wav'}),'speech.wav');fd.append('model',retryModel||'gpt-transcribe');fd.append('response_format','json');
-  fd.append('prompt','Ученик учит греческий язык, родной язык русский. Реплика по-гречески или по-русски.');
-  fetch('https://api.openai.com/v1/audio/transcriptions',{method:'POST',headers:{'authorization':'Bearer '+key},body:fd}).then(function(r){
-    return r.text().then(function(t){var j=null;try{j=JSON.parse(t);}catch(e){}
-      if(!r.ok){if(!retryModel&&(r.status===404||r.status===400)){aiTranscribe(wav,cb,'gpt-4o-transcribe');return;}cb(aiErr(r.status,j));return;}
-      cb(null,String(j&&j.text||'').trim());});
-  }).catch(function(){cb('Ошибка: нет связи с api.openai.com. Проверь интернет.');});
 }
 function aiParse(pid,j){
   var out={text:'',stop:'end',model:j&&j.model||'',tokens:0};
@@ -1314,16 +1305,6 @@ function dialogSendAudio(wav){
   var s=session;if(!s||s.mode!=='dialog'||s.busy)return;
   s.lastAudio=wav;s.latinPrefix='';
   var meta={rec:Math.round((wav.byteLength-44)/32000*10)/10,bytes:wav.byteLength};
-  if(aiProvider()==='openai'){
-    s.busy=true;s.phase='think';s.err='';s.heard='';render();var t0=Date.now();
-    aiTranscribe(wav,function(err,text){
-      if(session!==s)return;s.busy=false;meta.stt=Date.now()-t0;
-      if(err){s.err=err;s.phase='idle';render();return;}
-      if(!text){s.err='Ничего не распознано. Попробуй ещё раз.';s.phase='idle';render();return;}
-      s.nextMeta=meta;dialogSend(text);
-    });
-    return;
-  }
   s.turns.push({who:'me',text:'🎤 …',lang:'',pending:true});
   s.messages.push({role:'user',content:[{type:'text',text:'Голосовая реплика ученика (запись).'},{type:'input_audio',input_audio:{data:b64(wav),format:'wav'}}]});
   s.nextMeta=meta;dialogAsk(true);
@@ -1332,7 +1313,6 @@ function dialogSendAudio(wav){
 function dialogMetaHtml(m){
   if(!m)return '';var p=[];
   if(m.wait!=null)p.push('ответ '+(m.wait/1000).toFixed(1)+' с');
-  if(m.stt!=null)p.push('транскрипция '+(m.stt/1000).toFixed(1)+' с');
   if(m.tts!=null)p.push('озвучка '+(m.tts/1000).toFixed(1)+' с');
   if(m.rec!=null)p.push('запись '+m.rec+' с, '+Math.round(m.bytes/1024)+' КБ');
   if(m.tokens)p.push(m.tokens+' токенов');
@@ -1351,7 +1331,7 @@ function dialogAsk(audio){
       if(audio){s.messages.pop();if(s.turns.length&&s.turns[s.turns.length-1].pending)s.turns.pop();}
       s.err=err;s.phase='idle';render();return;}
     if(audio){var heard=String(data.heard||'').trim()||'(не разобрано)';s.messages[s.messages.length-1]={role:'user',content:heard};
-      var mt=s.turns[s.turns.length-1];if(mt&&mt.pending){mt.text=heard;mt.pending=false;}}
+      var mt=s.turns[s.turns.length-1];if(mt&&mt.pending){mt.text=heard;mt.pending=false;mt.score=scoreNum(data.score);}}
     s.lastAudio=null;meta.wait=Date.now()-t0;meta.tokens=j.tokens||0;meta.model=j.model||claudeModel();
     s.messages.push({role:'assistant',content:j.text});
     var parts=(data.parts||[]).map(function(p){return {lang:p&&p.lang==='ru'?'ru':'el',text:String(p&&p.text||'').trim()};}).filter(function(p){return p.text;});
@@ -1525,7 +1505,7 @@ function renderDialog(){
   h+=voiceWarnHtml();
   h+='<div class="chat">';
   s.turns.forEach(function(t,i){
-    if(t.who==='me'){h+='<div class="bubble me'+(t.pending?' typing':'')+'">'+esc(t.text)+(t.correction||t.corrected?'<div class="fix">'+(t.corrected?'✎ '+esc(t.corrected):'')+(t.correction?'<div class="small">'+esc(t.correction)+'</div>':'')+'</div>':'')+'</div>';}
+    if(t.who==='me'){h+='<div class="bubble me'+(t.pending?' typing':'')+'">'+(t.score!=null?scoreDots(t.score)+' ':'')+esc(t.text)+(t.correction||t.corrected?'<div class="fix">'+(t.corrected?'✎ '+esc(t.corrected):'')+(t.correction?'<div class="small">'+esc(t.correction)+'</div>':'')+'</div>':'')+'</div>';}
     else{h+='<div class="bubble ai">'+t.parts.map(function(p){return p.lang==='ru'?'<div class="rp">'+esc(p.text)+'</div>':'<div class="gr">'+dialogMarked(p.text,t.newWords)+'</div>';}).join('')+
       (t.showRu&&t.ru?'<div class="ru">'+esc(t.ru)+'</div>':'')+
       '<div class="tools">'+(t.ru?'<button class="chip" data-action="dialog-ru" data-i="'+i+'">'+(t.showRu?'Скрыть перевод':'Перевод')+'</button>':'')+(canSpeak?'<button class="chip" data-action="dialog-say" data-i="'+i+'" aria-label="Озвучить">🔊</button>':'')+'</div>'+
@@ -1863,7 +1843,7 @@ function renderSettings(){
     var link=function(u,t){return '<a href="'+u+'" target="_blank" rel="noopener">'+t+'</a>';};
     h+='<p class="small muted">Режим «Занятие с ИИ»: разговор голосом по-гречески с языковой моделью словами выбранного набора; в режимах «Отработка лексики» запись можно отправить модели, чтобы понять, что не так в произношении. Нужен ключ API одного из трёх видов: '+
       link('https://platform.claude.com/settings/keys','Anthropic')+' (начинается с sk-ant-), '+link('https://platform.openai.com/api-keys','OpenAI')+' (sk-proj- или sk-) или '+link('https://openrouter.ai/settings/keys','OpenRouter')+' (sk-or-). Ссылки ведут на страницы ключей; это отдельные от подписок счета с предоплатой.</p>';
-    if(isIOSDevice())h+='<p class="small muted">На iPhone и iPad распознавание речи в браузере не работает, поэтому режимы 9–11 здесь работают только с записью голоса в модель: ключ OpenAI или OpenRouter с моделью 🎤. С ключом Anthropic эти режимы на iPhone не появятся.</p>';
+    if(isIOSDevice())h+='<p class="small muted">На iPhone и iPad распознавание речи в браузере не работает, поэтому режимы 9–11 здесь работают только с записью голоса в модель: ключ OpenAI или OpenRouter и модель с пометкой 🎤. С ключом Anthropic эти режимы на iPhone не появятся.</p>';
     else if(!canListen)h+='<p class="notice bad">Этот браузер не умеет распознавать речь: без ключа с записью голоса режимы 9–11 не появятся. Открой приложение в Chrome или Safari.</p>';
     h+='<form id="keyForm" class="keyrow"><input type="password" id="keyInput" placeholder="sk-ant-…, sk-proj-…, sk-or-…" autocomplete="off" spellcheck="false" aria-label="Ключ API" value="'+esc(claudeKey())+'"><button type="submit" class="btn ghost">Сохранить</button></form>';
     h+=settingsMsgHtml('key');
@@ -1877,9 +1857,8 @@ function renderSettings(){
       h+='<div class="seg" style="margin-top:8px">'+
         '<label class="'+(mode==='model'?'on':'')+(can?'':' off')+'"><input type="radio" name="aiAudio" value="model" data-action="set-ai-audio"'+(mode==='model'?' checked':'')+(can?'':' disabled')+'>Запись голоса в модель</label>'+
         '<label class="'+(mode==='browser'?'on':'')+(noBrowser?' off':'')+'"><input type="radio" name="aiAudio" value="browser" data-action="set-ai-audio"'+(mode==='browser'?' checked':'')+(noBrowser?' disabled':'')+'>Распознаёт браузер</label></div>';
-      h+='<p class="small muted" style="margin-top:4px">'+(pid==='anthropic'?'Claude звук не принимает: речь распознаёт браузер. Запись голоса в модель работает с ключом OpenAI (транскрипция gpt-transcribe) или OpenRouter с моделью 🎤.':
-        pid==='openai'?'С ключом OpenAI запись голоса транскрибирует gpt-transcribe (греческий и русский определяет сам), затем отвечает выбранная модель.':
-        'Модели с пометкой 🎤 слушают запись голоса сами и понимают греческий и русский; с остальными речь распознаёт браузер.')+'</p>';
+      h+='<p class="small muted" style="margin-top:4px">'+(pid==='anthropic'?'Claude звук не принимает: речь распознаёт браузер. Запись голоса в модель работает с ключом OpenAI или OpenRouter при модели с пометкой 🎤.':
+        'Модели с пометкой 🎤 слушают запись голоса сами, понимают греческий и русский и оценивают произношение; с остальными речь распознаёт браузер.')+'</p>';
     }
   }
   h+='<h3>Прогресс набора «'+esc(set.title)+'»</h3>';
