@@ -24,7 +24,7 @@ var appZoom=1;
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Греческий">
-<meta name="build" content="2026-11-05-19">
+<meta name="build" content="2026-11-05-20">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap">
@@ -294,9 +294,9 @@ input[type=text].big{font-family:var(--display);font-size:24px;text-align:center
   <main id="screen"></main>
   <footer id="actions"></footer>
 </div>
-<script src="words.js?v=2026-11-05-19"></script>
-<script src="sentences.js?v=2026-11-05-19"></script>
-<script src="grammar.js?v=2026-11-05-19"></script>
+<script src="words.js?v=2026-11-05-20"></script>
+<script src="sentences.js?v=2026-11-05-20"></script>
+<script src="grammar.js?v=2026-11-05-20"></script>
 <script>
 (function(){
 'use strict';
@@ -1092,8 +1092,10 @@ function scoreDots(n){
   return '<span class="dots" title="Произношение: '+n+' из 6" aria-label="Произношение '+n+' из 6">'+c.map(function(k){return '<i class="'+k+'"></i>';}).join('')+'</span>';
 }
 function aiSpeechCheck(wav,target,cb){
-  var sys='Ты проверяешь произношение ученика, который учит греческий с нуля (родной язык русский). Ученик читает вслух предложение: «'+target+'». '+
-    'Верни JSON. heard — что он произнёс на самом деле, дословно, греческими буквами с ударениями (если сказал что-то другое или по-русски, запиши как есть); не подгоняй под образец. '+
+  /* Порядок в запросе: инструкция, запись, и только в конце оригинальная фраза, чтобы модель
+     сначала записала услышанное, а не то, что ожидала увидеть. */
+  var sys='Ты проверяешь произношение ученика, который учит греческий с нуля (родной язык русский). Ученик читает вслух предложение из учебника; оно будет дано в самом конце, после записи. '+
+    'Сначала послушай запись и запиши в heard, что он произнёс на самом деле, дословно, греческими буквами, ударение ставь на тот слог, где оно реально прозвучало (если сказал что-то другое или по-русски, запиши как есть); не подгоняй под образец. Потом сравни с оригиналом. '+
     'ok — true, если предложение произнесено целиком и понятно носителю. score — оценка произношения от 0 до 6. Акцент не ошибка: если все слова на месте, ударения на правильных слогах и звуки правильные (нужный гласный, нужный согласный), ставь 6, даже если звуки окрашены русским акцентом (жёсткое χ, твёрдое λ, не совсем греческое ρ) — об акценте только упомяни в feedback как совет. 5 — одна мелкая неточность, не мешающая пониманию (слегка неверный гласный, проглоченная безударная гласная), 4 — ошибка в одном слове (не тот слог ударения или не тот звук), но всё понятно, 3 — несколько ошибок в ударениях или звуках, 2 — понятно с трудом, 1 — почти непонятно, 0 — сказано не то. feedback — по-русски одна-три короткие фразы: что именно не так (ударение не на том слоге, не тот гласный или согласный, пропущенное слово), а при оценке 6 — что хорошо и мягкий совет по акценту, если он слышен.';
   var schema={type:'object',properties:{heard:{type:'string'},ok:{type:'boolean'},score:{type:'integer',minimum:0,maximum:6},feedback:{type:'string'}},required:['heard','ok','score','feedback'],additionalProperties:false};
   var finish=function(err,j){
@@ -1101,7 +1103,7 @@ function aiSpeechCheck(wav,target,cb){
     var d=aiJson(j.text);if(!d||typeof d!=='object'){cb('Ошибка: не удалось разобрать ответ модели.');return;}
     cb(null,{heard:String(d.heard||'').trim(),ok:!!d.ok,score:scoreNum(d.score),feedback:String(d.feedback||'').trim()});
   };
-  aiRequest({system:sys,messages:[{role:'user',content:[{type:'text',text:'Запись речи ученика.'},{type:'input_audio',input_audio:{data:b64(wav),format:'wav'}}]}],schema:schema,maxTokens:1024},finish);
+  aiRequest({system:sys,messages:[{role:'user',content:[{type:'text',text:'Запись речи ученика:'},{type:'input_audio',input_audio:{data:b64(wav),format:'wav'}},{type:'text',text:'Оригинальное предложение (сверяй с ним только после того, как записал услышанное): «'+target+'»'}]}],schema:schema,maxTokens:1024},finish);
 }
 function sayStop(silent){
   if(recAtt){var a=recAtt;a.cancel=true;recFinish(a);try{recObj.abort();}catch(e){}}
