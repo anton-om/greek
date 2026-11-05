@@ -24,7 +24,7 @@ var appZoom=1;
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Греческий">
-<meta name="build" content="2026-11-05-22">
+<meta name="build" content="2026-11-05-23">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap">
@@ -294,9 +294,9 @@ input[type=text].big{font-family:var(--display);font-size:24px;text-align:center
   <main id="screen"></main>
   <footer id="actions"></footer>
 </div>
-<script src="words.js?v=2026-11-05-22"></script>
-<script src="sentences.js?v=2026-11-05-22"></script>
-<script src="grammar.js?v=2026-11-05-22"></script>
+<script src="words.js?v=2026-11-05-23"></script>
+<script src="sentences.js?v=2026-11-05-23"></script>
+<script src="grammar.js?v=2026-11-05-23"></script>
 <script>
 (function(){
 'use strict';
@@ -1270,15 +1270,22 @@ function aiRequest(req,cb,retry){
     if(req.schema&&retry!=='noschema')body.response_format={type:'json_schema',json_schema:{name:'lesson',strict:true,schema:req.schema}};
     if(pid==='openai'){if(/audio/.test(model))body.modalities=['text'];else if(!retry)body.reasoning_effort='low';}
   }
-  fetch(pv.url,{method:'POST',headers:headers,body:JSON.stringify(body)}).then(function(r){
+  /* Таймаут 60 с (иначе зависший запрос держит экран «Проверяю…» вечно); ошибки Google приходят
+     массивом [{error}], берём первый элемент; исключение при разборе ответа — тоже в сообщение. */
+  var ctl=null;try{ctl=new AbortController();}catch(e){}
+  var timer=setTimeout(function(){if(ctl)ctl.abort();},60000),done=false;
+  var fin=function(err,res){if(done)return;done=true;clearTimeout(timer);try{cb(err,res);}catch(e){try{cb('Ошибка в приложении: '+(e&&e.message||e));}catch(e2){}}};
+  fetch(pv.url,{method:'POST',headers:headers,body:JSON.stringify(body),signal:ctl?ctl.signal:undefined}).then(function(r){
     return r.text().then(function(t){var j=null;try{j=JSON.parse(t);}catch(e){}
+      if(Array.isArray(j))j=j[0]||null;
       if(!r.ok){
         var m=(j&&j.error&&j.error.message)||'';
-        if(r.status===400&&!retry&&(body.fallbacks&&/fallback/i.test(m)||(body.reasoning_effort||body.reasoning)&&/reasoning/i.test(m))){aiRequest(req,cb,true);return;}
-        if(r.status===400&&retry!=='noschema'&&body.response_format&&/response_format|json_schema|structured|schema/i.test(m)){aiRequest(req,cb,'noschema');return;}
-        cb(aiErr(r.status,j));return;}
-      cb(null,aiParse(pid,j));});
-  }).catch(function(){cb('Ошибка: нет связи с '+pv.host+'. Проверь интернет.');});
+        if(r.status===400&&!retry&&(body.fallbacks&&/fallback/i.test(m)||(body.reasoning_effort||body.reasoning)&&/reasoning/i.test(m))){done=true;clearTimeout(timer);aiRequest(req,cb,true);return;}
+        if(r.status===400&&retry!=='noschema'&&body.response_format&&/response_format|json_schema|structured|schema/i.test(m)){done=true;clearTimeout(timer);aiRequest(req,cb,'noschema');return;}
+        fin(aiErr(r.status,j)+(m?'':' '+String(t||'').slice(0,160)));return;}
+      var parsed;try{parsed=aiParse(pid,j);}catch(e){fin('Ошибка: не удалось разобрать ответ модели: '+String(t||'').slice(0,160));return;}
+      fin(null,parsed);});
+  }).catch(function(e){fin(e&&e.name==='AbortError'?'Ошибка: нет ответа от '+pv.host+' за 60 с. Попробуй ещё раз.':'Ошибка: нет связи с '+pv.host+'. Проверь интернет.');});
 }
 function aiParse(pid,j){
   var out={text:'',stop:'end',model:j&&j.model||'',tokens:0};
@@ -1547,10 +1554,13 @@ function keySave(){
   render();
 }
 function keyClear(){store.settings.claudeKey='';save();settingsMsg='Ключ удалён, режим «Занятие с ИИ» скрыт.';settingsMsgAt='key';keepScroll=true;render();}
+var keyTestTimer=null;
 function keyTest(){
-  settingsMsg='Проверяю ключ…';settingsMsgAt='key';keepScroll=true;render();
+  var t0=Date.now();settingsMsg='Проверяю ключ… 0 с';settingsMsgAt='key';keepScroll=true;render();
+  clearInterval(keyTestTimer);keyTestTimer=setInterval(function(){var n=document.querySelector('.notice');if(n&&/^Проверяю ключ/.test(n.textContent))n.textContent='Проверяю ключ… '+Math.round((Date.now()-t0)/1000)+' с';},1000);
   aiRequest({messages:[{role:'user',content:'Ответь по-гречески одной короткой фразой: поздоровайся.'}],maxTokens:512},function(err,j){
-    settingsMsg=err?err:(j.stop==='refusal'?'Ошибка: модель отказалась отвечать.':'Ключ работает. Модель '+(j.model||claudeModel())+' ответила: «'+j.text.trim()+'»');
+    clearInterval(keyTestTimer);var sec=((Date.now()-t0)/1000).toFixed(1);
+    settingsMsg=err?err:(j.stop==='refusal'?'Ошибка: модель отказалась отвечать.':'Ключ работает ('+sec+' с). Модель '+(j.model||claudeModel())+' ответила: «'+String(j.text||'').trim()+'»');
     if(view.name==='settings'){keepScroll=true;render();}
   });
 }
