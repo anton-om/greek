@@ -24,7 +24,7 @@ var appZoom=1;
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Греческий">
-<meta name="build" content="2026-11-05-14">
+<meta name="build" content="2026-11-05-15">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap">
@@ -206,6 +206,7 @@ input[type=text].big{font-family:var(--display);font-size:24px;text-align:center
 .live .dot{width:10px;height:10px;border-radius:50%;background:var(--muted);flex:0 0 auto;opacity:.5}
 .live.listen .dot{background:var(--bad);opacity:1;animation:micpulse 1.2s infinite}.live.speak .dot{background:var(--accent);opacity:1}.live.think .dot{background:var(--warn);opacity:1}
 .live .st{flex:0 0 auto;font-weight:600}.live .heard{color:var(--muted);flex:1;min-width:0}
+.keyfield{-webkit-text-security:disc}
 .keyrow{display:flex;gap:8px}.keyrow input{flex:1;font-family:ui-monospace,Menlo,monospace;font-size:14px}
 .result .mark{font-size:30px;font-weight:700;line-height:1;flex:0 0 auto}
 .result .body{flex:1;min-width:0}
@@ -293,9 +294,9 @@ input[type=text].big{font-family:var(--display);font-size:24px;text-align:center
   <main id="screen"></main>
   <footer id="actions"></footer>
 </div>
-<script src="words.js?v=2026-11-05-14"></script>
-<script src="sentences.js?v=2026-11-05-14"></script>
-<script src="grammar.js?v=2026-11-05-14"></script>
+<script src="words.js?v=2026-11-05-15"></script>
+<script src="sentences.js?v=2026-11-05-15"></script>
+<script src="grammar.js?v=2026-11-05-15"></script>
 <script>
 (function(){
 'use strict';
@@ -1159,11 +1160,13 @@ function claudeKey(){return (store.settings&&store.settings.claudeKey||'').trim(
 /* Провайдер по ключу; '' — ключа нет или он не похож ни на один из трёх видов. */
 function aiProviderOf(key){
   if(!key)return '';
-  if(key.indexOf('sk-ant-')===0)return 'anthropic';
-  if(key.indexOf('sk-or-')===0)return 'openrouter';
-  if(key.indexOf('sk-')===0)return 'openai';
+  if(/^sk-ant-/i.test(key))return 'anthropic';
+  if(/^sk-or-/i.test(key))return 'openrouter';
+  if(/^sk-/i.test(key))return 'openai';
   return '';
 }
+/* Из вставленного текста берётся последний ключ: если в поле склеились два, побеждает новый. */
+function aiKeyClean(v){var m=String(v||'').match(/sk-[A-Za-z0-9_\-]+/gi);return m?m[m.length-1]:String(v||'').trim();}
 function aiProvider(){return aiProviderOf(claudeKey());}
 function aiModels(){var pv=AI_PROVIDERS[aiProvider()];return pv?pv.models:[];}
 /* Первая модель списка — по умолчанию: самая сильная у провайдера, она же лучше всего знает греческий. */
@@ -1527,8 +1530,8 @@ function renderDialog(){
 }
 /* Настройки: ключ API и модель. */
 function keySave(){
-  var inp=document.getElementById('keyInput');var v=inp?inp.value.trim():'';keepScroll=true;settingsMsgAt='key';
-  if(!v){settingsMsg='Ошибка: ключ пустой. Чтобы убрать ключ, нажми «Удалить».';render();return;}
+  var inp=document.getElementById('keyInput');var raw=inp?inp.value.trim():'',v=aiKeyClean(raw);keepScroll=true;settingsMsgAt='key';
+  if(!raw){settingsMsg='Ошибка: ключ пустой. Чтобы убрать ключ, нажми «Удалить».';render();return;}
   var pid=aiProviderOf(v);
   if(!pid){settingsMsg='Ошибка: ключ не распознан. Принимаются ключи Anthropic (начинаются с sk-ant-), OpenRouter (sk-or-) и OpenAI (sk-proj- или sk-).';render();return;}
   store.settings.claudeKey=v;save();
@@ -1845,7 +1848,11 @@ function renderSettings(){
       link('https://platform.claude.com/settings/keys','Anthropic')+' (начинается с sk-ant-), '+link('https://platform.openai.com/api-keys','OpenAI')+' (sk-proj- или sk-) или '+link('https://openrouter.ai/settings/keys','OpenRouter')+' (sk-or-). Ссылки ведут на страницы ключей; это отдельные от подписок счета с предоплатой.</p>';
     if(isIOSDevice())h+='<p class="small muted">На iPhone и iPad распознавание речи в браузере не работает, поэтому режимы 9–11 здесь работают только с записью голоса в модель: ключ OpenAI или OpenRouter и модель с пометкой 🎤. С ключом Anthropic эти режимы на iPhone не появятся.</p>';
     else if(!canListen)h+='<p class="notice bad">Этот браузер не умеет распознавать речь: без ключа с записью голоса режимы 9–11 не появятся. Открой приложение в Chrome или Safari.</p>';
-    h+='<form id="keyForm" class="keyrow"><input type="password" id="keyInput" placeholder="sk-ant-…, sk-proj-…, sk-or-…" autocomplete="off" spellcheck="false" aria-label="Ключ API" value="'+esc(claudeKey())+'"><button type="submit" class="btn ghost">Сохранить</button></form>';
+    /* Поле ключа — обычное текстовое с маскировкой через CSS, а не type=password: иначе менеджер паролей
+       (связка ключей iCloud на iPhone) подставляет сохранённый ранее ключ вместо вставленного. Поле всегда
+       пустое, сохранённый ключ показан строкой ниже. */
+    if(claudeKey()){var kk=claudeKey(),kp=AI_PROVIDERS[aiProvider()];h+='<p class="small" style="margin:0 0 6px">Сохранён ключ '+(kp?esc(kp.name):'(не распознан)')+': <code>'+esc(kk.slice(0,10)+'…'+kk.slice(-4))+'</code></p>';}
+    h+='<form id="keyForm" class="keyrow"><input type="text" id="keyInput" class="keyfield" name="greek-api-key" placeholder="'+(claudeKey()?'новый ключ':'sk-ant-…, sk-proj-…, sk-or-…')+'" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false" inputmode="text" aria-label="Ключ API"><button type="submit" class="btn ghost">Сохранить</button></form><p class="small muted" id="keyHint" style="margin:4px 0 0;min-height:1.2em"></p>';
     h+=settingsMsgHtml('key');
     var pv=AI_PROVIDERS[aiProvider()];
     if(pv){
@@ -2042,6 +2049,7 @@ document.addEventListener('input',function(ev){
   if(el.id==='importText')view.importText=el.value;
   if(el.id==='importTitle')view.importTitle=el.value;
   if(el.id==='dictQ')filterDict(el.value);
+  if(el.id==='keyInput'){var kh=document.getElementById('keyHint');if(kh){var kv=aiKeyClean(el.value),kpid=aiProviderOf(kv);kh.textContent=el.value.trim()?(kpid?'Похоже на ключ '+AI_PROVIDERS[kpid].name+'.':'Не похоже на ключ: должен начинаться с sk-ant-, sk-or- или sk-.'):'';}}
 });
 document.addEventListener('submit',function(ev){
   if(ev.target.id==='typeForm'){ev.preventDefault();if(session.state==='ask')checkTyped();else next();}
