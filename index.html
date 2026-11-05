@@ -24,7 +24,7 @@ var appZoom=1;
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Греческий">
-<meta name="build" content="2026-11-05-12">
+<meta name="build" content="2026-11-05-13">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap">
@@ -291,9 +291,9 @@ input[type=text].big{font-family:var(--display);font-size:24px;text-align:center
   <main id="screen"></main>
   <footer id="actions"></footer>
 </div>
-<script src="words.js?v=2026-11-05-12"></script>
-<script src="sentences.js?v=2026-11-05-12"></script>
-<script src="grammar.js?v=2026-11-05-12"></script>
+<script src="words.js?v=2026-11-05-13"></script>
+<script src="sentences.js?v=2026-11-05-13"></script>
+<script src="grammar.js?v=2026-11-05-13"></script>
 <script>
 (function(){
 'use strict';
@@ -528,7 +528,7 @@ var MODE_LIST=[
 ];
 /* Режимы 9 и 10 на iPhone не показываются: распознавание речи в WebKit не работает
    (docs/ios-speech-recognition.md), а диктовка через клавиатуру узнаёт слова хуже. */
-function modeList(){return MODE_LIST.filter(function(m){if(m.mode==='say')return !isIOSDevice();if(m.mode==='dialog')return dialogAvailable();return true;});}
+function modeList(){return MODE_LIST.filter(function(m){if(m.mode==='say')return isIOSDevice()?aiAudioPossible():true;if(m.mode==='dialog')return dialogAvailable();return true;});}
 var MODE_TITLE={dialog:'Занятие с ИИ',flash:'Карточки',tiles:'Учимся писать',type:'Пишем сами',quiz:'Варианты ответа',plural:'Множественное число',conj:'Спряжение глаголов',say:'Отработка лексики'};
 
 var screen=document.getElementById('screen');
@@ -652,7 +652,8 @@ function renderHome(){
     var off=m.net&&!isOnline();
     return '<button class="mode'+(off?' off':'')+'" data-action="pick-mode" data-key="'+m.key+'"><span class="num">'+(i+1)+'</span><span class="txt"><div class="t">'+esc(m.t)+(off?'<span class="badge-dev off">нет сети</span>':m.dev?'<span class="badge-dev">в разработке</span>':'')+'</div><div class="d">'+esc(m.d)+'</div></span><span class="arr">›</span></button>';
   }).join('')+'</div>';
-  if(!isIOSDevice()&&canListen&&!aiProvider())h+='<p class="small muted" style="margin-top:8px">Режим «Занятие с ИИ» (разговор голосом по-гречески) появится после ввода ключа API в настройках.</p>';
+  if(isIOSDevice()&&!aiAudioPossible())h+='<p class="small muted" style="margin-top:8px">Режимы «Отработка лексики» и «Занятие с ИИ» на iPhone работают через запись голоса в модель: они появятся после ввода в настройках ключа OpenAI или OpenRouter.</p>';
+  else if(!isIOSDevice()&&canListen&&!aiProvider())h+='<p class="small muted" style="margin-top:8px">Режим «Занятие с ИИ» (разговор голосом по-гречески) появится после ввода ключа API в настройках.</p>';
   if(!n){h+='<p class="notice" style="margin-top:16px">'+(set.mix?'Отметьте выше хотя бы один урок и хотя бы одну часть речи.':set.words.length?'Включите выше лексику и хотя бы одну часть речи.':'В этом наборе нет слов. Добавьте слова в words.js или импортируйте набор в настройках.')+'</p>';}
   return h;
 }
@@ -898,15 +899,15 @@ function sayMarked(w){
     return n?'<span class="sw '+(ok?'ok':'miss')+'">'+esc(word)+'</span>':esc(word);}).join(' ');
 }
 function sayMicHint(){
-  if(!canListen)return '';
+  if(!canListen&&!sayAudioOnly())return '';
   if(session.micState==='on')return 'Говори… Отпусти, когда закончишь.';
-  if(session.micState==='busy')return 'Распознаю…';
-  return 'Нажми и держи кнопку, пока говоришь.';
+  if(session.micState==='busy')return sayAudioOnly()?'Отправляю запись в ИИ…':'Распознаю…';
+  return sayAudioOnly()?'Нажми и держи кнопку, пока говоришь. Запись проверит ИИ.':'Нажми и держи кнопку, пока говоришь.';
 }
 function renderSay(w){
   var gr=session.dir==='gr',done=session.state!=='ask';
   var h=progressHtml();
-  if(!done&&isIOSDevice())h+='<p class="notice" style="margin-top:10px">На iPhone распознавание речи в браузере сейчас не работает (ошибка iOS 27), поэтому предложение надиктовывают через клавиатуру.</p>';
+  if(!done&&isIOSDevice()&&!sayAudioOnly())h+='<p class="notice" style="margin-top:10px">На iPhone распознавание речи в браузере сейчас не работает (ошибка iOS 27), поэтому предложение надиктовывают через клавиатуру.</p>';
   h+=voiceWarnHtml();
   h+='<div class="prompt"><div class="lang">'+(gr?'Греческий':'Русский')+'</div>';
   if(gr)h+='<div class="word sent">'+sayMarked(w)+'</div><div class="muted" style="margin-top:8px">'+esc(w.ru)+'</div>';
@@ -920,13 +921,15 @@ function renderSay(w){
     if(sayByKeyboard()){
       if(!canListen&&!isIOSDevice())h+='<p class="notice bad" style="margin-top:16px">Этот браузер не умеет распознавать речь. Напиши предложение в поле ниже.</p>';
       h+=sayFormHtml();
-    }else h+='<div class="mic-wrap"><button class="mic'+(session.micState?' '+session.micState:'')+'" id="mic" type="button" aria-label="Держи и говори">🎤</button><p class="hint" id="micHint">'+esc(sayMicHint())+'</p><div class="heard" id="heard">'+(session.heard?'«'+esc(session.heard)+'»':'')+'</div></div>';
+    }else h+='<div class="mic-wrap"><button class="mic'+(session.micState?' '+session.micState:'')+'" id="mic" type="button" aria-label="Держи и говори"'+(session.aiBusy?' disabled':'')+'>🎤</button><p class="hint" id="micHint">'+esc(sayMicHint())+'</p><div class="heard" id="heard">'+(session.heard?'«'+esc(session.heard)+'»':'')+'</div></div>';
     if(session.sayMsg)h+='<p class="notice bad" style="margin-top:12px">'+esc(session.sayMsg)+(session.sayTrace?'<br><span class="small muted">Для отладки: '+esc(session.sayTrace)+'</span>':'')+'</p>';
     else if(session.marks)h+='<div class="result almost" role="status"><span class="mark">…</span><div class="body"><div>Распознано слов: '+session.marks.filter(Boolean).length+' из '+session.marks.length+'.</div><div class="small">Красным — что не распознано. Попробуй ещё раз или пропусти.</div></div></div>';
+    h+=sayAiHtml();
   }else if(session.grade==='skip'){
     h+='<div class="result bad" role="status"><span class="mark">→</span><div class="body"><div>Пропущено.</div>'+(gr?'':'<div class="ans">'+esc(w.gr)+'</div>')+'</div></div>';
   }else{
     h+='<div class="result ok" role="status"><span class="mark">✓</span><div class="body"><div>'+(session.grade==='hint'?'Распознано, но с подсказкой.':'Распознано!')+'</div>'+(session.heard?'<div class="small">«'+esc(session.heard)+'»</div>':'')+'</div></div>';
+    h+=sayAiHtml();
   }
   var foot=done?'<button class="btn primary" data-action="next">Далее</button>':'<button class="btn" data-action="say-skip">Пропустить</button>';
   return{html:h,foot:foot};
@@ -937,7 +940,15 @@ function renderSay(w){
    её запустить не может). В браузерах без распознавания — то же поле, обычный набор. На Android
    и настольных браузерах — только кнопка микрофона. Текст из поля уходит в то же сравнение,
    что и распознанная речь (sayEvaluate). После проверки поле очищается. */
-function sayByKeyboard(){return isIOSDevice()||!canListen;}
+/* Проверка записи через модель: кнопка (если запись есть и модель принимает звук) и результат. */
+function sayAiHtml(){
+  var h='';
+  if(session.aiBusy)h+='<p class="notice" style="margin-top:12px">Отправляю запись в ИИ…</p>';
+  else if(session.wav&&aiAudioPossible()&&!sayAudioOnly())h+='<div class="row" style="margin-top:12px;justify-content:center"><button class="btn" data-action="say-ai">🤖 Отправить запись в ИИ</button></div>';
+  if(session.aiMsg)h+='<div class="result '+(session.aiOk?'ok':'almost')+'" role="status"><span class="mark">🤖</span><div class="body"><div>ИИ услышал: «'+esc(session.aiHeard||'')+'»</div><div class="small">'+esc(session.aiMsg)+'</div></div></div>';
+  return h;
+}
+function sayByKeyboard(){return !sayAudioOnly()&&(isIOSDevice()||!canListen);}
 function sayFormHtml(){
   var ios=isIOSDevice();
   return '<form id="sayForm" class="say-form"><input type="text" id="sayInput" lang="el" inputmode="text" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" placeholder="'+(ios?'надиктуй сюда':'напиши предложение')+'" aria-label="Предложение по-гречески"><button type="submit" class="btn">Проверить</button></form>'
@@ -1028,22 +1039,69 @@ function micTestDone(a){
   if(view.name==='settings'){keepScroll=true;render();}
 }
 function micDown(ev){
-  if(sayByKeyboard()||!session||session.mode!=='say'||session.state!=='ask')return;
+  if(sayByKeyboard()||!session||session.mode!=='say'||session.state!=='ask'||session.aiBusy)return;
   ev.preventDefault();
-  var a=newAtt();session.sayMsg='';
-  if(!recBegin(a)){session.sayMsg='Не удалось включить микрофон.';render();return;}
+  session.sayMsg='';session.aiMsg='';session.wav=null;
+  /* Запись голоса идёт параллельно распознаванию (если модель принимает звук), чтобы ту же попытку
+     можно было отправить в ИИ; где распознавания нет — только запись. */
+  if(aiAudioPossible())recStart(function(e){if(e&&sayAudioOnly()&&session){session.micState='';session.sayMsg='Нет доступа к микрофону. Разреши его в настройках браузера.';render();}});
+  if(!sayAudioOnly()){var a=newAtt();if(!recBegin(a)){session.sayMsg='Не удалось включить микрофон.';render();return;}}
   setMicState('on');
   var el=document.getElementById('heard');if(el)el.textContent='';
 }
 function micUp(){
-  var a=recAtt;if(!a||a.done||a.released||!session||session.micState!=='on')return;
+  if(!session||session.mode!=='say'||session.micState!=='on')return;
+  if(recOn){var r=recStop();if(r.seconds>=0.4)session.wav=r.wav;}
+  if(sayAudioOnly()){
+    if(!session.wav){session.micState='';session.sayMsg='Держи кнопку нажатой всё время, пока говоришь.';render();return;}
+    setMicState('busy');sayAiCheck(session.wav);return;
+  }
+  var a=recAtt;if(!a||a.done||a.released)return;
   a.released=true;setMicState('busy');recEvent('release');
   /* Небольшая пауза перед stop(): иначе обрезается конец фразы. */
   setTimeout(function(){if(!a.done){try{recObj.stop();}catch(e){}}},300);
   a.timer=setTimeout(function(){if(!a.done){recEvent('timeout');try{recObj.abort();}catch(e){}recFinish(a);}},2500);
 }
+/* Отправка записи в модель: она пишет, что услышала (heard), и объясняет по-русски, что не так.
+   Услышанное сравнивается с предложением тем же sayScore; совпало — засчитано. */
+function sayAiCheck(wav){
+  var s=session;if(!s||s.mode!=='say'||s.aiBusy||!wav)return;
+  s.aiBusy=true;s.aiMsg='';render();
+  aiSpeechCheck(wav,sayCur().gr,function(err,res){
+    if(session!==s)return;s.aiBusy=false;s.micState='';
+    if(err){s.sayMsg=err;render();return;}
+    s.aiHeard=res.heard;s.aiMsg=res.feedback||(res.ok?'Произнесено хорошо.':'');
+    if(s.state==='ask'){
+      var sc=sayScore(sayCur().gr,res.heard||'');s.attempts++;s.heard=res.heard||'';s.marks=sc.marks;s.sayMsg='';s.sayTrace='';s.aiOk=sc.ok;
+      if(sc.ok)finishSay(true);
+    }else s.aiOk=!!res.ok;
+    render();
+  });
+}
+function aiSpeechCheck(wav,target,cb){
+  var pid=aiProvider();
+  var sys='Ты проверяешь произношение ученика, который учит греческий с нуля (родной язык русский). Ученик читает вслух предложение: «'+target+'». '+
+    'Верни JSON. heard — что он произнёс на самом деле, дословно, греческими буквами с ударениями (если сказал что-то другое или по-русски, запиши как есть); не подгоняй под образец. '+
+    'ok — true, если предложение произнесено целиком и понятно носителю. feedback — по-русски одна-три короткие фразы: что именно не так (ударение не на том слоге, не тот гласный или согласный, пропущенное слово) или что хорошо.';
+  var schema={type:'object',properties:{heard:{type:'string'},ok:{type:'boolean'},feedback:{type:'string'}},required:['heard','ok','feedback'],additionalProperties:false};
+  var finish=function(err,j){
+    if(err){cb(err);return;}
+    var d=aiJson(j.text);if(!d||typeof d!=='object'){cb('Ошибка: не удалось разобрать ответ модели.');return;}
+    cb(null,{heard:String(d.heard||'').trim(),ok:!!d.ok,feedback:String(d.feedback||'').trim()});
+  };
+  if(pid==='openai'){
+    aiTranscribe(wav,function(err,text){
+      if(err){cb(err);return;}
+      aiRequest({system:sys.replace('Верни JSON. heard — что он произнёс на самом деле, дословно, греческими буквами с ударениями (если сказал что-то другое или по-русски, запиши как есть); не подгоняй под образец. ','Запись уже расшифрована: «'+text+'». Верни JSON: heard — эта расшифровка как есть. '),
+        messages:[{role:'user',content:'Расшифровка речи ученика: «'+text+'»'}],schema:schema,maxTokens:1024},finish);
+    });
+    return;
+  }
+  aiRequest({system:sys,messages:[{role:'user',content:[{type:'text',text:'Запись речи ученика.'},{type:'input_audio',input_audio:{data:b64(wav),format:'wav'}}]}],schema:schema,maxTokens:1024},finish);
+}
 function sayStop(silent){
   if(recAtt){var a=recAtt;a.cancel=true;recFinish(a);try{recObj.abort();}catch(e){}}
+  if(recOn)try{recStop();}catch(e){}
   if(session)session.micState='';
 }
 function sayEvaluate(b){
@@ -1092,7 +1150,10 @@ var AI_PROVIDERS={
    (звук прямо в модель). Claude звук не принимает. */
 function aiModelAudio(){var m=claudeModel();return aiModels().some(function(x){return x[0]===m&&x[2];});}
 function aiAudioPossible(){var pid=aiProvider();return pid==='openai'||(pid==='openrouter'&&aiModelAudio());}
-function aiAudioMode(){return store.settings.aiAudio!=='browser'&&aiAudioPossible()?'model':'browser';}
+function aiAudioMode(){return aiAudioPossible()&&(isIOSDevice()||store.settings.aiAudio!=='browser')?'model':'browser';}
+/* Режимы 9–10: запись голоса для проверки через модель. На iPhone (и без распознавания в
+   браузере) это единственный способ, на остальных платформах — дополнение к браузерному. */
+function sayAudioOnly(){return aiAudioPossible()&&(isIOSDevice()||!canListen);}
 function claudeKey(){return (store.settings&&store.settings.claudeKey||'').trim();}
 /* Провайдер по ключу; '' — ключа нет или он не похож ни на один из трёх видов. */
 function aiProviderOf(key){
@@ -1106,7 +1167,8 @@ function aiProvider(){return aiProviderOf(claudeKey());}
 function aiModels(){var pv=AI_PROVIDERS[aiProvider()];return pv?pv.models:[];}
 /* Первая модель списка — по умолчанию: самая сильная у провайдера, она же лучше всего знает греческий. */
 function claudeModel(){var m=store.settings&&store.settings.claudeModel,list=aiModels();return list.some(function(x){return x[0]===m;})?m:(list.length?list[0][0]:'');}
-function dialogAvailable(){return !isIOSDevice()&&canListen&&!!aiProvider();}
+/* На iPhone распознавание в браузере не работает, поэтому режим есть только с записью голоса в модель. */
+function dialogAvailable(){return !!aiProvider()&&(isIOSDevice()?aiAudioPossible():(canListen||aiAudioPossible()));}
 /* Режим 11 «Занятие с ИИ»: голосовое занятие с кнопкой «держи и говори». Пока кнопка нажата,
    идёт запись голоса (aiAudioMode()==='model': WAV уходит модели, она сама понимает греческий и
    русский) или браузерное распознавание (lang — язык распознавателя, модель подсказывает его в
@@ -1797,10 +1859,12 @@ function renderSettings(){
   h+='<div class="row"><button class="btn" data-action="test-mic">'+(micTest.on?'■ Остановить':'🎤 Проверить микрофон')+'</button></div>';
   if(micTest.msg)h+='<p class="notice '+(micTest.ok?'ok':'bad')+'">'+esc(micTest.msg)+(micTest.trace?'<br><span class="small muted">Для отладки: '+esc(micTest.trace)+'</span>':'')+'</p>';}
   h+='<h3>Занятие с ИИ</h3>';
-  if(isIOSDevice()){h+='<p class="small muted">Режим «Занятие с ИИ» (разговор голосом по-гречески с языковой моделью) на iPhone и iPad недоступен: распознавание речи в браузере там не работает. Ключ API для этого режима вводится в настройках на компьютере или Android.</p>';}
-  else{
-    h+='<p class="small muted">Режим «Занятие с ИИ»: разговор голосом по-гречески с языковой моделью словами выбранного набора. Нужен ключ API одного из трёх видов: Anthropic (начинается с sk-ant-), OpenAI (sk-proj- или sk-) или OpenRouter (sk-or-).</p>';
-    if(!canListen)h+='<p class="notice bad">Этот браузер не умеет распознавать речь, режим не появится. Открой приложение в Chrome или Safari.</p>';
+  {
+    var link=function(u,t){return '<a href="'+u+'" target="_blank" rel="noopener">'+t+'</a>';};
+    h+='<p class="small muted">Режим «Занятие с ИИ»: разговор голосом по-гречески с языковой моделью словами выбранного набора; в режимах «Отработка лексики» запись можно отправить модели, чтобы понять, что не так в произношении. Нужен ключ API одного из трёх видов: '+
+      link('https://platform.claude.com/settings/keys','Anthropic')+' (начинается с sk-ant-), '+link('https://platform.openai.com/api-keys','OpenAI')+' (sk-proj- или sk-) или '+link('https://openrouter.ai/settings/keys','OpenRouter')+' (sk-or-). Ссылки ведут на страницы ключей; это отдельные от подписок счета с предоплатой.</p>';
+    if(isIOSDevice())h+='<p class="small muted">На iPhone и iPad распознавание речи в браузере не работает, поэтому режимы 9–11 здесь работают только с записью голоса в модель: ключ OpenAI или OpenRouter с моделью 🎤. С ключом Anthropic эти режимы на iPhone не появятся.</p>';
+    else if(!canListen)h+='<p class="notice bad">Этот браузер не умеет распознавать речь: без ключа с записью голоса режимы 9–11 не появятся. Открой приложение в Chrome или Safari.</p>';
     h+='<form id="keyForm" class="keyrow"><input type="password" id="keyInput" placeholder="sk-ant-…, sk-proj-…, sk-or-…" autocomplete="off" spellcheck="false" aria-label="Ключ API" value="'+esc(claudeKey())+'"><button type="submit" class="btn ghost">Сохранить</button></form>';
     h+=settingsMsgHtml('key');
     var pv=AI_PROVIDERS[aiProvider()];
@@ -1809,9 +1873,10 @@ function renderSettings(){
       h+='<label class="small muted" style="display:block">Ключ '+esc(pv.name)+', модель <select id="modelSelect" aria-label="Модель">'+pv.models.map(function(m){return '<option value="'+m[0]+'"'+(m[0]===claudeModel()?' selected':'')+'>'+esc(m[1])+'</option>';}).join('')+'</select></label>';
       h+='<p class="small muted" style="margin-top:4px">Ключ хранится только в этом браузере и отправляется только на '+esc(pv.host)+'.</p>';
       var pid=aiProvider(),can=aiAudioPossible(),mode=aiAudioMode();
+      var noBrowser=isIOSDevice()||!canListen;
       h+='<div class="seg" style="margin-top:8px">'+
         '<label class="'+(mode==='model'?'on':'')+(can?'':' off')+'"><input type="radio" name="aiAudio" value="model" data-action="set-ai-audio"'+(mode==='model'?' checked':'')+(can?'':' disabled')+'>Запись голоса в модель</label>'+
-        '<label class="'+(mode==='browser'?'on':'')+'"><input type="radio" name="aiAudio" value="browser" data-action="set-ai-audio"'+(mode==='browser'?' checked':'')+'>Распознаёт браузер</label></div>';
+        '<label class="'+(mode==='browser'?'on':'')+(noBrowser?' off':'')+'"><input type="radio" name="aiAudio" value="browser" data-action="set-ai-audio"'+(mode==='browser'?' checked':'')+(noBrowser?' disabled':'')+'>Распознаёт браузер</label></div>';
       h+='<p class="small muted" style="margin-top:4px">'+(pid==='anthropic'?'Claude звук не принимает: речь распознаёт браузер. Запись голоса в модель работает с ключом OpenAI (транскрипция gpt-transcribe) или OpenRouter с моделью 🎤.':
         pid==='openai'?'С ключом OpenAI запись голоса транскрибирует gpt-transcribe (греческий и русский определяет сам), затем отвечает выбранная модель.':
         'Модели с пометкой 🎤 слушают запись голоса сами и понимают греческий и русский; с остальными речь распознаёт браузер.')+'</p>';
@@ -1855,7 +1920,7 @@ function parseImport(text){
 }
 
 /* ---------- actions ---------- */
-function goHome(){sayStop();dialogStop();micTest={};view={name:'home'};session=null;render();}
+function goHome(){sayStop();dialogStop();recRelease();micTest={};view={name:'home'};session=null;render();}
 
 /* ---------- установка на экран «Домой» ----------
    Android/Chrome: системный диалог через beforeinstallprompt. iPhone: API нет, показываем
@@ -1936,6 +2001,7 @@ document.addEventListener('click',function(ev){
     case 'check':checkTyped();break;
     case 'retry':prepareItem();render();break;
     case 'next':next();break;
+    case 'say-ai':if(session&&session.mode==='say'&&session.wav)sayAiCheck(session.wav);break;
     case 'say-skip':if(session&&session.mode==='say'&&session.state==='ask'){finishSay(false);render();}break;
     case 'dialog-lang':dialogToggleLang();break;
     case 'dialog-say':dialogReplay(+el.getAttribute('data-i'));break;
