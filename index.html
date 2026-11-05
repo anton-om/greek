@@ -24,7 +24,7 @@ var appZoom=1;
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Греческий">
-<meta name="build" content="2026-11-05-5">
+<meta name="build" content="2026-11-05-6">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap">
@@ -290,9 +290,9 @@ input[type=text].big{font-family:var(--display);font-size:24px;text-align:center
   <main id="screen"></main>
   <footer id="actions"></footer>
 </div>
-<script src="words.js?v=2026-11-05-5"></script>
-<script src="sentences.js?v=2026-11-05-5"></script>
-<script src="grammar.js?v=2026-11-05-5"></script>
+<script src="words.js?v=2026-11-05-6"></script>
+<script src="sentences.js?v=2026-11-05-6"></script>
+<script src="grammar.js?v=2026-11-05-6"></script>
 <script>
 (function(){
 'use strict';
@@ -300,7 +300,7 @@ var LS_KEY='greek-words:v1';
 var BUILTIN=(window.WORD_SETS||[]).map(function(s){return Object.assign({},s,{builtin:true});});
 
 function loadStore(){
-  var base={setId:null,progress:{},custom:[],mix:{},lex:{},settings:{strictAccents:false,autoSpeak:false,extraMode:'none',scope:'all',shuffle:true}};
+  var base={setId:null,progress:{},learned:[],typeHits:{},custom:[],mix:{},lex:{},settings:{strictAccents:false,autoSpeak:false,extraMode:'none',scope:'all',shuffle:true}};
   try{var raw=localStorage.getItem(LS_KEY);if(raw){var d=JSON.parse(raw);base=Object.assign(base,d);base.settings=Object.assign({strictAccents:false,autoSpeak:false},d.settings||{});
     /* Части речи в Custom до сборки 2026-10-23-3 были дополнением, а не фильтром: старые значения сбрасываем на «все включены». */
     if(base.mix&&base.mix._posV!==2){delete base.mix._pos;base.mix._posV=2;}if(!base.settings.extraMode)base.settings.extraMode=base.settings.useExtra?'with':'none';}}catch(e){}
@@ -349,12 +349,17 @@ function mixSet(){
   return {id:MIX_ID,title:'Custom',words:words,extra:[],mix:true,origin:pool.origin};
 }
 function currentSet(){if(store.setId===MIX_ID)return mixSet();var sets=allSets();return sets.filter(function(s){return s.id===store.setId;})[0]||sets[0]||{id:'empty',title:'Нет наборов',words:[]};}
-/* Отметка «изучено» едина для слова, без направления: progress[setId].all=[gr...].
-   Старый формат {gr:[],ru:[]} объединяется при первом обращении. */
-function progressFor(setId){if(!store.progress[setId])store.progress[setId]={all:[]};var p=store.progress[setId];
-  if(!p.all){p.all=[];(p.gr||[]).concat(p.ru||[]).forEach(function(k){if(p.all.indexOf(k)<0)p.all.push(k);});delete p.gr;delete p.ru;}
-  return p;}
-function progressOf(set,word){return progressFor(set.mix?(set.origin[word.gr.toLowerCase()]||set.id):set.id);}
+/* Отметка «изучено» едина для слова во всех уроках и без направления: store.learned=[gr...].
+   Старые форматы (progress[setId].all, ещё раньше {gr:[],ru:[]}) объединяются в общий список
+   при первом обращении, после чего progress удаляется. typeHits[gr] — сколько раз подряд слово
+   написано в режиме «Пишем сами» верно с первого раза и без подсказки: после двух оно отмечается
+   изученным само. */
+function learnedList(){
+  if(!store.learned)store.learned=[];
+  if(store.progress){var L=store.learned;Object.keys(store.progress).forEach(function(id){var p=store.progress[id]||{};
+    (p.all||[]).concat(p.gr||[],p.ru||[]).forEach(function(k){if(L.indexOf(k)<0)L.push(k);});});delete store.progress;save();}
+  return store.learned;
+}
 function extraOf(set){return (set.extra||[]).slice();}
 /* Лексика набора выбирается на главном экране: store.lex[setId]={w:основная,x:дополнительная}.
    По умолчанию — как старая настройка extraMode (основная без дополнительной). */
@@ -364,8 +369,8 @@ function lexPos(set){return Object.assign({},POS_DEFAULT,lexCfg(set).pos||{});}
 function lexPool(set){var c=lexCfg(set);return (c.w?set.words:[]).concat(c.x?extraOf(set):[]);}
 function lexPosPool(set){var pc=lexPos(set);return lexPool(set).filter(function(w){return pc[posOf(w)];});}
 function poolWords(set){if(set.mix)return set.words;var tp=lexTopics(set);return lexPosPool(set).filter(function(w){return topicOn(tp,topicOf(w));});}
-function isLearned(set,dir,word){return progressOf(set,word).all.indexOf(word.gr)>=0;}
-function setLearned(set,dir,word,val){var arr=progressOf(set,word).all;var i=arr.indexOf(word.gr);if(val&&i<0)arr.push(word.gr);if(!val&&i>=0)arr.splice(i,1);save();}
+function isLearned(set,dir,word){return learnedList().indexOf(word.gr)>=0;}
+function setLearned(set,dir,word,val){var arr=learnedList();var i=arr.indexOf(word.gr);if(val&&i<0)arr.push(word.gr);if(!val&&i>=0){arr.splice(i,1);if(store.typeHits)delete store.typeHits[word.gr];}save();}
 function learnedCount(set,dir,words){return (words||set.words).filter(function(w){return isLearned(set,dir,w);}).length;}
 
 function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
@@ -601,7 +606,7 @@ function renderHome(){
   h+='<div class="row"><select id="setSelect" aria-label="Набор слов">'+sets.map(function(s){return '<option value="'+esc(s.id)+'"'+(s.id===set.id?' selected':'')+'>'+esc(s.title)+' ('+s.words.length+')</option>';}).join('')
     +'<option value="'+MIX_ID+'"'+(set.mix?' selected':'')+'>Custom: свой выбор уроков'+(set.mix?' ('+n+')':'')+'</option></select></div>';
   if(set.mix){
-    h+='<div class="mixcfg"><p class="small muted" style="margin:0 0 4px">Отметьте уроки и лексику, при желании сузьте до частей речи и тем. Прогресс по каждому слову хранится в его уроке.</p>';
+    h+='<div class="mixcfg"><p class="small muted" style="margin:0 0 4px">Отметьте уроки и лексику, при желании сузьте до частей речи и тем. Отметка «изучено» у слова общая для всех уроков.</p>';
     var onSets=sets.filter(function(s){var c=mixCfg(s.id);return c.w||c.x;});
     var lessonsSum=onSets.length===sets.length?'все':onSets.length?onSets.map(function(s){return s.title.replace(/^Урок /,'');}).join(', '):'ничего';
     h+=foldRowHtml('mix-lessons','Уроки',lessonsSum,sets.map(function(s){var c=mixCfg(s.id);var ex=extraOf(s).length;
@@ -1363,6 +1368,13 @@ function finishItem(grade,given){
   if(grade==='exact'&&session.hinted)grade='hint';
   session.grade=grade;session.state='done';
   var ok=grade==='exact';
+  /* Режим «Пишем сами», первое появление слова в сеансе: счёт верных ответов с первого раза без
+     подсказки; ошибка или подсказка обнуляет счёт, второй подряд верный ответ отмечает слово изученным. */
+  if(session.mode==='type'&&session.words.indexOf(cur())===session.i){var w=cur();if(!store.typeHits)store.typeHits={};
+    if(ok){var n=(store.typeHits[w.gr]||0)+1;store.typeHits[w.gr]=n;
+      if(n>=2&&!isLearned(session.set,null,w)){setLearned(session.set,null,w,true);session.autoLearned=(session.autoLearned||[]).concat([w]);}}
+    else delete store.typeHits[w.gr];
+    save();}
   if(!session.results[session.i]){
     session.results[session.i]={word:cur(),ok:ok,grade:grade,given:given};
     if(!ok){var pos=Math.min(session.i+3,session.words.length);session.words.splice(pos,0,cur());session.requeued=true;}
@@ -1415,6 +1427,7 @@ function renderEnd(){
     if(wrong.length){h+='<h3 style="margin-top:6px">Ошибки</h3><div class="mistakes">'+wrong.map(function(r){return '<div class="mistake"><span class="g">'+esc(r.word.gr)+'</span><span class="r">'+esc(r.word.ru)+(r.given?'<br><s class="small">'+esc(r.given)+'</s>':'')+'</span></div>';}).join('')+'</div>';}
     h+='</div>';
     if(session.mode==='tiles'||session.mode==='type'){
+      if(session.autoLearned&&session.autoLearned.length)h+='<p class="notice ok" style="margin-top:10px">Отмечены изученными: '+session.autoLearned.map(function(w){return esc(w.gr);}).join(', ')+' — дважды написаны верно с первого раза.</p>';
       var upd=learnedUpdates();
       if(upd.unlearn.length||upd.learn.length){
         h+='<h3 style="margin-top:14px">Список изученных</h3><div class="stack" style="gap:8px">';
@@ -1630,9 +1643,8 @@ function renderSettings(){
     }
   }
   h+='<h3>Прогресс набора «'+esc(set.title)+'»</h3>';
-  h+='<p class="small muted">Изучено: '+learnedCount(set,null)+' / '+set.words.length+'. Отметка едина для обоих направлений.</p>';
-  if(set.mix){h+='<p class="small muted">Сборный набор: прогресс хранится в уроках, из которых взяты слова. Сбрасывайте его по уроку, выбрав урок на главном экране.</p>';}
-  else if(confirmReset){h+='<div class="row"><button class="btn bad" data-action="reset-progress-yes">Да, сбросить</button><button class="btn" data-action="reset-progress-no">Отмена</button></div>';}
+  h+='<p class="small muted">Изучено: '+learnedCount(set,null)+' / '+set.words.length+'. Отметка у слова общая для всех уроков и обоих направлений; сброс снимает её со всех слов набора, включая дополнительные.</p>';
+  if(confirmReset){h+='<div class="row"><button class="btn bad" data-action="reset-progress-yes">Да, сбросить</button><button class="btn" data-action="reset-progress-no">Отмена</button></div>';}
   else{h+='<div class="row"><button class="btn outline-bad" data-action="reset-progress">Сбросить прогресс набора</button></div>';}
   h+='<h3>Импорт набора</h3>';
   h+='<p class="small muted">Вставь список: по строке на слово, греческий и русский через табуляцию, « - » или «;».</p>';
@@ -1775,12 +1787,12 @@ document.addEventListener('click',function(ev){
     case 'restart':{var all=uniqWords(session.words);if(view.shuffle)shuffle(all);startSession(all);break;}
     case 'reset-progress':confirmReset=true;render();break;
     case 'reset-progress-no':confirmReset=false;render();break;
-    case 'reset-progress-yes':{var s=currentSet();store.progress[s.id]={all:[]};save();confirmReset=false;settingsMsg='Прогресс набора «'+s.title+'» сброшен.';render();break;}
+    case 'reset-progress-yes':{var s=currentSet();s.words.concat(extraOf(s)).forEach(function(w){setLearned(s,null,w,false);});confirmReset=false;settingsMsg='Прогресс набора «'+s.title+'» сброшен.';render();break;}
     case 'import':doImport();break;
     case 'delete-set':confirmDelete=el.getAttribute('data-id');render();break;
     case 'delete-set-no':confirmDelete=null;render();break;
     case 'delete-set-yes':{
-      var id=el.getAttribute('data-id');store.custom=(store.custom||[]).filter(function(c){return c.id!==id;});delete store.progress[id];
+      var id=el.getAttribute('data-id');store.custom=(store.custom||[]).filter(function(c){return c.id!==id;});
       if(store.setId===id)store.setId=null;save();confirmDelete=null;settingsMsg='Набор удалён.';render();break;
     }
   }
