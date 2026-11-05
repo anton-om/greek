@@ -24,7 +24,7 @@ var appZoom=1;
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Греческий">
-<meta name="build" content="2026-11-05-8">
+<meta name="build" content="2026-11-05-9">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap">
@@ -291,9 +291,9 @@ input[type=text].big{font-family:var(--display);font-size:24px;text-align:center
   <main id="screen"></main>
   <footer id="actions"></footer>
 </div>
-<script src="words.js?v=2026-11-05-8"></script>
-<script src="sentences.js?v=2026-11-05-8"></script>
-<script src="grammar.js?v=2026-11-05-8"></script>
+<script src="words.js?v=2026-11-05-9"></script>
+<script src="sentences.js?v=2026-11-05-9"></script>
+<script src="grammar.js?v=2026-11-05-9"></script>
 <script>
 (function(){
 'use strict';
@@ -1119,7 +1119,9 @@ function dialogSystem(){
   var words=session.pool.map(function(w){return primaryTarget(w.gr)+' — '+w.ru;}).join('\n');
   return 'Ты голосовой репетитор греческого языка для ученика с нуля (уровень A1, родной язык русский). Занятие идёт по набору слов «'+session.set.title+'».\n'+
     'Ученик говорит голосом: его речь распознана автоматически, поэтому в ней могут быть ошибки распознавания, нет знаков препинания и ударений — понимай по смыслу и не считай это ошибками ученика. Ученик говорит по-русски или по-гречески.\n'+
-    'Ученика уже спросили по-русски, чем он хочет заняться; его первая реплика — ответ на это (например: поговорить по-гречески на какую-то тему, поучить слова набора в разговоре, отработать диалог в магазине или при знакомстве, задать вопросы по грамматике). Делай то, что он просит, словами набора. Если задание непонятно, переспроси по-русски.\n\n'+
+    'Ученика уже спросили по-русски, чем он хочет заняться; его первая реплика — ответ на это (например: поговорить по-гречески на какую-то тему, поучить слова набора в разговоре, отработать диалог в магазине или при знакомстве, задать вопросы по грамматике). Делай то, что он просит, словами набора. Если задание непонятно, переспроси по-русски.\n'+
+    'Язык речи ученика определяется автоматически, и у распознавания есть особенности: если ученик заговорил по-русски во время греческого разговора, начало его фразы могло попасть в греческий распознаватель и прийти латиницей в скобках в начале сообщения — это фонетическая запись русских слов (например, «obviously bazalusta» = «объясни, пожалуйста»), восстанови смысл. Если же текст похож на греческие слова, записанные русскими буквами (например, «Калимера»), пойми его как греческий.\n'+
+    'Если ученик просит перевести или объяснить то, что ты сказал по-гречески, дай перевод своей предыдущей реплики по-русски в части ru, при необходимости кратко поясни, и затем продолжи по-гречески.\n\n'+
     'Правила:\n'+
     '1. Реплика — список частей parts, каждая часть целиком на одном языке: их озвучат разными голосами. Основной язык — греческий: одно-два коротких простых предложения в настоящем времени. По-русски говори коротко: подтвердить задание, объяснить, ответить на вопрос, заданный по-русски. Греческие фразы в parts не переводи — для перевода есть поле translation.\n'+
     '2. Ученик знает артикли, настоящее время глаголов и множественное число существительных. Используй слова из списка ниже, а также артикли, местоимения, предлоги, союзы, числа, имена и самые частые слова (είμαι, έχω, ναι, όχι, και, πολύ, τι, πού, πώς).\n'+
@@ -1202,7 +1204,9 @@ function aiJson(text){
 function dialogSend(text){
   var s=session;if(!s||s.mode!=='dialog'||s.busy)return;
   dialogRecStop();text=String(text||'').trim();
-  if(text){s.turns.push({who:'me',text:text,lang:s.lang});s.messages.push({role:'user',content:text});}
+  if(text){var pre=s.latinPrefix||'';s.latinPrefix='';
+    s.turns.push({who:'me',text:text,lang:s.lang});
+    s.messages.push({role:'user',content:(pre?'(начало фразы по-русски, услышанное греческим распознавателем как «'+pre+'») ':'')+text});}
   if(!s.messages.length||s.messages[s.messages.length-1].role!=='user')return;
   s.busy=true;s.phase='think';s.err='';s.heard='';render();
   aiRequest({system:dialogSystem(),messages:s.messages.slice(),schema:DIALOG_SCHEMA,maxTokens:4096},function(err,j){
@@ -1217,7 +1221,7 @@ function dialogSend(text){
     if(data.correction||data.corrected){for(var i=s.turns.length-1;i>=0;i--){if(s.turns[i].who==='me'){s.turns[i].correction=String(data.correction||'');s.turns[i].corrected=String(data.corrected||'');break;}}}
     s.turns.push(t);s.usage+=j.tokens||0;
     s.phase='speak';render();
-    dialogSpeak(t.parts,function(){if(session!==s)return;s.lang=data.next_lang==='ru'?'ru':'el';dialogListen();});
+    dialogSpeak(t.parts,function(){if(session!==s)return;s.lang=data.next_lang==='ru'?'ru':'el';s.autoLang=false;dialogListen();});
   });
 }
 /* Озвучка реплики по частям: греческие — греческим голосом, русские — русским (без русского
@@ -1263,6 +1267,11 @@ function dialogListen(){
     var intr='';finals=[];
     for(var i=0;i<e.results.length;i++){var x=e.results[i];if(x.isFinal)finals.push(String(x[0].transcript).trim());else intr+=x[0].transcript;}
     s.heard=(finals.join(' ')+' '+intr).trim();
+    /* Греческий распознаватель на русскую речь отдаёт латиницу («obviously bazalusta»), на
+       греческую — никогда (проверено в Chrome). Латиница в промежуточном результате — признак
+       русского: сразу переключаемся на русский распознаватель, а латинский обрывок уходит модели
+       как подсказка о начале фразы. */
+    if(s.lang==='el'&&dialogLatin(s.heard)){s.latinPrefix=s.heard;s.lang='ru';s.autoLang=true;dialogListen();return;}
     var live=document.getElementById('heardLive');if(live)live.textContent=s.heard;
     clearTimeout(dialogPendTimer);dialogPendTimer=null;
     if(finals.length&&!intr)dialogPendTimer=setTimeout(flush,900);
@@ -1280,11 +1289,13 @@ function dialogListen(){
   try{r.start();}catch(e){s.phase='idle';s.err='Не удалось включить микрофон.';render();return;}
   dialogRec=r;s.phase='listen';s.heard='';s.err='';render();
 }
+/* Латинских букв не меньше трёх и больше, чем греческих. */
+function dialogLatin(t){var la=(t.match(/[a-z]/gi)||[]).length,gr=(t.match(/[\u0370-\u03ff\u1f00-\u1fff]/g)||[]).length;return la>=3&&la>gr;}
 function dialogRecStop(){dialogRecGen++;clearTimeout(dialogPendTimer);dialogPendTimer=null;if(dialogRec){var r=dialogRec;dialogRec=null;try{r.abort();}catch(e){}}}
 function dialogStop(){dialogRecStop();dialogSpeakStop();}
 function dialogPause(){var s=session;if(!s||s.mode!=='dialog')return;dialogStop();s.phase='idle';s.heard='';render();}
 function dialogResume(){var s=session;if(!s||s.mode!=='dialog'||s.busy)return;dialogListen();}
-function dialogToggleLang(){var s=session;if(!s||s.mode!=='dialog')return;s.lang=s.lang==='ru'?'el':'ru';if(s.phase==='listen')dialogListen();else{keepScroll=true;render();}}
+function dialogToggleLang(){var s=session;if(!s||s.mode!=='dialog')return;s.lang=s.lang==='ru'?'el':'ru';s.autoLang=false;s.latinPrefix='';if(s.phase==='listen')dialogListen();else{keepScroll=true;render();}}
 /* Повторная озвучка реплики; после неё микрофон возвращается в прежнее состояние. */
 function dialogReplay(i){
   var s=session;if(!s||s.mode!=='dialog'||s.busy)return;var t=s.turns[i];if(!t||t.who!=='ai')return;
@@ -1327,14 +1338,14 @@ function renderDialog(){
   });
   if(s.busy)h+='<div class="bubble ai typing">•••</div>';
   h+='</div>';
-  var st=s.phase==='listen'?'🎤 Слушаю '+dialogLangName(s.lang)+'…':s.phase==='think'?'Думаю…':s.phase==='speak'?'🔊 Говорю…':'Микрофон выключен';
+  var st=s.phase==='listen'?'🎤 Слушаю '+dialogLangName(s.lang)+(s.autoLang&&s.lang==='ru'?' (услышал русский)':'')+'…':s.phase==='think'?'Думаю…':s.phase==='speak'?'🔊 Говорю…':'Микрофон выключен';
   h+='<div class="live '+esc(s.phase)+'"><span class="dot"></span><span class="st">'+esc(st)+'</span><span class="heard" id="heardLive">'+esc(s.heard||'')+'</span></div>';
   if(s.err)h+='<p class="notice bad">'+esc(s.err)+'</p>';
   h+='<div class="row" style="margin-top:10px;flex-wrap:wrap">'+
     (s.phase==='listen'?'<button class="btn" data-action="dialog-pause">⏸ Пауза</button>':'<button class="btn primary" data-action="dialog-listen"'+(s.busy?' disabled':'')+'>🎤 Слушать</button>')+
     '<button class="btn ghost" data-action="dialog-lang">Я говорю '+dialogLangName(s.lang)+' ⇄</button>'+
     (s.err&&s.messages.length&&s.messages[s.messages.length-1].role==='user'?'<button class="btn" data-action="dialog-retry">Повторить запрос</button>':'')+'</div>';
-  h+='<p class="hint">Говори, когда горит «Слушаю»: фраза уходит сама после паузы. Модель отвечает голосом; русские части озвучиваются, если в системе есть русский голос.</p>';
+  h+='<p class="hint">Говори по-гречески или по-русски, когда горит «Слушаю»: язык определяется сам, фраза уходит после паузы. Попроси перевод, и модель переведёт сказанное. Русские части озвучиваются, если в системе есть русский голос.</p>';
   return {html:h,foot:'<button class="btn" data-action="dialog-end">Завершить</button>'};
 }
 /* Настройки: ключ API и модель. */
