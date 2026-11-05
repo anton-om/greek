@@ -24,7 +24,7 @@ var appZoom=1;
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Греческий">
-<meta name="build" content="2026-11-05-24">
+<meta name="build" content="2026-11-05-25">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap">
@@ -294,9 +294,9 @@ input[type=text].big{font-family:var(--display);font-size:24px;text-align:center
   <main id="screen"></main>
   <footer id="actions"></footer>
 </div>
-<script src="words.js?v=2026-11-05-24"></script>
-<script src="sentences.js?v=2026-11-05-24"></script>
-<script src="grammar.js?v=2026-11-05-24"></script>
+<script src="words.js?v=2026-11-05-25"></script>
+<script src="sentences.js?v=2026-11-05-25"></script>
+<script src="grammar.js?v=2026-11-05-25"></script>
 <script>
 (function(){
 'use strict';
@@ -1868,26 +1868,19 @@ function renderSettings(){
   h+='<h3>Занятие с ИИ</h3>';
   {
     var link=function(u,t){return '<a href="'+u+'" target="_blank" rel="noopener">'+t+'</a>';};
-    h+='<p class="small muted">Режим «Занятие с ИИ»: разговор голосом по-гречески с языковой моделью словами выбранного набора; в режимах «Отработка лексики» запись можно отправить модели, чтобы понять, что не так в произношении. Нужен ключ API одного из трёх видов: '+
-      link('https://platform.claude.com/settings/keys','Anthropic')+' (начинается с sk-ant-), '+link('https://platform.openai.com/api-keys','OpenAI')+' (sk-proj- или sk-) или '+link('https://openrouter.ai/settings/keys','OpenRouter')+' (sk-or-) или '+link('https://aistudio.google.com/apikey','Google AI Studio')+' (AQ.… или AIza…, есть бесплатный уровень). Ссылки ведут на страницы ключей. У Anthropic, OpenAI и OpenRouter это отдельные от подписок счета с предоплатой; у Google модели Flash бесплатны с дневным лимитом, но запросы на бесплатном уровне Google может использовать для улучшения своих продуктов.</p>';
-    if(isIOSDevice())h+='<p class="small muted">На iPhone и iPad распознавание речи в браузере не работает, поэтому режимы 9–11 здесь работают только с записью голоса в модель: ключ Google, OpenAI или OpenRouter и модель с пометкой 🎤. С ключом Anthropic эти режимы на iPhone не появятся.</p>';
-    else if(!canListen)h+='<p class="notice bad">Этот браузер не умеет распознавать речь: без ключа с записью голоса режимы 9–11 не появятся. Открой приложение в Chrome или Safari.</p>';
-    /* Поле ключа — обычное текстовое с маскировкой через CSS, а не type=password: иначе менеджер паролей
-       (связка ключей iCloud на iPhone) подставляет сохранённый ранее ключ вместо вставленного. Поле всегда
-       пустое, сохранённый ключ показан строкой ниже. */
+    h+='<p class="small muted">Ключ API разблокирует режимы 9 и 10 на iPhone и режим 11 на любых устройствах. Рекомендуются ключи '+link('https://openrouter.ai/settings/keys','OpenRouter')+' или '+link('https://aistudio.google.com/apikey','Google')+'. Бесплатный ключ Google тоже подходит, но тогда стабильно работает только модель 3.1. Можно использовать и ключи '+link('https://platform.claude.com/settings/keys','Anthropic')+' или '+link('https://platform.openai.com/api-keys','OpenAI')+'. Ключ хранится только в этом браузере.</p>';
+    if(!isIOSDevice()&&!canListen)h+='<p class="notice bad">Этот браузер не умеет распознавать речь: без ключа с записью голоса режимы 9–11 не появятся. Открой приложение в Chrome или Safari.</p>';
     h+='<form id="keyForm" class="keyrow"><input type="text" id="keyInput" class="keyfield" name="greek-api-key" value="'+esc(claudeKey())+'" placeholder="sk-ant-…, sk-or-…, sk-…, AQ.…" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false" inputmode="text" aria-label="Ключ API"><button type="button" class="btn ghost" data-action="key-eye" aria-label="Показать ключ">👁</button><button type="submit" class="btn">Проверить</button>'+(claudeKey()?'<button type="button" class="btn ghost" data-action="key-clear">Удалить</button>':'')+'</form><p class="small muted" id="keyHint" style="margin:4px 0 0;min-height:1.2em">'+(claudeKey()?'Ключ '+esc(AI_PROVIDERS[aiProvider()].name)+'.':'')+'</p>';
     h+=settingsMsgHtml('key');
     var pv=AI_PROVIDERS[aiProvider()];
     if(pv){
       h+='<label class="small muted" style="display:block">Ключ '+esc(pv.name)+', модель <select id="modelSelect" aria-label="Модель">'+pv.models.map(function(m){return '<option value="'+m[0]+'"'+(m[0]===claudeModel()?' selected':'')+'>'+esc(m[1])+'</option>';}).join('')+'</select></label>';
-      h+='<p class="small muted" style="margin-top:4px">Ключ хранится только в этом браузере и отправляется только на '+esc(pv.host)+'.</p>';
       var pid=aiProvider(),can=aiAudioPossible(),mode=aiAudioMode();
       var noBrowser=isIOSDevice()||!canListen;
       h+='<div class="seg" style="margin-top:8px">'+
         '<label class="'+(mode==='model'?'on':'')+(can?'':' off')+'"><input type="radio" name="aiAudio" value="model" data-action="set-ai-audio"'+(mode==='model'?' checked':'')+(can?'':' disabled')+'>Запись голоса в модель</label>'+
         '<label class="'+(mode==='browser'?'on':'')+(noBrowser?' off':'')+'"><input type="radio" name="aiAudio" value="browser" data-action="set-ai-audio"'+(mode==='browser'?' checked':'')+(noBrowser?' disabled':'')+'>Распознаёт браузер</label></div>';
-      h+='<p class="small muted" style="margin-top:4px">'+(pid==='anthropic'?'Claude звук не принимает: речь распознаёт браузер. Запись голоса в модель работает с ключом Google, OpenAI или OpenRouter при модели с пометкой 🎤.':
-        'Модели с пометкой 🎤 слушают запись голоса сами, понимают греческий и русский и оценивают произношение; с остальными речь распознаёт браузер.')+'</p>';
+      if(pid==='anthropic')h+='<p class="small muted" style="margin-top:4px">Claude звук не принимает: речь распознаёт браузер, на iPhone режимы 9–11 с этим ключом не появятся.</p>';
     }
   }
   h+='<h3>Прогресс набора «'+esc(set.title)+'»</h3>';
