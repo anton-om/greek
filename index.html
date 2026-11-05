@@ -24,7 +24,7 @@ var appZoom=1;
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Греческий">
-<meta name="build" content="2026-11-05-9">
+<meta name="build" content="2026-11-05-10">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap">
@@ -105,7 +105,7 @@ input[type=text].big{font-family:var(--display);font-size:24px;text-align:center
 .seg{display:flex;gap:0;border:1px solid var(--line);border-radius:12px;overflow:hidden;background:var(--surface)}
 .seg label{flex:1;text-align:center;padding:11px 8px;cursor:pointer;font-weight:500;position:relative}
 .seg input{position:absolute;opacity:0;inset:0;width:100%;height:100%;margin:0;cursor:pointer}
-.seg label.on{background:var(--accent);color:var(--accent-fg)}
+.seg label.off{opacity:.5}.seg label.on{background:var(--accent);color:var(--accent-fg)}
 .seg label.off-dis{opacity:.45}
 
 .hero{display:flex;flex-direction:column;gap:6px;margin-block:10px 6px}
@@ -291,9 +291,9 @@ input[type=text].big{font-family:var(--display);font-size:24px;text-align:center
   <main id="screen"></main>
   <footer id="actions"></footer>
 </div>
-<script src="words.js?v=2026-11-05-9"></script>
-<script src="sentences.js?v=2026-11-05-9"></script>
-<script src="grammar.js?v=2026-11-05-9"></script>
+<script src="words.js?v=2026-11-05-10"></script>
+<script src="sentences.js?v=2026-11-05-10"></script>
+<script src="grammar.js?v=2026-11-05-10"></script>
 <script>
 (function(){
 'use strict';
@@ -1084,8 +1084,15 @@ var AI_PROVIDERS={
   openai:{name:'OpenAI',url:'https://api.openai.com/v1/chat/completions',host:'api.openai.com',
     models:[['gpt-6.1-sol','GPT-6.1 Sol'],['gpt-6.1-terra','GPT-6.1 Terra'],['gpt-6-luna','GPT-6 Luna']]},
   openrouter:{name:'OpenRouter',url:'https://openrouter.ai/api/v1/chat/completions',host:'openrouter.ai',
-    models:[['anthropic/claude-opus-5.5','Claude Opus 5.5'],['anthropic/claude-sonnet-5.5','Claude Sonnet 5.5'],['openai/gpt-6.1-sol','GPT-6.1 Sol'],['openai/gpt-6.1-terra','GPT-6.1 Terra'],['google/gemini-4-argon','Gemini 4 Argon'],['google/gemini-3.8-flash','Gemini 3.8 Flash']]}
+    models:[['google/gemini-3.8-flash','Gemini 3.8 Flash 🎤',true],['google/gemini-4-argon','Gemini 4 Argon 🎤',true],['openai/gpt-audio','GPT Audio 🎤',true],['anthropic/claude-opus-5.5','Claude Opus 5.5'],['anthropic/claude-sonnet-5.5','Claude Sonnet 5.5'],['openai/gpt-6.1-sol','GPT-6.1 Sol'],['openai/gpt-6.1-terra','GPT-6.1 Terra']]}
 };
+/* Речь ученика в режиме 11: 'model' — запись голоса (WAV 16 кГц) уходит модели, она сама понимает
+   греческий и русский; 'browser' — распознаёт браузер и уходит текст. Запись возможна с ключом
+   OpenAI (транскрипция gpt-transcribe, затем любая модель) и с OpenRouter при модели с пометкой 🎤
+   (звук прямо в модель). Claude звук не принимает. */
+function aiModelAudio(){var m=claudeModel();return aiModels().some(function(x){return x[0]===m&&x[2];});}
+function aiAudioPossible(){var pid=aiProvider();return pid==='openai'||(pid==='openrouter'&&aiModelAudio());}
+function aiAudioMode(){return store.settings.aiAudio!=='browser'&&aiAudioPossible()?'model':'browser';}
 function claudeKey(){return (store.settings&&store.settings.claudeKey||'').trim();}
 /* Провайдер по ключу; '' — ключа нет или он не похож ни на один из трёх видов. */
 function aiProviderOf(key){
@@ -1100,11 +1107,12 @@ function aiModels(){var pv=AI_PROVIDERS[aiProvider()];return pv?pv.models:[];}
 /* Первая модель списка — по умолчанию: самая сильная у провайдера, она же лучше всего знает греческий. */
 function claudeModel(){var m=store.settings&&store.settings.claudeModel,list=aiModels();return list.some(function(x){return x[0]===m;})?m:(list.length?list[0][0]:'');}
 function dialogAvailable(){return !isIOSDevice()&&canListen&&!!aiProvider();}
-/* Режим 11 «Занятие с ИИ»: голосовое занятие. Ученик говорит (микрофон слушает постоянно),
-   модель отвечает частями на греческом и русском, каждая часть озвучивается своим голосом, после
-   озвучки микрофон включается снова. Распознаватель понимает один язык за раз, поэтому у
-   сеанса есть язык речи ученика (lang): модель подсказывает его в next_lang, ученик может
-   переключить кнопкой. Текстового поля нет. */
+/* Режим 11 «Занятие с ИИ»: голосовое занятие с кнопкой «держи и говори». Пока кнопка нажата,
+   идёт запись голоса (aiAudioMode()==='model': WAV уходит модели, она сама понимает греческий и
+   русский) или браузерное распознавание (lang — язык распознавателя, модель подсказывает его в
+   next_lang, латиница в промежуточном результате переключает на русский). Ответ модели —
+   части на греческом и русском, каждая озвучивается своим голосом; после озвучки микрофон ждёт
+   следующего нажатия. Нажатие во время озвучки её прерывает. Текстового поля нет. */
 var DIALOG_OPENER='Привет! Скажи по-русски, чем хочешь заняться на этом уроке: поговорить по-гречески, поучить слова или отработать диалог.';
 var DIALOG_COMMON='ο η το οι τα τον την του της των τους τις ένα ένας μία μια έναν και ή αλλά όμως με σε στο στη στην στον στα στις στους από για να δεν μη μην όχι ναι τι ποιος ποια ποιο πού πότε πώς γιατί πόσο πόσα πόσοι πόσες εγώ εσύ αυτός αυτή αυτό εμείς εσείς αυτοί αυτές αυτά μου σου μας σας είμαι είσαι είναι είμαστε είστε έχω έχεις έχει έχουμε έχετε έχουν πολύ πολλά πολλοί πολλές λίγο εδώ εκεί τώρα σήμερα αύριο χθες καλά ευχαριστώ παρακαλώ γεια καλημέρα καλησπέρα καληνύχτα κύριε κυρία επίσης ακόμα μόνο κάθε πάλι λοιπόν ωραία μάλιστα εντάξει βέβαια ότι που όταν αν πως σαν ως μαζί χωρίς μετά πριν πάνω κάτω μέσα έξω κοντά μακριά'.split(' ');
 var DIALOG_SCHEMA={type:'object',properties:{
@@ -1115,7 +1123,13 @@ var DIALOG_SCHEMA={type:'object',properties:{
   corrected:{type:'string',description:'Фраза ученика в исправленном виде или пустая строка'},
   next_lang:{type:'string',enum:['el','ru'],description:'На каком языке ученик, скорее всего, ответит'}},
   required:['parts','translation','new_words','correction','corrected','next_lang'],additionalProperties:false};
-function dialogSystem(){
+/* Схема для записи голоса: плюс heard — что сказал ученик, дословно, на языке речи. */
+function dialogSchema(audio){
+  var sc=JSON.parse(JSON.stringify(DIALOG_SCHEMA));
+  if(audio){sc.properties.heard={type:'string',description:'Дословно услышанная реплика ученика на языке его речи'};sc.required.unshift('heard');}
+  return sc;
+}
+function dialogSystem(audio){
   var words=session.pool.map(function(w){return primaryTarget(w.gr)+' — '+w.ru;}).join('\n');
   return 'Ты голосовой репетитор греческого языка для ученика с нуля (уровень A1, родной язык русский). Занятие идёт по набору слов «'+session.set.title+'».\n'+
     'Ученик говорит голосом: его речь распознана автоматически, поэтому в ней могут быть ошибки распознавания, нет знаков препинания и ударений — понимай по смыслу и не считай это ошибками ученика. Ученик говорит по-русски или по-гречески.\n'+
@@ -1129,7 +1143,8 @@ function dialogSystem(){
     '4. Реагируй на то, что сказал ученик, и каждую реплику заканчивай вопросом или заданием, чтобы следующим говорил ученик.\n'+
     '5. Если в греческой реплике ученика есть ошибка (окончание, артикль, род, порядок слов, неверное слово), кратко по-русски объясни её в correction и дай его фразу в исправленном виде в corrected. Пропущенные ударения и похожие на ошибку распознавания слова ошибкой не считай. Если ошибок нет, оставь оба поля пустыми.\n'+
     '6. В translation дай точный русский перевод греческих частей реплики (пустая строка, если их нет).\n'+
-    '7. В next_lang укажи ru, если ждёшь ответа по-русски (выбор задания, ответ на вопрос по-русски), иначе el.\n\n'+
+    '7. В next_lang укажи ru, если ждёшь ответа по-русски (выбор задания, ответ на вопрос по-русски), иначе el.\n'+
+    (audio?'8. Реплика ученика приходит записью голоса. Сначала определи, на каком языке он говорит, греческом или русском, и запиши услышанное дословно в heard на языке речи (греческий — греческими буквами, с ударениями). Если в греческой речи слышна явная ошибка произношения (ударение не на том слоге, не тот гласный), кратко отметь её в correction по-русски.\n':'')+'\n'+
     'Слова ученика:\n'+words;
 }
 function startDialog(){
@@ -1137,7 +1152,7 @@ function startDialog(){
   session={mode:'dialog',dir:'gr',set:set,pool:poolWords(set),words:[],scopeWords:[],results:[],i:0,state:'ask',turns:[],messages:[],busy:false,err:'',phase:'idle',lang:'ru',heard:'',usage:0};
   var s=session,t={who:'ai',parts:[{lang:'ru',text:DIALOG_OPENER}],ru:'',newWords:[],showRu:false};
   s.turns.push(t);view.name='session';s.phase='speak';render();
-  dialogSpeak(t.parts,function(){if(session!==s)return;s.lang='ru';dialogListen();});
+  dialogSpeak(t.parts,function(){if(session!==s)return;s.lang='ru';s.phase='idle';render();});
 }
 function aiErr(status,j){
   var m=(j&&j.error&&(j.error.message||j.error.msg))||(j&&typeof j.error==='string'?j.error:'')||'';
@@ -1167,9 +1182,11 @@ function aiRequest(req,cb,retry){
   }else{
     headers['authorization']='Bearer '+key;
     if(pid==='openrouter'){headers['HTTP-Referer']='https://anton-om.github.io/greek/';headers['X-Title']='Greek words';}
-    var msgs=req.messages.slice();if(req.system)msgs.unshift({role:'system',content:req.system});
+    var msgs=req.messages.slice(),sys=req.system||'';
+    if(req.schema&&retry==='noschema')sys+='\n\nОтвечай только JSON без пояснений по схеме: '+JSON.stringify(req.schema);
+    if(sys)msgs.unshift({role:'system',content:sys});
     body={model:model,messages:msgs,max_completion_tokens:req.maxTokens||4096};
-    if(req.schema)body.response_format={type:'json_schema',json_schema:{name:'lesson',strict:true,schema:req.schema}};
+    if(req.schema&&retry!=='noschema')body.response_format={type:'json_schema',json_schema:{name:'lesson',strict:true,schema:req.schema}};
     if(pid==='openai'&&!retry)body.reasoning_effort='low';
   }
   fetch(pv.url,{method:'POST',headers:headers,body:JSON.stringify(body)}).then(function(r){
@@ -1177,9 +1194,21 @@ function aiRequest(req,cb,retry){
       if(!r.ok){
         var m=(j&&j.error&&j.error.message)||'';
         if(r.status===400&&!retry&&(body.fallbacks&&/fallback/i.test(m)||body.reasoning_effort&&/reasoning/i.test(m))){aiRequest(req,cb,true);return;}
+        if(r.status===400&&retry!=='noschema'&&body.response_format&&/response_format|json_schema|structured|schema/i.test(m)){aiRequest(req,cb,'noschema');return;}
         cb(aiErr(r.status,j));return;}
       cb(null,aiParse(pid,j));});
   }).catch(function(){cb('Ошибка: нет связи с '+pv.host+'. Проверь интернет.');});
+}
+/* Транскрипция записи ключом OpenAI: gpt-transcribe сам определяет язык (греческий или русский). */
+function aiTranscribe(wav,cb,retryModel){
+  var key=claudeKey();if(aiProviderOf(key)!=='openai'){cb('Ошибка: транскрипция доступна только с ключом OpenAI.');return;}
+  var fd=new FormData();fd.append('file',new Blob([wav],{type:'audio/wav'}),'speech.wav');fd.append('model',retryModel||'gpt-transcribe');fd.append('response_format','json');
+  fd.append('prompt','Ученик учит греческий язык, родной язык русский. Реплика по-гречески или по-русски.');
+  fetch('https://api.openai.com/v1/audio/transcriptions',{method:'POST',headers:{'authorization':'Bearer '+key},body:fd}).then(function(r){
+    return r.text().then(function(t){var j=null;try{j=JSON.parse(t);}catch(e){}
+      if(!r.ok){if(!retryModel&&(r.status===404||r.status===400)){aiTranscribe(wav,cb,'gpt-4o-transcribe');return;}cb(aiErr(r.status,j));return;}
+      cb(null,String(j&&j.text||'').trim());});
+  }).catch(function(){cb('Ошибка: нет связи с api.openai.com. Проверь интернет.');});
 }
 function aiParse(pid,j){
   var out={text:'',stop:'end',model:j&&j.model||'',tokens:0};
@@ -1204,26 +1233,88 @@ function aiJson(text){
 function dialogSend(text){
   var s=session;if(!s||s.mode!=='dialog'||s.busy)return;
   dialogRecStop();text=String(text||'').trim();
-  if(text){var pre=s.latinPrefix||'';s.latinPrefix='';
+  if(text){var pre=s.latinPrefix||'';s.latinPrefix='';s.lastAudio=null;
     s.turns.push({who:'me',text:text,lang:s.lang});
     s.messages.push({role:'user',content:(pre?'(начало фразы по-русски, услышанное греческим распознавателем как «'+pre+'») ':'')+text});}
   if(!s.messages.length||s.messages[s.messages.length-1].role!=='user')return;
-  s.busy=true;s.phase='think';s.err='';s.heard='';render();
-  aiRequest({system:dialogSystem(),messages:s.messages.slice(),schema:DIALOG_SCHEMA,maxTokens:4096},function(err,j){
+  dialogAsk(false);
+}
+/* Запись голоса: ключ OpenAI — транскрипция, затем обычный текстовый ход; OpenRouter с моделью 🎤 —
+   звук прямо в модель, в историю после ответа кладётся её heard (текст), чтобы не слать запись
+   повторно с каждым ходом. */
+function dialogSendAudio(wav){
+  var s=session;if(!s||s.mode!=='dialog'||s.busy)return;
+  s.lastAudio=wav;s.latinPrefix='';
+  if(aiProvider()==='openai'){
+    s.busy=true;s.phase='think';s.err='';s.heard='';render();
+    aiTranscribe(wav,function(err,text){
+      if(session!==s)return;s.busy=false;
+      if(err){s.err=err;s.phase='idle';render();return;}
+      if(!text){s.err='Ничего не распознано. Попробуй ещё раз.';s.phase='idle';render();return;}
+      dialogSend(text);
+    });
+    return;
+  }
+  s.turns.push({who:'me',text:'🎤 …',lang:'',pending:true});
+  s.messages.push({role:'user',content:[{type:'text',text:'Голосовая реплика ученика (запись).'},{type:'input_audio',input_audio:{data:b64(wav),format:'wav'}}]});
+  dialogAsk(true);
+}
+function dialogAsk(audio){
+  var s=session;s.busy=true;s.phase='think';s.err='';s.heard='';render();
+  aiRequest({system:dialogSystem(audio),messages:s.messages.slice(),schema:dialogSchema(audio),maxTokens:4096},function(err,j){
     if(session!==s)return;s.busy=false;
     if(!err&&j.stop==='refusal')err='Ошибка: модель отказалась отвечать.';
     if(!err&&j.stop==='max_tokens')err='Ошибка: ответ оборвался, попробуй ещё раз.';
     var data=null;if(!err){data=aiJson(j.text);if(!data||typeof data!=='object')err='Ошибка: не удалось разобрать ответ модели.';}
-    if(err){s.err=err;s.phase='idle';render();return;}
+    if(err){
+      if(audio){s.messages.pop();if(s.turns.length&&s.turns[s.turns.length-1].pending)s.turns.pop();}
+      s.err=err;s.phase='idle';render();return;}
+    if(audio){var heard=String(data.heard||'').trim()||'(не разобрано)';s.messages[s.messages.length-1]={role:'user',content:heard};
+      var mt=s.turns[s.turns.length-1];if(mt&&mt.pending){mt.text=heard;mt.pending=false;}}
+    s.lastAudio=null;
     s.messages.push({role:'assistant',content:j.text});
     var parts=(data.parts||[]).map(function(p){return {lang:p&&p.lang==='ru'?'ru':'el',text:String(p&&p.text||'').trim()};}).filter(function(p){return p.text;});
     var t={who:'ai',parts:parts,ru:String(data.translation||'').trim(),newWords:(data.new_words||[]).filter(function(x){return x&&x.gr;}),showRu:false};
     if(data.correction||data.corrected){for(var i=s.turns.length-1;i>=0;i--){if(s.turns[i].who==='me'){s.turns[i].correction=String(data.correction||'');s.turns[i].corrected=String(data.corrected||'');break;}}}
     s.turns.push(t);s.usage+=j.tokens||0;
     s.phase='speak';render();
-    dialogSpeak(t.parts,function(){if(session!==s)return;s.lang=data.next_lang==='ru'?'ru':'el';s.autoLang=false;dialogListen();});
+    dialogSpeak(t.parts,function(){if(session!==s)return;s.lang=data.next_lang==='ru'?'ru':'el';s.autoLang=false;s.phase='idle';render();});
   });
 }
+/* Запись с микрофона в WAV 16 кГц моно 16 бит: ScriptProcessor копит сэмплы, при остановке они
+   усредняются до 16 кГц. Процессор подключён к выходу через нулевую громкость (иначе Chrome его
+   не запускает), поэтому эха в динамиках нет. Поток микрофона живёт до конца занятия. */
+var recCtx=null,recStream=null,recNode=null,recSrc=null,recGain=null,recBuf=[],recRate=0,recOn=false;
+function recStart(cb){
+  if(recOn){cb(null);return;}
+  var go=function(){
+    try{var AC=window.AudioContext||window.webkitAudioContext;if(!recCtx)recCtx=new AC();if(recCtx.state==='suspended')recCtx.resume();
+      recRate=recCtx.sampleRate;recBuf=[];recOn=true;
+      recSrc=recCtx.createMediaStreamSource(recStream);recNode=recCtx.createScriptProcessor(4096,1,1);recGain=recCtx.createGain();recGain.gain.value=0;
+      recNode.onaudioprocess=function(e){if(recOn)recBuf.push(new Float32Array(e.inputBuffer.getChannelData(0)));};
+      recSrc.connect(recNode);recNode.connect(recGain);recGain.connect(recCtx.destination);cb(null);
+    }catch(e){recOn=false;cb(e);}
+  };
+  if(recStream&&recStream.active)go();
+  else if(navigator.mediaDevices&&navigator.mediaDevices.getUserMedia)navigator.mediaDevices.getUserMedia({audio:true}).then(function(st){recStream=st;go();}).catch(function(e){cb(e);});
+  else cb(new Error('no getUserMedia'));
+}
+function recStop(){
+  recOn=false;try{recSrc.disconnect();recNode.disconnect();recGain.disconnect();}catch(e){}
+  var n=0;recBuf.forEach(function(b){n+=b.length;});var all=new Float32Array(n),o=0;recBuf.forEach(function(b){all.set(b,o);o+=b.length;});recBuf=[];
+  return {wav:wavEncode(all,recRate,16000),seconds:recRate?n/recRate:0};
+}
+function recRelease(){if(recStream){try{recStream.getTracks().forEach(function(t){t.stop();});}catch(e){}recStream=null;}}
+function wavEncode(samples,rate,target){
+  var ratio=rate/target,len=Math.floor(samples.length/ratio),out=new Int16Array(len);
+  for(var i=0;i<len;i++){var a=Math.floor(i*ratio),b=Math.min(samples.length,Math.floor((i+1)*ratio)),sum=0,c=0;for(var k=a;k<b;k++){sum+=samples[k];c++;}
+    var v=c?sum/c:0;v=Math.max(-1,Math.min(1,v));out[i]=v<0?v*32768:v*32767;}
+  var buf=new ArrayBuffer(44+len*2),dv=new DataView(buf),ws=function(off,str){for(var i=0;i<str.length;i++)dv.setUint8(off+i,str.charCodeAt(i));};
+  ws(0,'RIFF');dv.setUint32(4,36+len*2,true);ws(8,'WAVE');ws(12,'fmt ');dv.setUint32(16,16,true);dv.setUint16(20,1,true);dv.setUint16(22,1,true);
+  dv.setUint32(24,target,true);dv.setUint32(28,target*2,true);dv.setUint16(32,2,true);dv.setUint16(34,16,true);ws(36,'data');dv.setUint32(40,len*2,true);
+  new Int16Array(buf,44).set(out);return buf;
+}
+function b64(buf){var bytes=new Uint8Array(buf),str='';for(var i=0;i<bytes.length;i+=0x8000)str+=String.fromCharCode.apply(null,bytes.subarray(i,i+0x8000));return btoa(str);}
 /* Озвучка реплики по частям: греческие — греческим голосом, русские — русским (без русского
    голоса русская часть пропускается). Ссылки на utterance держим в dialogUtt: иначе Chrome
    собирает их сборщиком мусора и не присылает end. */
@@ -1255,52 +1346,67 @@ function dialogSpeakStop(){dialogSpeakGen++;dialogUtt=null;try{speechSynthesis.c
    делает это после паузы), запускаем его снова. Во время ответа и озвучки микрофон выключен,
    иначе распознаватель слышит голос модели из динамиков. */
 var dialogRec=null,dialogRecGen=0,dialogPendTimer=null;
+/* Браузерное распознавание на время нажатия кнопки: язык session.lang; латиница в промежуточном
+   результате (греческий распознаватель так пишет русскую речь, греческую — никогда) переключает
+   на ru-RU, латинский обрывок уходит модели подсказкой. По отпусканию — stop(), итог по end. */
 function dialogListen(){
   var s=session;if(!s||s.mode!=='dialog'||s.busy)return;
-  dialogRecStop();dialogSpeakStop();
+  dialogRecStop();
   var gen=++dialogRecGen,r=null,finals=[];
   try{r=new SR();}catch(e){s.phase='idle';s.err='Не удалось включить микрофон.';render();return;}
-  r.lang=s.lang==='ru'?'ru-RU':'el-GR';r.continuous=true;r.interimResults=true;r.maxAlternatives=1;
-  var flush=function(){if(gen!==dialogRecGen)return;var t=finals.join(' ').trim();dialogRecStop();if(t)dialogSend(t);else dialogListen();};
+  r.lang=s.lang==='ru'?'ru-RU':'el-GR';r.continuous=!isIOSDevice();r.interimResults=true;r.maxAlternatives=1;
+  var flush=function(){if(gen!==dialogRecGen)return;var t=finals.join(' ').trim();dialogRecStop();s.phase='idle';if(t)dialogSend(t);else{s.err='Ничего не распознано. Держи кнопку, пока говоришь.';render();}};
   r.onresult=function(e){
     if(gen!==dialogRecGen)return;
     var intr='';finals=[];
     for(var i=0;i<e.results.length;i++){var x=e.results[i];if(x.isFinal)finals.push(String(x[0].transcript).trim());else intr+=x[0].transcript;}
     s.heard=(finals.join(' ')+' '+intr).trim();
-    /* Греческий распознаватель на русскую речь отдаёт латиницу («obviously bazalusta»), на
-       греческую — никогда (проверено в Chrome). Латиница в промежуточном результате — признак
-       русского: сразу переключаемся на русский распознаватель, а латинский обрывок уходит модели
-       как подсказка о начале фразы. */
     if(s.lang==='el'&&dialogLatin(s.heard)){s.latinPrefix=s.heard;s.lang='ru';s.autoLang=true;dialogListen();return;}
     var live=document.getElementById('heardLive');if(live)live.textContent=s.heard;
-    clearTimeout(dialogPendTimer);dialogPendTimer=null;
-    if(finals.length&&!intr)dialogPendTimer=setTimeout(flush,900);
   };
   r.onerror=function(e){
     if(gen!==dialogRecGen)return;var er=e.error;
     if(er==='not-allowed'||er==='service-not-allowed'||er==='network'||er==='language-not-supported'||er==='audio-capture'){
       dialogRecStop();s.phase='idle';s.err=er==='audio-capture'?'Микрофон не найден.':recErrMsg(er,9999);render();}
   };
-  r.onend=function(){
-    if(gen!==dialogRecGen)return;
-    if(finals.length){flush();return;}
-    setTimeout(function(){if(gen===dialogRecGen&&session===s&&s.phase==='listen')dialogListen();},300);
-  };
+  r.onend=function(){if(gen!==dialogRecGen)return;if(s.released)flush();else setTimeout(function(){if(gen===dialogRecGen&&session===s&&s.phase==='listen')dialogListen();},200);};
   try{r.start();}catch(e){s.phase='idle';s.err='Не удалось включить микрофон.';render();return;}
-  dialogRec=r;s.phase='listen';s.heard='';s.err='';render();
+  dialogRec=r;s.phase='listen';s.released=false;s.heard='';s.err='';render();
 }
-/* Латинских букв не меньше трёх и больше, чем греческих. */
 function dialogLatin(t){var la=(t.match(/[a-z]/gi)||[]).length,gr=(t.match(/[\u0370-\u03ff\u1f00-\u1fff]/g)||[]).length;return la>=3&&la>gr;}
 function dialogRecStop(){dialogRecGen++;clearTimeout(dialogPendTimer);dialogPendTimer=null;if(dialogRec){var r=dialogRec;dialogRec=null;try{r.abort();}catch(e){}}}
-function dialogStop(){dialogRecStop();dialogSpeakStop();}
-function dialogPause(){var s=session;if(!s||s.mode!=='dialog')return;dialogStop();s.phase='idle';s.heard='';render();}
-function dialogResume(){var s=session;if(!s||s.mode!=='dialog'||s.busy)return;dialogListen();}
-function dialogToggleLang(){var s=session;if(!s||s.mode!=='dialog')return;s.lang=s.lang==='ru'?'el':'ru';s.autoLang=false;s.latinPrefix='';if(s.phase==='listen')dialogListen();else{keepScroll=true;render();}}
-/* Повторная озвучка реплики; после неё микрофон возвращается в прежнее состояние. */
+function dialogStop(){dialogRecStop();dialogSpeakStop();if(recOn)try{recStop();}catch(e){}recRelease();}
+/* Кнопка микрофона: нажатие начинает запись или распознавание (и прерывает озвучку), отпускание отправляет. */
+function dialogMicDown(ev){
+  var s=session;if(!s||s.mode!=='dialog'||s.busy)return;ev.preventDefault();
+  if(s.phase==='speak')dialogSpeakStop();
+  if(s.phase==='rec'||s.phase==='listen')return;
+  s.err='';s.heard='';
+  if(aiAudioMode()==='model'){
+    s.phase='rec';s.recT0=Date.now();render();
+    recStart(function(e){if(session!==s)return;if(e){s.phase='idle';s.err='Нет доступа к микрофону. Разреши его в настройках браузера.';render();}});
+  }else dialogListen();
+}
+function dialogMicUp(){
+  var s=session;if(!s||s.mode!=='dialog')return;
+  if(s.phase==='rec'){
+    var r=recStop();s.phase='idle';
+    if(r.seconds<0.4){s.err='Держи кнопку нажатой всё время, пока говоришь.';render();return;}
+    dialogSendAudio(r.wav);return;
+  }
+  if(s.phase==='listen'&&!s.released){
+    s.released=true;var gen=dialogRecGen;s.phase='think';render();
+    setTimeout(function(){if(gen===dialogRecGen&&dialogRec){try{dialogRec.stop();}catch(e){}}},300);
+    dialogPendTimer=setTimeout(function(){if(gen===dialogRecGen&&dialogRec){var r=dialogRec;dialogRec=null;try{r.abort();}catch(e){}if(r.onend)r.onend();}},2500);
+  }
+}
+function dialogToggleLang(){var s=session;if(!s||s.mode!=='dialog')return;s.lang=s.lang==='ru'?'el':'ru';s.autoLang=false;s.latinPrefix='';keepScroll=true;render();}
+function dialogRetry(){var s=session;if(!s||s.mode!=='dialog'||s.busy)return;if(s.lastAudio)dialogSendAudio(s.lastAudio);else dialogSend(null);}
+/* Повторная озвучка реплики. */
 function dialogReplay(i){
   var s=session;if(!s||s.mode!=='dialog'||s.busy)return;var t=s.turns[i];if(!t||t.who!=='ai')return;
-  var was=s.phase==='listen';dialogStop();s.phase='speak';keepScroll=true;render();
-  dialogSpeak(t.parts,function(){if(session!==s)return;if(was)dialogListen();else{s.phase='idle';keepScroll=true;render();}});
+  dialogStop();s.phase='speak';keepScroll=true;render();
+  dialogSpeak(t.parts,function(){if(session!==s)return;s.phase='idle';keepScroll=true;render();});
 }
 function dialogEnd(){if(session&&session.mode==='dialog'&&session.turns.length>1)trackEvent('done/dialog','Завершено: Занятие с ИИ');goHome();}
 /* Известные ученику формы: слова набора, их мн. ч. и спряжение, слова из предложений режимов 9–10, служебные слова. */
@@ -1326,11 +1432,11 @@ function dialogMarked(text,newWords){
 }
 function dialogLangName(l){return l==='ru'?'по-русски':'по-гречески';}
 function renderDialog(){
-  var s=session,h='';
+  var s=session,h='',audio=aiAudioMode()==='model';
   h+=voiceWarnHtml();
   h+='<div class="chat">';
   s.turns.forEach(function(t,i){
-    if(t.who==='me'){h+='<div class="bubble me">'+esc(t.text)+(t.correction||t.corrected?'<div class="fix">'+(t.corrected?'✎ '+esc(t.corrected):'')+(t.correction?'<div class="small">'+esc(t.correction)+'</div>':'')+'</div>':'')+'</div>';}
+    if(t.who==='me'){h+='<div class="bubble me'+(t.pending?' typing':'')+'">'+esc(t.text)+(t.correction||t.corrected?'<div class="fix">'+(t.corrected?'✎ '+esc(t.corrected):'')+(t.correction?'<div class="small">'+esc(t.correction)+'</div>':'')+'</div>':'')+'</div>';}
     else{h+='<div class="bubble ai">'+t.parts.map(function(p){return p.lang==='ru'?'<div class="rp">'+esc(p.text)+'</div>':'<div class="gr">'+dialogMarked(p.text,t.newWords)+'</div>';}).join('')+
       (t.showRu&&t.ru?'<div class="ru">'+esc(t.ru)+'</div>':'')+
       '<div class="tools">'+(t.ru?'<button class="chip" data-action="dialog-ru" data-i="'+i+'">'+(t.showRu?'Скрыть перевод':'Перевод')+'</button>':'')+(canSpeak?'<button class="chip" data-action="dialog-say" data-i="'+i+'" aria-label="Озвучить">🔊</button>':'')+'</div>'+
@@ -1338,14 +1444,16 @@ function renderDialog(){
   });
   if(s.busy)h+='<div class="bubble ai typing">•••</div>';
   h+='</div>';
-  var st=s.phase==='listen'?'🎤 Слушаю '+dialogLangName(s.lang)+(s.autoLang&&s.lang==='ru'?' (услышал русский)':'')+'…':s.phase==='think'?'Думаю…':s.phase==='speak'?'🔊 Говорю…':'Микрофон выключен';
-  h+='<div class="live '+esc(s.phase)+'"><span class="dot"></span><span class="st">'+esc(st)+'</span><span class="heard" id="heardLive">'+esc(s.heard||'')+'</span></div>';
+  var on=s.phase==='rec'||s.phase==='listen';
+  var st=s.phase==='rec'?'Говори… Отпусти, когда закончишь.':s.phase==='listen'?'Слушаю '+dialogLangName(s.lang)+(s.autoLang&&s.lang==='ru'?' (услышал русский)':'')+'… Отпусти, когда закончишь.':
+    s.phase==='think'?(audio?'Слушаю запись…':'Думаю…'):s.phase==='speak'?'Говорю… Нажми микрофон, чтобы перебить.':'Нажми и держи кнопку, говори по-гречески или по-русски.';
+  h+='<div class="mic-wrap"><button class="mic'+(on?' on':'')+(s.busy?' busy':'')+'" id="mic" type="button" aria-label="Держи и говори"'+(s.busy?' disabled':'')+'>🎤</button>'+
+    '<p class="hint" id="micHint">'+esc(st)+'</p><p class="small muted" id="heardLive" style="margin:0;min-height:1.2em">'+esc(s.heard||'')+'</p></div>';
   if(s.err)h+='<p class="notice bad">'+esc(s.err)+'</p>';
-  h+='<div class="row" style="margin-top:10px;flex-wrap:wrap">'+
-    (s.phase==='listen'?'<button class="btn" data-action="dialog-pause">⏸ Пауза</button>':'<button class="btn primary" data-action="dialog-listen"'+(s.busy?' disabled':'')+'>🎤 Слушать</button>')+
-    '<button class="btn ghost" data-action="dialog-lang">Я говорю '+dialogLangName(s.lang)+' ⇄</button>'+
-    (s.err&&s.messages.length&&s.messages[s.messages.length-1].role==='user'?'<button class="btn" data-action="dialog-retry">Повторить запрос</button>':'')+'</div>';
-  h+='<p class="hint">Говори по-гречески или по-русски, когда горит «Слушаю»: язык определяется сам, фраза уходит после паузы. Попроси перевод, и модель переведёт сказанное. Русские части озвучиваются, если в системе есть русский голос.</p>';
+  h+='<div class="row" style="margin-top:10px;flex-wrap:wrap;justify-content:center">'+
+    (audio?'':'<button class="btn ghost" data-action="dialog-lang">Я говорю '+dialogLangName(s.lang)+' ⇄</button>')+
+    (s.err&&(s.lastAudio||s.messages.length&&s.messages[s.messages.length-1].role==='user')?'<button class="btn" data-action="dialog-retry">Повторить запрос</button>':'')+'</div>';
+  h+='<p class="hint">'+(audio?'Запись голоса уходит модели ('+esc(aiModels().filter(function(m){return m[0]===claudeModel();}).map(function(m){return m[1];})[0]||'')+'), она сама понимает греческий и русский.':'Речь распознаёт браузер, язык определяется сам; в настройках можно включить отправку записи модели.')+' Попроси перевод, и модель переведёт сказанное.</p>';
   return {html:h,foot:'<button class="btn" data-action="dialog-end">Завершить</button>'};
 }
 /* Настройки: ключ API и модель. */
@@ -1672,7 +1780,14 @@ function renderSettings(){
     if(pv){
       h+='<div class="row"><button class="btn" data-action="key-test">Проверить ключ</button><button class="btn ghost" data-action="key-clear">Удалить</button></div>';
       h+='<label class="small muted" style="display:block">Ключ '+esc(pv.name)+', модель <select id="modelSelect" aria-label="Модель">'+pv.models.map(function(m){return '<option value="'+m[0]+'"'+(m[0]===claudeModel()?' selected':'')+'>'+esc(m[1])+'</option>';}).join('')+'</select></label>';
-      h+='<p class="small muted" style="margin-top:4px">Первая в списке — самая сильная модель провайдера, она же лучше всего понимает греческий. Ключ хранится только в этом браузере и отправляется только на '+esc(pv.host)+'.</p>';
+      h+='<p class="small muted" style="margin-top:4px">Ключ хранится только в этом браузере и отправляется только на '+esc(pv.host)+'.</p>';
+      var pid=aiProvider(),can=aiAudioPossible(),mode=aiAudioMode();
+      h+='<div class="seg" style="margin-top:8px">'+
+        '<label class="'+(mode==='model'?'on':'')+(can?'':' off')+'"><input type="radio" name="aiAudio" value="model" data-action="set-ai-audio"'+(mode==='model'?' checked':'')+(can?'':' disabled')+'>Запись голоса в модель</label>'+
+        '<label class="'+(mode==='browser'?'on':'')+'"><input type="radio" name="aiAudio" value="browser" data-action="set-ai-audio"'+(mode==='browser'?' checked':'')+'>Распознаёт браузер</label></div>';
+      h+='<p class="small muted" style="margin-top:4px">'+(pid==='anthropic'?'Claude звук не принимает: речь распознаёт браузер. Запись голоса в модель работает с ключом OpenAI (транскрипция gpt-transcribe) или OpenRouter с моделью 🎤.':
+        pid==='openai'?'С ключом OpenAI запись голоса транскрибирует gpt-transcribe (греческий и русский определяет сам), затем отвечает выбранная модель.':
+        'Модели с пометкой 🎤 слушают запись голоса сами и понимают греческий и русский; с остальными речь распознаёт браузер.')+'</p>';
     }
   }
   h+='<h3>Прогресс набора «'+esc(set.title)+'»</h3>';
@@ -1795,12 +1910,10 @@ document.addEventListener('click',function(ev){
     case 'retry':prepareItem();render();break;
     case 'next':next();break;
     case 'say-skip':if(session&&session.mode==='say'&&session.state==='ask'){finishSay(false);render();}break;
-    case 'dialog-pause':dialogPause();break;
-    case 'dialog-listen':dialogResume();break;
     case 'dialog-lang':dialogToggleLang();break;
     case 'dialog-say':dialogReplay(+el.getAttribute('data-i'));break;
     case 'dialog-ru':if(session&&session.turns){var dt=session.turns[+el.getAttribute('data-i')];if(dt){dt.showRu=!dt.showRu;keepScroll=true;render();}}break;
-    case 'dialog-retry':dialogSend(null);break;
+    case 'dialog-retry':dialogRetry();break;
     case 'dialog-end':dialogEnd();break;
     case 'speak-raw':speak(el.getAttribute('data-text'),true);break;
     case 'key-test':keyTest();break;
@@ -1833,7 +1946,7 @@ document.addEventListener('click',function(ev){
 
 document.addEventListener('change',function(ev){
   var el=ev.target;
-  if(el.id==='modelSelect'){store.settings.claudeModel=el.value;save();return;}
+  if(el.id==='modelSelect'){store.settings.claudeModel=el.value;save();keepScroll=true;render();return;}
   if(el.id==='setSelect'){store.setId=el.value;
     if(el.value===MIX_ID&&!allSets().some(function(x){return store.mix&&store.mix[x.id];})){store.mix={_pos:Object.assign({},POS_DEFAULT),_posV:2};allSets().forEach(function(s){store.mix[s.id]={w:true,x:false};});}
     save();render();return;}
@@ -1848,6 +1961,7 @@ document.addEventListener('change',function(ev){
   if(a==='set-scope'){store.settings.scope=el.value;save();render();}
   else if(a==='set-shuffle'){store.settings.shuffle=el.checked;save();}
   else if(a==='set-autospeak'){store.settings.autoSpeak=el.checked;save();}
+  else if(a==='set-ai-audio'){store.settings.aiAudio=el.value;save();keepScroll=true;render();}
 });
 document.addEventListener('input',function(ev){
   var el=ev.target;
@@ -1934,8 +2048,9 @@ function endDrag(ev){
   }else if(card&&Math.abs(dx)<8){flip();}
 }
 document.addEventListener('pointerup',endDrag);
-screen.addEventListener('pointerdown',function(ev){if(ev.target.closest('#mic'))micDown(ev);});
-document.addEventListener('pointerup',micUp);document.addEventListener('pointercancel',micUp);
+screen.addEventListener('pointerdown',function(ev){if(ev.target.closest('#mic')){if(session&&session.mode==='dialog')dialogMicDown(ev);else micDown(ev);}});
+function micRelease(){if(session&&session.mode==='dialog')dialogMicUp();else micUp();}
+document.addEventListener('pointerup',micRelease);document.addEventListener('pointercancel',micRelease);
 screen.addEventListener('contextmenu',function(ev){if(ev.target.closest('#mic'))ev.preventDefault();});
 document.addEventListener('pointercancel',function(ev){if(drag&&ev.pointerId===drag.id){if(drag.el){drag.el.classList.remove('drag');drag.el.style.transform='';}drag=null;}});
 document.addEventListener('click',function(ev){if(suppressClick){ev.stopPropagation();ev.preventDefault();}},true);
