@@ -24,7 +24,7 @@ var appZoom=1;
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Греческий">
-<meta name="build" content="2026-11-05-15">
+<meta name="build" content="2026-11-05-16">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap">
@@ -294,9 +294,9 @@ input[type=text].big{font-family:var(--display);font-size:24px;text-align:center
   <main id="screen"></main>
   <footer id="actions"></footer>
 </div>
-<script src="words.js?v=2026-11-05-15"></script>
-<script src="sentences.js?v=2026-11-05-15"></script>
-<script src="grammar.js?v=2026-11-05-15"></script>
+<script src="words.js?v=2026-11-05-16"></script>
+<script src="sentences.js?v=2026-11-05-16"></script>
+<script src="grammar.js?v=2026-11-05-16"></script>
 <script>
 (function(){
 'use strict';
@@ -1166,7 +1166,7 @@ function aiProviderOf(key){
   return '';
 }
 /* Из вставленного текста берётся последний ключ: если в поле склеились два, побеждает новый. */
-function aiKeyClean(v){var m=String(v||'').match(/sk-[A-Za-z0-9_\-]+/gi);return m?m[m.length-1]:String(v||'').trim();}
+function aiKeyClean(v){v=String(v||'').trim();var low=v.toLowerCase(),i=Math.max(low.lastIndexOf('sk-ant-'),low.lastIndexOf('sk-or-'),low.lastIndexOf('sk-proj-'));return i>0?v.slice(i):v;}
 function aiProvider(){return aiProviderOf(claudeKey());}
 function aiModels(){var pv=AI_PROVIDERS[aiProvider()];return pv?pv.models:[];}
 /* Первая модель списка — по умолчанию: самая сильная у провайдера, она же лучше всего знает греческий. */
