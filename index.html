@@ -24,7 +24,7 @@ var appZoom=1;
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Греческий">
-<meta name="build" content="2026-11-05-20">
+<meta name="build" content="2026-11-05-21">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap">
@@ -294,9 +294,9 @@ input[type=text].big{font-family:var(--display);font-size:24px;text-align:center
   <main id="screen"></main>
   <footer id="actions"></footer>
 </div>
-<script src="words.js?v=2026-11-05-20"></script>
-<script src="sentences.js?v=2026-11-05-20"></script>
-<script src="grammar.js?v=2026-11-05-20"></script>
+<script src="words.js?v=2026-11-05-21"></script>
+<script src="sentences.js?v=2026-11-05-21"></script>
+<script src="grammar.js?v=2026-11-05-21"></script>
 <script>
 (function(){
 'use strict';
@@ -655,7 +655,7 @@ function renderHome(){
     var off=m.net&&!isOnline();
     return '<button class="mode'+(off?' off':'')+'" data-action="pick-mode" data-key="'+m.key+'"><span class="num">'+(i+1)+'</span><span class="txt"><div class="t">'+esc(m.t)+(off?'<span class="badge-dev off">нет сети</span>':m.dev?'<span class="badge-dev">в разработке</span>':'')+'</div><div class="d">'+esc(m.d)+'</div></span><span class="arr">›</span></button>';
   }).join('')+'</div>';
-  if(isIOSDevice()&&!aiAudioPossible())h+='<p class="small muted" style="margin-top:8px">Режимы «Отработка лексики» и «Занятие с ИИ» на iPhone работают через запись голоса в модель: они появятся после ввода в настройках ключа OpenAI или OpenRouter.</p>';
+  if(isIOSDevice()&&!aiAudioPossible())h+='<p class="small muted" style="margin-top:8px">Режимы «Отработка лексики» и «Занятие с ИИ» на iPhone работают через запись голоса в модель: они появятся после ввода в настройках ключа Google (бесплатный), OpenAI или OpenRouter.</p>';
   else if(!isIOSDevice()&&canListen&&!aiProvider())h+='<p class="small muted" style="margin-top:8px">Режим «Занятие с ИИ» (разговор голосом по-гречески) появится после ввода ключа API в настройках.</p>';
   if(!n){h+='<p class="notice" style="margin-top:16px">'+(set.mix?'Отметьте выше хотя бы один урок и хотя бы одну часть речи.':set.words.length?'Включите выше лексику и хотя бы одну часть речи.':'В этом наборе нет слов. Добавьте слова в words.js или импортируйте набор в настройках.')+'</p>';}
   return h;
@@ -1145,6 +1145,8 @@ function finishSay(ok){
 var AI_PROVIDERS={
   anthropic:{name:'Anthropic',url:'https://api.anthropic.com/v1/messages',host:'api.anthropic.com',
     models:[['claude-opus-5-5','Claude Opus 5.5'],['claude-sonnet-5-5','Claude Sonnet 5.5'],['claude-haiku-5-5','Claude Haiku 5.5']]},
+  google:{name:'Google',url:'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions',host:'generativelanguage.googleapis.com',
+    models:[['gemini-3.8-flash','Gemini 3.8 Flash 🎤 (бесплатно)',true],['gemini-3.5-flash-lite','Gemini 3.5 Flash-Lite 🎤 (бесплатно)',true],['gemini-4-argon','Gemini 4 Argon 🎤 (платно)',true]]},
   openai:{name:'OpenAI',url:'https://api.openai.com/v1/chat/completions',host:'api.openai.com',
     models:[['gpt-6.1-sol','GPT-6.1 Sol'],['gpt-6.1-terra','GPT-6.1 Terra'],['gpt-audio','GPT Audio 🎤',true],['gpt-audio-mini','GPT Audio Mini 🎤',true]]},
   openrouter:{name:'OpenRouter',url:'https://openrouter.ai/api/v1/chat/completions',host:'openrouter.ai',
@@ -1164,13 +1166,14 @@ function claudeKey(){return (store.settings&&store.settings.claudeKey||'').trim(
 /* Провайдер по ключу; '' — ключа нет или он не похож ни на один из трёх видов. */
 function aiProviderOf(key){
   if(!key)return '';
+  if(/^AIza/.test(key))return 'google';
   if(/^sk-ant-/i.test(key))return 'anthropic';
   if(/^sk-or-/i.test(key))return 'openrouter';
   if(/^sk-/i.test(key))return 'openai';
   return '';
 }
 /* Из вставленного текста берётся последний ключ: если в поле склеились два, побеждает новый. */
-function aiKeyClean(v){v=String(v||'').trim();var low=v.toLowerCase(),i=Math.max(low.lastIndexOf('sk-ant-'),low.lastIndexOf('sk-or-'),low.lastIndexOf('sk-proj-'));return i>0?v.slice(i):v;}
+function aiKeyClean(v){v=String(v||'').trim();var low=v.toLowerCase(),i=Math.max(low.lastIndexOf('sk-ant-'),low.lastIndexOf('sk-or-'),low.lastIndexOf('sk-proj-'),low.lastIndexOf('aiza'));return i>0?v.slice(i):v;}
 function aiProvider(){return aiProviderOf(claudeKey());}
 function aiModels(){var pv=AI_PROVIDERS[aiProvider()];return pv?pv.models:[];}
 /* Первая модель списка — по умолчанию: самая сильная у провайдера, она же лучше всего знает греческий. */
@@ -1262,6 +1265,7 @@ function aiRequest(req,cb,retry){
     if(sys)msgs.unshift({role:'system',content:sys});
     body={model:model,messages:msgs};
     if(pid==='openrouter'){body.max_tokens=req.maxTokens||4096;if(!retry)body.reasoning={effort:'low'};if(/audio/.test(model))body.modalities=['text'];}
+    else if(pid==='google'){body.max_tokens=req.maxTokens||4096;if(!retry)body.reasoning_effort='low';}
     else body.max_completion_tokens=req.maxTokens||4096;
     if(req.schema&&retry!=='noschema')body.response_format={type:'json_schema',json_schema:{name:'lesson',strict:true,schema:req.schema}};
     if(pid==='openai'){if(/audio/.test(model))body.modalities=['text'];else if(!retry)body.reasoning_effort='low';}
@@ -1537,7 +1541,7 @@ function keySave(){
   var inp=document.getElementById('keyInput');var raw=inp?inp.value.trim():'',v=aiKeyClean(raw);keepScroll=true;settingsMsgAt='key';
   if(!raw){settingsMsg='Ошибка: ключ пустой. Чтобы убрать ключ, нажми «Удалить».';render();return;}
   var pid=aiProviderOf(v);
-  if(!pid){settingsMsg='Ошибка: ключ не распознан. Принимаются ключи Anthropic (начинаются с sk-ant-), OpenRouter (sk-or-) и OpenAI (sk-proj- или sk-).';render();return;}
+  if(!pid){settingsMsg='Ошибка: ключ не распознан. Принимаются ключи Anthropic (начинаются с sk-ant-), OpenRouter (sk-or-), OpenAI (sk-proj- или sk-) и Google (AIza…).';render();return;}
   store.settings.claudeKey=v;save();
   settingsMsg='Ключ '+AI_PROVIDERS[pid].name+' сохранён. Режим «Занятие с ИИ» появился в списке режимов, модель по умолчанию — '+aiModels()[0][1]+'.';
   render();
@@ -1849,8 +1853,8 @@ function renderSettings(){
   {
     var link=function(u,t){return '<a href="'+u+'" target="_blank" rel="noopener">'+t+'</a>';};
     h+='<p class="small muted">Режим «Занятие с ИИ»: разговор голосом по-гречески с языковой моделью словами выбранного набора; в режимах «Отработка лексики» запись можно отправить модели, чтобы понять, что не так в произношении. Нужен ключ API одного из трёх видов: '+
-      link('https://platform.claude.com/settings/keys','Anthropic')+' (начинается с sk-ant-), '+link('https://platform.openai.com/api-keys','OpenAI')+' (sk-proj- или sk-) или '+link('https://openrouter.ai/settings/keys','OpenRouter')+' (sk-or-). Ссылки ведут на страницы ключей; это отдельные от подписок счета с предоплатой.</p>';
-    if(isIOSDevice())h+='<p class="small muted">На iPhone и iPad распознавание речи в браузере не работает, поэтому режимы 9–11 здесь работают только с записью голоса в модель: ключ OpenAI или OpenRouter и модель с пометкой 🎤. С ключом Anthropic эти режимы на iPhone не появятся.</p>';
+      link('https://platform.claude.com/settings/keys','Anthropic')+' (начинается с sk-ant-), '+link('https://platform.openai.com/api-keys','OpenAI')+' (sk-proj- или sk-) или '+link('https://openrouter.ai/settings/keys','OpenRouter')+' (sk-or-) или '+link('https://aistudio.google.com/apikey','Google AI Studio')+' (AIza…, есть бесплатный уровень). Ссылки ведут на страницы ключей. У Anthropic, OpenAI и OpenRouter это отдельные от подписок счета с предоплатой; у Google модели Flash бесплатны с дневным лимитом, но запросы на бесплатном уровне Google может использовать для улучшения своих продуктов.</p>';
+    if(isIOSDevice())h+='<p class="small muted">На iPhone и iPad распознавание речи в браузере не работает, поэтому режимы 9–11 здесь работают только с записью голоса в модель: ключ Google, OpenAI или OpenRouter и модель с пометкой 🎤. С ключом Anthropic эти режимы на iPhone не появятся.</p>';
     else if(!canListen)h+='<p class="notice bad">Этот браузер не умеет распознавать речь: без ключа с записью голоса режимы 9–11 не появятся. Открой приложение в Chrome или Safari.</p>';
     /* Поле ключа — обычное текстовое с маскировкой через CSS, а не type=password: иначе менеджер паролей
        (связка ключей iCloud на iPhone) подставляет сохранённый ранее ключ вместо вставленного. Поле всегда
@@ -1868,7 +1872,7 @@ function renderSettings(){
       h+='<div class="seg" style="margin-top:8px">'+
         '<label class="'+(mode==='model'?'on':'')+(can?'':' off')+'"><input type="radio" name="aiAudio" value="model" data-action="set-ai-audio"'+(mode==='model'?' checked':'')+(can?'':' disabled')+'>Запись голоса в модель</label>'+
         '<label class="'+(mode==='browser'?'on':'')+(noBrowser?' off':'')+'"><input type="radio" name="aiAudio" value="browser" data-action="set-ai-audio"'+(mode==='browser'?' checked':'')+(noBrowser?' disabled':'')+'>Распознаёт браузер</label></div>';
-      h+='<p class="small muted" style="margin-top:4px">'+(pid==='anthropic'?'Claude звук не принимает: речь распознаёт браузер. Запись голоса в модель работает с ключом OpenAI или OpenRouter при модели с пометкой 🎤.':
+      h+='<p class="small muted" style="margin-top:4px">'+(pid==='anthropic'?'Claude звук не принимает: речь распознаёт браузер. Запись голоса в модель работает с ключом Google, OpenAI или OpenRouter при модели с пометкой 🎤.':
         'Модели с пометкой 🎤 слушают запись голоса сами, понимают греческий и русский и оценивают произношение; с остальными речь распознаёт браузер.')+'</p>';
     }
   }
@@ -2054,7 +2058,7 @@ document.addEventListener('input',function(ev){
   if(el.id==='importText')view.importText=el.value;
   if(el.id==='importTitle')view.importTitle=el.value;
   if(el.id==='dictQ')filterDict(el.value);
-  if(el.id==='keyInput'){var kh=document.getElementById('keyHint');if(kh){var kv=aiKeyClean(el.value),kpid=aiProviderOf(kv);kh.textContent=el.value.trim()?('Вставлено: '+kv.slice(0,12)+'… ('+kv.length+' символов) — '+(kpid?'похоже на ключ '+AI_PROVIDERS[kpid].name+'.':'не похоже на ключ: должен начинаться с sk-ant-, sk-or- или sk-.')):'';}}
+  if(el.id==='keyInput'){var kh=document.getElementById('keyHint');if(kh){var kv=aiKeyClean(el.value),kpid=aiProviderOf(kv);kh.textContent=el.value.trim()?('Вставлено: '+kv.slice(0,12)+'… ('+kv.length+' символов) — '+(kpid?'похоже на ключ '+AI_PROVIDERS[kpid].name+'.':'не похоже на ключ: должен начинаться с sk-ant-, sk-or-, sk- или AIza.')):'';}}
 });
 document.addEventListener('submit',function(ev){
   if(ev.target.id==='typeForm'){ev.preventDefault();if(session.state==='ask')checkTyped();else next();}
