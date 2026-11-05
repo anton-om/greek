@@ -24,7 +24,7 @@ var appZoom=1;
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Греческий">
-<meta name="build" content="2026-11-05-10">
+<meta name="build" content="2026-11-05-11">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap">
@@ -291,9 +291,9 @@ input[type=text].big{font-family:var(--display);font-size:24px;text-align:center
   <main id="screen"></main>
   <footer id="actions"></footer>
 </div>
-<script src="words.js?v=2026-11-05-10"></script>
-<script src="sentences.js?v=2026-11-05-10"></script>
-<script src="grammar.js?v=2026-11-05-10"></script>
+<script src="words.js?v=2026-11-05-11"></script>
+<script src="sentences.js?v=2026-11-05-11"></script>
+<script src="grammar.js?v=2026-11-05-11"></script>
 <script>
 (function(){
 'use strict';
@@ -1138,8 +1138,8 @@ function dialogSystem(audio){
     'Если ученик просит перевести или объяснить то, что ты сказал по-гречески, дай перевод своей предыдущей реплики по-русски в части ru, при необходимости кратко поясни, и затем продолжи по-гречески.\n\n'+
     'Правила:\n'+
     '1. Реплика — список частей parts, каждая часть целиком на одном языке: их озвучат разными голосами. Основной язык — греческий: одно-два коротких простых предложения в настоящем времени. По-русски говори коротко: подтвердить задание, объяснить, ответить на вопрос, заданный по-русски. Греческие фразы в parts не переводи — для перевода есть поле translation.\n'+
-    '2. Ученик знает артикли, настоящее время глаголов и множественное число существительных. Используй слова из списка ниже, а также артикли, местоимения, предлоги, союзы, числа, имена и самые частые слова (είμαι, έχω, ναι, όχι, και, πολύ, τι, πού, πώς).\n'+
-    '3. Слова вне списка допускаются, только если без них нельзя, не больше двух за реплику, и каждое такое слово перечисли в new_words с русским переводом (в словарной форме).\n'+
+    '2. Ученик знает артикли, настоящее время глаголов и множественное число существительных. Опирайся на слова из списка ниже: вплетай их, когда они уместны по ходу разговора, но не подгоняй разговор под список и не задавай вопросов только ради слова из него — разговор должен звучать естественно, как с живым собеседником. Свободно используй артикли, местоимения, предлоги, союзы, числа, имена и самые частые слова уровня A1 (είμαι, έχω, θέλω, κάνω, ναι, όχι, και, πολύ, τι, πού, πώς, καλά).\n'+
+    '3. Слова сложнее уровня A1 и вне списка — не больше двух за реплику, и каждое такое слово перечисли в new_words с русским переводом (в словарной форме).\n'+
     '4. Реагируй на то, что сказал ученик, и каждую реплику заканчивай вопросом или заданием, чтобы следующим говорил ученик.\n'+
     '5. Если в греческой реплике ученика есть ошибка (окончание, артикль, род, порядок слов, неверное слово), кратко по-русски объясни её в correction и дай его фразу в исправленном виде в corrected. Пропущенные ударения и похожие на ошибку распознавания слова ошибкой не считай. Если ошибок нет, оставь оба поля пустыми.\n'+
     '6. В translation дай точный русский перевод греческих частей реплики (пустая строка, если их нет).\n'+
@@ -1185,7 +1185,9 @@ function aiRequest(req,cb,retry){
     var msgs=req.messages.slice(),sys=req.system||'';
     if(req.schema&&retry==='noschema')sys+='\n\nОтвечай только JSON без пояснений по схеме: '+JSON.stringify(req.schema);
     if(sys)msgs.unshift({role:'system',content:sys});
-    body={model:model,messages:msgs,max_completion_tokens:req.maxTokens||4096};
+    body={model:model,messages:msgs};
+    if(pid==='openrouter'){body.max_tokens=req.maxTokens||4096;if(!retry)body.reasoning={effort:'low'};if(/audio/.test(model))body.modalities=['text'];}
+    else body.max_completion_tokens=req.maxTokens||4096;
     if(req.schema&&retry!=='noschema')body.response_format={type:'json_schema',json_schema:{name:'lesson',strict:true,schema:req.schema}};
     if(pid==='openai'&&!retry)body.reasoning_effort='low';
   }
@@ -1193,7 +1195,7 @@ function aiRequest(req,cb,retry){
     return r.text().then(function(t){var j=null;try{j=JSON.parse(t);}catch(e){}
       if(!r.ok){
         var m=(j&&j.error&&j.error.message)||'';
-        if(r.status===400&&!retry&&(body.fallbacks&&/fallback/i.test(m)||body.reasoning_effort&&/reasoning/i.test(m))){aiRequest(req,cb,true);return;}
+        if(r.status===400&&!retry&&(body.fallbacks&&/fallback/i.test(m)||(body.reasoning_effort||body.reasoning)&&/reasoning/i.test(m))){aiRequest(req,cb,true);return;}
         if(r.status===400&&retry!=='noschema'&&body.response_format&&/response_format|json_schema|structured|schema/i.test(m)){aiRequest(req,cb,'noschema');return;}
         cb(aiErr(r.status,j));return;}
       cb(null,aiParse(pid,j));});
@@ -1245,22 +1247,35 @@ function dialogSend(text){
 function dialogSendAudio(wav){
   var s=session;if(!s||s.mode!=='dialog'||s.busy)return;
   s.lastAudio=wav;s.latinPrefix='';
+  var meta={rec:Math.round((wav.byteLength-44)/32000*10)/10,bytes:wav.byteLength};
   if(aiProvider()==='openai'){
-    s.busy=true;s.phase='think';s.err='';s.heard='';render();
+    s.busy=true;s.phase='think';s.err='';s.heard='';render();var t0=Date.now();
     aiTranscribe(wav,function(err,text){
-      if(session!==s)return;s.busy=false;
+      if(session!==s)return;s.busy=false;meta.stt=Date.now()-t0;
       if(err){s.err=err;s.phase='idle';render();return;}
       if(!text){s.err='Ничего не распознано. Попробуй ещё раз.';s.phase='idle';render();return;}
-      dialogSend(text);
+      s.nextMeta=meta;dialogSend(text);
     });
     return;
   }
   s.turns.push({who:'me',text:'🎤 …',lang:'',pending:true});
   s.messages.push({role:'user',content:[{type:'text',text:'Голосовая реплика ученика (запись).'},{type:'input_audio',input_audio:{data:b64(wav),format:'wav'}}]});
-  dialogAsk(true);
+  s.nextMeta=meta;dialogAsk(true);
+}
+/* Метрики хода: запись (с, КБ), транскрипция, ожидание ответа, озвучка, токены, модель — строкой под репликой модели. */
+function dialogMetaHtml(m){
+  if(!m)return '';var p=[];
+  if(m.wait!=null)p.push('ответ '+(m.wait/1000).toFixed(1)+' с');
+  if(m.stt!=null)p.push('транскрипция '+(m.stt/1000).toFixed(1)+' с');
+  if(m.tts!=null)p.push('озвучка '+(m.tts/1000).toFixed(1)+' с');
+  if(m.rec!=null)p.push('запись '+m.rec+' с, '+Math.round(m.bytes/1024)+' КБ');
+  if(m.tokens)p.push(m.tokens+' токенов');
+  if(m.model)p.push(m.model);
+  return '<div class="nw">⏱ '+esc(p.join(' · '))+'</div>';
 }
 function dialogAsk(audio){
   var s=session;s.busy=true;s.phase='think';s.err='';s.heard='';render();
+  var meta=s.nextMeta||{};s.nextMeta=null;var t0=Date.now();
   aiRequest({system:dialogSystem(audio),messages:s.messages.slice(),schema:dialogSchema(audio),maxTokens:4096},function(err,j){
     if(session!==s)return;s.busy=false;
     if(!err&&j.stop==='refusal')err='Ошибка: модель отказалась отвечать.';
@@ -1271,14 +1286,14 @@ function dialogAsk(audio){
       s.err=err;s.phase='idle';render();return;}
     if(audio){var heard=String(data.heard||'').trim()||'(не разобрано)';s.messages[s.messages.length-1]={role:'user',content:heard};
       var mt=s.turns[s.turns.length-1];if(mt&&mt.pending){mt.text=heard;mt.pending=false;}}
-    s.lastAudio=null;
+    s.lastAudio=null;meta.wait=Date.now()-t0;meta.tokens=j.tokens||0;meta.model=j.model||claudeModel();
     s.messages.push({role:'assistant',content:j.text});
     var parts=(data.parts||[]).map(function(p){return {lang:p&&p.lang==='ru'?'ru':'el',text:String(p&&p.text||'').trim()};}).filter(function(p){return p.text;});
-    var t={who:'ai',parts:parts,ru:String(data.translation||'').trim(),newWords:(data.new_words||[]).filter(function(x){return x&&x.gr;}),showRu:false};
+    var t={who:'ai',parts:parts,ru:String(data.translation||'').trim(),newWords:(data.new_words||[]).filter(function(x){return x&&x.gr;}),showRu:false,meta:meta};
     if(data.correction||data.corrected){for(var i=s.turns.length-1;i>=0;i--){if(s.turns[i].who==='me'){s.turns[i].correction=String(data.correction||'');s.turns[i].corrected=String(data.corrected||'');break;}}}
     s.turns.push(t);s.usage+=j.tokens||0;
-    s.phase='speak';render();
-    dialogSpeak(t.parts,function(){if(session!==s)return;s.lang=data.next_lang==='ru'?'ru':'el';s.autoLang=false;s.phase='idle';render();});
+    s.phase='speak';render();var t1=Date.now();
+    dialogSpeak(t.parts,function(){if(session!==s)return;meta.tts=Date.now()-t1;s.lang=data.next_lang==='ru'?'ru':'el';s.autoLang=false;s.phase='idle';render();});
   });
 }
 /* Запись с микрофона в WAV 16 кГц моно 16 бит: ScriptProcessor копит сэмплы, при остановке они
@@ -1440,7 +1455,7 @@ function renderDialog(){
     else{h+='<div class="bubble ai">'+t.parts.map(function(p){return p.lang==='ru'?'<div class="rp">'+esc(p.text)+'</div>':'<div class="gr">'+dialogMarked(p.text,t.newWords)+'</div>';}).join('')+
       (t.showRu&&t.ru?'<div class="ru">'+esc(t.ru)+'</div>':'')+
       '<div class="tools">'+(t.ru?'<button class="chip" data-action="dialog-ru" data-i="'+i+'">'+(t.showRu?'Скрыть перевод':'Перевод')+'</button>':'')+(canSpeak?'<button class="chip" data-action="dialog-say" data-i="'+i+'" aria-label="Озвучить">🔊</button>':'')+'</div>'+
-      (t.newWords.length?'<div class="nw">Новые слова: '+t.newWords.map(function(x){return esc(x.gr)+' — '+esc(x.ru);}).join(', ')+'</div>':'')+'</div>';}
+      (t.newWords.length?'<div class="nw">Новые слова: '+t.newWords.map(function(x){return esc(x.gr)+' — '+esc(x.ru);}).join(', ')+'</div>':'')+dialogMetaHtml(t.meta)+'</div>';}
   });
   if(s.busy)h+='<div class="bubble ai typing">•••</div>';
   h+='</div>';
