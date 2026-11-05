@@ -24,7 +24,7 @@ var appZoom=1;
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Греческий">
-<meta name="build" content="2026-11-05-25">
+<meta name="build" content="2026-11-05-26">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap">
@@ -294,9 +294,9 @@ input[type=text].big{font-family:var(--display);font-size:24px;text-align:center
   <main id="screen"></main>
   <footer id="actions"></footer>
 </div>
-<script src="words.js?v=2026-11-05-25"></script>
-<script src="sentences.js?v=2026-11-05-25"></script>
-<script src="grammar.js?v=2026-11-05-25"></script>
+<script src="words.js?v=2026-11-05-26"></script>
+<script src="sentences.js?v=2026-11-05-26"></script>
+<script src="grammar.js?v=2026-11-05-26"></script>
 <script>
 (function(){
 'use strict';
@@ -1868,7 +1868,7 @@ function renderSettings(){
   h+='<h3>Занятие с ИИ</h3>';
   {
     var link=function(u,t){return '<a href="'+u+'" target="_blank" rel="noopener">'+t+'</a>';};
-    h+='<p class="small muted">Ключ API разблокирует режимы 9 и 10 на iPhone и режим 11 на любых устройствах. Рекомендуются ключи '+link('https://openrouter.ai/settings/keys','OpenRouter')+' или '+link('https://aistudio.google.com/apikey','Google')+'. Бесплатный ключ Google тоже подходит, но тогда стабильно работает только модель 3.1. Можно использовать и ключи '+link('https://platform.claude.com/settings/keys','Anthropic')+' или '+link('https://platform.openai.com/api-keys','OpenAI')+'. Ключ хранится только в этом браузере.</p>';
+    h+='<p class="small muted">Ключ API разблокирует режимы 9 и 10 «Отработка лексики» на iPhone и режим 11 «Занятие с ИИ» на любых устройствах. Рекомендуются ключи '+link('https://openrouter.ai/settings/keys','OpenRouter')+' или '+link('https://aistudio.google.com/apikey','Google')+'. Бесплатный ключ Google тоже подходит, но тогда стабильно работает только модель 3.1. Можно использовать и ключи '+link('https://platform.claude.com/settings/keys','Anthropic')+' или '+link('https://platform.openai.com/api-keys','OpenAI')+'. Ключ хранится только в этом браузере.</p>';
     if(!isIOSDevice()&&!canListen)h+='<p class="notice bad">Этот браузер не умеет распознавать речь: без ключа с записью голоса режимы 9–11 не появятся. Открой приложение в Chrome или Safari.</p>';
     h+='<form id="keyForm" class="keyrow"><input type="text" id="keyInput" class="keyfield" name="greek-api-key" value="'+esc(claudeKey())+'" placeholder="sk-ant-…, sk-or-…, sk-…, AQ.…" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false" inputmode="text" aria-label="Ключ API"><button type="button" class="btn ghost" data-action="key-eye" aria-label="Показать ключ">👁</button><button type="submit" class="btn">Проверить</button>'+(claudeKey()?'<button type="button" class="btn ghost" data-action="key-clear">Удалить</button>':'')+'</form><p class="small muted" id="keyHint" style="margin:4px 0 0;min-height:1.2em">'+(claudeKey()?'Ключ '+esc(AI_PROVIDERS[aiProvider()].name)+'.':'')+'</p>';
     h+=settingsMsgHtml('key');
