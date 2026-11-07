@@ -24,7 +24,7 @@ var appZoom=1;
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Греческий">
-<meta name="build" content="2026-11-07-2">
+<meta name="build" content="2026-11-07-3">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap">
@@ -294,9 +294,9 @@ input[type=text].big{font-family:var(--display);font-size:24px;text-align:center
   <main id="screen"></main>
   <footer id="actions"></footer>
 </div>
-<script src="words.js?v=2026-11-07-2"></script>
-<script src="sentences.js?v=2026-11-07-2"></script>
-<script src="grammar.js?v=2026-11-07-2"></script>
+<script src="words.js?v=2026-11-07-3"></script>
+<script src="sentences.js?v=2026-11-07-3"></script>
+<script src="grammar.js?v=2026-11-07-3"></script>
 <script>
 (function(){
 'use strict';
@@ -1008,7 +1008,7 @@ function makeRec(own){
     var fin=[],intr='';
     for(var i=0;i<e.results.length;i++){var x=e.results[i];if(x.isFinal)fin.push(Array.prototype.map.call(x,function(q){return q.transcript;}));else intr+=x[0].transcript;}
     /* Без continuous каждое событие несёт только свою фразу: дописываем к прежним. */
-    if(r.continuous){a.finals=fin;}else if(fin.length){a.finals=a.finals.concat(fin);}
+    if(r.continuous){a.finals=collapseFinals(fin,function(x){return x[0];});}else if(fin.length){a.finals=a.finals.concat(fin);}
     a.interim=intr;ev('result');
     var el=document.getElementById('heard');if(el&&a.onDone==null)el.textContent=attText(a);
   };
@@ -1034,6 +1034,15 @@ function recBegin(a){
   return true;
 }
 function newAtt(){return {finals:[],interim:'',err:null,t0:Date.now(),trace:[],done:false,timer:null};}
+/* Chrome на Android в непрерывном режиме отдаёт накопленные промежуточные варианты как отдельные
+   окончательные результаты: «το», «το», «το μαχαίρι», «το μαχαίρι είναι»… (проверено на устройстве
+   2026-11-07). Оставляем только результаты, которые не являются началом следующего. */
+function collapseFinals(list,text){
+  var out=[];
+  for(var i=0;i<list.length;i++){var cur=norm(text(list[i])),nxt=i+1<list.length?norm(text(list[i+1])):null;
+    if(!cur)continue;if(nxt!==null&&nxt.indexOf(cur)===0)continue;out.push(list[i]);}
+  return out;
+}
 function attText(a){return a.finals.map(function(q){return q[0];}).concat(a.interim?[a.interim]:[]).join(' ').trim();}
 function recErrMsg(err,held){
   return (err==='not-allowed'||err==='service-not-allowed')?'Нет доступа к микрофону. Разреши его в настройках браузера.':
@@ -1463,6 +1472,7 @@ function dialogListen(){
     if(gen!==dialogRecGen)return;
     var intr='';finals=[];
     for(var i=0;i<e.results.length;i++){var x=e.results[i];if(x.isFinal)finals.push(String(x[0].transcript).trim());else intr+=x[0].transcript;}
+    finals=collapseFinals(finals,function(x){return x;});
     s.heard=(finals.join(' ')+' '+intr).trim();
     if(s.lang==='el'&&dialogLatin(s.heard)){s.latinPrefix=s.heard;s.lang='ru';s.autoLang=true;dialogListen();return;}
     var live=document.getElementById('heardLive');if(live)live.textContent=s.heard;
