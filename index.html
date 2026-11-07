@@ -24,7 +24,7 @@ var appZoom=1;
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Греческий">
-<meta name="build" content="2026-11-07-1">
+<meta name="build" content="2026-11-07-2">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap">
@@ -294,9 +294,9 @@ input[type=text].big{font-family:var(--display);font-size:24px;text-align:center
   <main id="screen"></main>
   <footer id="actions"></footer>
 </div>
-<script src="words.js?v=2026-11-07-1"></script>
-<script src="sentences.js?v=2026-11-07-1"></script>
-<script src="grammar.js?v=2026-11-07-1"></script>
+<script src="words.js?v=2026-11-07-2"></script>
+<script src="sentences.js?v=2026-11-07-2"></script>
+<script src="grammar.js?v=2026-11-07-2"></script>
 <script>
 (function(){
 'use strict';
@@ -539,9 +539,9 @@ var MODE_LIST=[
   {key:'type',mode:'type',dir:'ru',t:'Пишем сами',d:'Введи греческое слово с клавиатуры'},
   {key:'plural',mode:'plural',dir:'ru',t:'Множественное число',d:'Артикль и окончание в единственном и множественном числе'},
   {key:'conj',mode:'conj',dir:'ru',t:'Спряжение глаголов',d:'Впиши местоимение и окончание по русской подсказке'},
-  {key:'conj-say',mode:'say',dir:'ru',conj:true,t:'Спряжение вслух',dev:true,net:true,d:'Скажи по русскому слову все местоимения и формы глагола'},
-  {key:'say',mode:'say',dir:'gr',t:'Отработка лексики',dev:true,net:true,d:'Прочитай греческое предложение вслух в микрофон'},
-  {key:'say-ru',mode:'say',dir:'ru',t:'Отработка лексики: с русского',dev:true,net:true,d:'Скажи по-гречески предложение по русскому переводу'},
+  {key:'conj-say',mode:'say',dir:'ru',conj:true,t:'Спряжение вслух',net:true,d:'Скажи по русскому слову все местоимения и формы глагола'},
+  {key:'say',mode:'say',dir:'gr',t:'Отработка лексики',net:true,d:'Прочитай греческое предложение вслух в микрофон'},
+  {key:'say-ru',mode:'say',dir:'ru',t:'Отработка лексики: с русского',net:true,d:'Скажи по-гречески предложение по русскому переводу'},
   {key:'dialog',mode:'dialog',dir:'gr',t:'Занятие с ИИ',dev:true,net:true,d:'Скажи по-русски, чем заняться, и говори с языковой моделью голосом: диалог, слова, вопросы'}
 ];
 /* Режимы 9 и 10 на iPhone не показываются: распознавание речи в WebKit не работает
