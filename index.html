@@ -24,7 +24,7 @@ var appZoom=1;
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Греческий">
-<meta name="build" content="2026-11-07-3">
+<meta name="build" content="2026-11-07-4">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap">
@@ -294,9 +294,9 @@ input[type=text].big{font-family:var(--display);font-size:24px;text-align:center
   <main id="screen"></main>
   <footer id="actions"></footer>
 </div>
-<script src="words.js?v=2026-11-07-3"></script>
-<script src="sentences.js?v=2026-11-07-3"></script>
-<script src="grammar.js?v=2026-11-07-3"></script>
+<script src="words.js?v=2026-11-07-4"></script>
+<script src="sentences.js?v=2026-11-07-4"></script>
+<script src="grammar.js?v=2026-11-07-4"></script>
 <script>
 (function(){
 'use strict';
@@ -685,7 +685,7 @@ function startMode(key){
   if(m.net&&!isOnline()){homeMsg='Режим «'+m.t+'» работает только с интернетом: распознавание речи и модель живут в сети.';render();return;}
   var set=currentSet();
   if(!poolWords(set).length)return;
-  if(!modePool(m.mode,poolWords(set),m.conj).length){homeMsg=m.mode==='plural'?'В выбранных словах нет существительных с формой множественного числа.':(m.mode==='say'&&!m.conj)?'Для выбранных слов ещё нет предложений.':'В выбранных словах нет глаголов со спряжением.';render();return;}
+  if(!modePool(m.mode,poolWords(set),m.conj).length){homeMsg=m.mode==='plural'?'В выбранных словах нет существительных с формой множественного числа.':(m.mode==='say'&&!m.conj)?'Для выбранных слов ещё нет предложений.':'В выбранных словах нет глаголов со спряжением.'+(extraOf(set).some(function(w){return w.pos==='v'&&verbForms(w);})&&!lexCfg(set).x?' Они есть в дополнительной лексике этого урока: включи её выше.':' Выбери другой урок.');render();return;}
   homeMsg='';
   var scope=store.settings.scope==='new'?'new':'all';
   if(scope==='new'&&!freshCount(set))scope='all';
