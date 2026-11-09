@@ -24,7 +24,7 @@ var appZoom=1;
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Греческий">
-<meta name="build" content="2026-11-07-4">
+<meta name="build" content="2026-11-09-1">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap">
@@ -294,9 +294,9 @@ input[type=text].big{font-family:var(--display);font-size:24px;text-align:center
   <main id="screen"></main>
   <footer id="actions"></footer>
 </div>
-<script src="words.js?v=2026-11-07-4"></script>
-<script src="sentences.js?v=2026-11-07-4"></script>
-<script src="grammar.js?v=2026-11-07-4"></script>
+<script src="words.js?v=2026-11-09-1"></script>
+<script src="sentences.js?v=2026-11-09-1"></script>
+<script src="grammar.js?v=2026-11-09-1"></script>
 <script>
 (function(){
 'use strict';
@@ -635,7 +635,7 @@ function renderHome(){
   var lg=learnedCount(set,null,pool);
   var sets=allSets();
   var h=installHtml()+'<div class="hero"><div class="hero-h"><h2>Греческие слова</h2><button class="icon-btn" data-action="settings" aria-label="Настройки">⚙</button></div><p class="muted small">Карточки, письмо и тесты по наборам слов.</p></div>';
-  h+='<h3>Справка</h3><button class="mode" data-action="cheat"><span class="num">Αα</span><span class="txt"><div class="t">Шпаргалка</div><div class="d">Алфавит, ударение, артикли, окончания, местоимения, спряжение глаголов</div></span><span class="arr">›</span></button>';
+  h+='<h3>Справка</h3><button class="mode" data-action="cheat"><span class="num">Αα</span><span class="txt"><div class="t">Шпаргалка</div><div class="d">Алфавит, ударение, артикли, окончания, падежи, местоимения, спряжение глаголов</div></span><span class="arr">›</span></button>';
   h+='<h3>Набор слов</h3>'+'<div class="setbox">';
   h+='<div class="row"><select id="setSelect" aria-label="Набор слов">'+sets.map(function(s){return '<option value="'+esc(s.id)+'"'+(s.id===set.id?' selected':'')+'>'+esc(s.title)+' ('+s.words.length+')</option>';}).join('')
     +'<option value="'+MIX_ID+'"'+(set.mix?' selected':'')+'>Custom: свой выбор уроков'+(set.mix?' ('+n+')':'')+'</option></select></div>';
@@ -1770,6 +1770,32 @@ function endingsHtml(){
   }).join('');
   return h;
 }
+/* Падежи: по презентациям к урокам 2.3 и 2.4 (винительный падеж) */
+var ACC_DEF=[['Мужской','ο → τον','οι → τους','Βλέπω τον άντρα.','Я вижу мужчину.','Αγαπώ τους φίλους μου.','Я люблю своих друзей.'],
+  ['Женский','η → τη(ν)','οι → τις','Διαβάζω τη λέξη.','Я читаю слово.','Βλέπω τις γάτες.','Я вижу кошек.'],
+  ['Средний','το → το','τα → τα','Τρώω το φρούτο.','Я ем фрукт.','Ακούω τα τραγούδια.','Я слушаю песни.']];
+var ACC_INDEF=[['Мужской','ένας → έναν','Βλέπω έναν άντρα.','Я вижу мужчину.'],['Женский','μία → μία','Έχω μία τσάντα.','У меня есть сумка.'],['Средний','ένα → ένα','Τρώω ένα μήλο.','Я ем яблоко.']];
+var ACC_ENDINGS=[['Мужской','-ος → -ο, -ας → -α, -ης → -η','-οι → -ους, -ες → -ες',[['ο φίλος','друг','τον φίλο'],['ο άντρας','мужчина','τον άντρα'],['ο μαθητής','ученик','τον μαθητή'],['οι φίλοι','друзья','τους φίλους']]],
+  ['Женский','-α, -η без изменений','-ες без изменений',[['η γάτα','кошка','τη γάτα'],['η λέξη','слово','τη λέξη'],['οι γυναίκες','женщины','τις γυναίκες']]],
+  ['Средний','без изменений','без изменений',[['το βιβλίο','книга','το βιβλίο'],['το παιδί','ребёнок','το παιδί'],['τα φρούτα','фрукты','τα φρούτα']]]];
+function casesHtml(){
+  var h='<p class="note">Именительный падеж (ονομαστική) — словарная форма, отвечает на вопросы кто? что?; так стоит подлежащее. Винительный (αιτιατική) — объект действия: кого? что? (ποιον; τι;). В винительном также стоит слово после предлогов σε (στο, στη, στον), με, από, για.</p>';
+  h+='<p class="note"><span class="muted">'+grHtml('Βλέπω τον πατέρα.','Я вижу отца.')+' '+grHtml('Διαβάζω το βιβλίο.','Я читаю книгу.')+' '+grHtml('Πηγαίνω στην Αθήνα.','Я еду в Афины.')+'</span></p>';
+  h+='<p class="sub">Определённый артикль: именительный → винительный</p><div class="art c3"><span class="h">Род</span><span class="h">Ед. ч.</span><span class="h">Мн. ч.</span>';
+  h+=ACC_DEF.map(function(r){return '<span>'+esc(r[0])+'</span><span class="A E">'+esc(r[1])+'</span><span class="A E">'+esc(r[2])+'</span>';}).join('')+'</div>';
+  h+=ACC_DEF.map(function(r){return '<p class="note"><span class="muted">'+grHtml(r[3],r[4])+' '+grHtml(r[5],r[6])+'</span></p>';}).join('');
+  h+='<p class="note">τη или την: ν остаётся перед гласной и перед κ, π, τ, ξ, ψ, μπ, ντ, γκ (την κουζίνα, την πόλη), в остальных случаях τη (τη σαλάτα, τη λέξη). У τον в письме ν обычно сохраняют.</p>';
+  h+='<p class="sub">Неопределённый артикль в винительном падеже</p><div class="art c2"><span class="h">Род</span><span class="h">Ед. ч.</span>';
+  h+=ACC_INDEF.map(function(r){return '<span>'+esc(r[0])+'</span><span class="A E">'+esc(r[1])+'</span>';}).join('')+'</div>';
+  h+='<p class="note"><span class="muted">'+ACC_INDEF.map(function(r){return grHtml(r[2],r[3]);}).join(' ')+'</span></p>';
+  h+='<p class="sub">Окончания существительных в винительном падеже</p><div class="art c3"><span class="h">Род</span><span class="h">Ед. ч.</span><span class="h">Мн. ч.</span>';
+  h+=ACC_ENDINGS.map(function(r){return '<span>'+esc(r[0])+'</span><span class="A E">'+esc(r[1])+'</span><span class="A E">'+esc(r[2])+'</span>';}).join('')+'</div>';
+  h+=ACC_ENDINGS.map(function(r){return '<p class="sub">'+esc(r[0])+' род</p>'+r[3].map(function(e){return '<p class="note"><span class="muted">'+grHtml(e[0],e[1])+' → <span class="ex" data-action="speak" data-text="'+esc(e[2])+'">'+esc(e[2])+'</span></span></p>';}).join('');}).join('');
+  h+='<p class="sub">Запомнить</p>';
+  h+='<p class="note">Меняется только мужской род: у существительного отпадает конечное -ς (ο φίλος → τον φίλο, ο παππούς → τον παππού), во множественном -οι становится -ους. Женский и средний род в единственном числе не меняются, меняется лишь артикль женского рода.</p>';
+  h+='<p class="note">Глаголы, после которых стоит винительный: '+['βλέπω','έχω','θέλω','διαβάζω','ακούω','αγαπώ','τρώω','πίνω'].map(function(v){return '<span class="ex" data-action="speak" data-text="'+v+'">'+v+'</span>';}).join(', ')+'.</p>';
+  return h;
+}
 /* Спряжение глаголов в настоящем времени: по презентации к четвёртому уроку */
 var CONJ_PERSONS=['εγώ','εσύ','αυτός, -ή, -ό','εμείς','εσείς','αυτοί, -ές, -ά'];
 var CONJ_EIMAI=[['είμαι','я есть'],['είσαι','ты есть'],['είναι','он, она, оно есть'],['είμαστε','мы есть'],['είστε','вы есть'],['είναι','они есть']];
@@ -1870,6 +1896,7 @@ function renderCheat(){
     return '<p class="note">'+esc(n[0])+'<br><span class="muted">'+ex+'</span></p>';}).join('')+'</div></details>';
   h+='<details class="sec"><summary>Артикли</summary><div class="body">'+articlesHtml()+'</div></details>';
   h+='<details class="sec"><summary>Окончания существительных</summary><div class="body">'+endingsHtml()+'</div></details>';
+  h+='<details class="sec"><summary>Падежи</summary><div class="body">'+casesHtml()+'</div></details>';
   h+='<details class="sec"><summary>Местоимения</summary><div class="body">'+pronHtml()+'</div></details>';
   h+='<details class="sec"><summary>Спряжение глаголов</summary><div class="body">'+conjHtml()+'</div></details>';
   h+='</div>';
