@@ -24,7 +24,7 @@ var appZoom=1;
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Греческий">
-<meta name="build" content="2026-11-10-2">
+<meta name="build" content="2026-11-10-3">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap">
@@ -296,9 +296,9 @@ input[type=text].big{font-family:var(--display);font-size:24px;text-align:center
   <main id="screen"></main>
   <footer id="actions"></footer>
 </div>
-<script src="words.js?v=2026-11-10-2"></script>
-<script src="sentences.js?v=2026-11-10-2"></script>
-<script src="grammar.js?v=2026-11-10-2"></script>
+<script src="words.js?v=2026-11-10-3"></script>
+<script src="sentences.js?v=2026-11-10-3"></script>
+<script src="grammar.js?v=2026-11-10-3"></script>
 <script>
 (function(){
 'use strict';
@@ -431,7 +431,7 @@ function verbRu(w){var e=GRAMMAR.verbs[w.gr];return e&&e.ru;}
 function modePool(mode,pool,conj){
   if(mode==='plural')return pool.filter(function(w){return w.pos==='n'&&pluralOf(w);});
   if(mode==='conj')return pool.filter(function(w){return w.pos==='v'&&verbForms(w);});
-  if(mode==='say')return conj==='acc'?pool.filter(function(w){return casesFor(w).length;}):conj?pool.filter(function(w){return w.pos==='v'&&verbForms(w);}):pool.filter(function(w){return sentencesFor(w).length;});
+  if(mode==='say')return conj==='acc'?accWords():conj?pool.filter(function(w){return w.pos==='v'&&verbForms(w);}):pool.filter(function(w){return sentencesFor(w).length;});
   return pool;
 }
 /* Предложения режимов 9 и 10 (sentences.js): по нескольку на слово. В сеансе слово получает одно
@@ -444,11 +444,23 @@ function pickSentence(w){
   store.sayLast[w.gr]=k;save();return k;
 }
 function casesFor(w){return (GRAMMAR.cases&&GRAMMAR.cases[w.gr])||[];}
-/* Режим «Винительный падеж»: упражнение из grammar.js, одно на слово за сеанс (случайное). */
+/* Режим «Винительный падеж» не зависит от выбранного набора: берётся вся основная лексика курса
+   с упражнениями. Сеанс — 25 предложений, поровну мужского, женского, среднего рода и
+   множественного числа (по кругу из перемешанных групп). */
+var ACC_PER_SESSION=25;
+function accWords(){var seen={},out=[];BUILTIN.forEach(function(st){st.words.forEach(function(w){if(!seen[w.gr]&&casesFor(w).length){seen[w.gr]=1;out.push(w);}});});return out;}
+function accCategory(w,e){if(/(^|\s)(τους|τις|τα)(\s|$)/.test(e[1])||/(^|\s)(δύο|τρία|τρεις|πολλ)/.test(e[1]))return 'p';return /^ο /.test(w.gr)?'m':/^η /.test(w.gr)?'f':'n';}
+function accItems(){
+  var groups={m:[],f:[],n:[],p:[]};
+  accWords().forEach(function(w){casesFor(w).forEach(function(e,i){groups[accCategory(w,e)].push({w:w,idx:i});});});
+  Object.keys(groups).forEach(function(k){shuffle(groups[k]);});
+  var out=[],keys=['m','f','n','p'],k=0,guard=0;
+  while(out.length<ACC_PER_SESSION&&guard++<4*ACC_PER_SESSION){var g=groups[keys[k%4]];k++;if(g.length)out.push(g.shift());if(!keys.some(function(q){return groups[q].length;}))break;}
+  return out;
+}
 function accTarget(w){
-  var list=casesFor(w);if(!session.caseIdx)session.caseIdx={};
-  if(session.caseIdx[w.gr]==null)session.caseIdx[w.gr]=Math.floor(Math.random()*list.length);
-  var e=list[session.caseIdx[w.gr]]||list[0]||['','',''];
+  var it=session.accItems&&session.accItems[session.i],list=casesFor(w);
+  var e=(it&&list[it.idx])||list[0]||['','',''];
   return {gr:e[1],ru:e[2],show:e[0],hint:e[1]};
 }
 function gapHtml(t){return String(t).split(/_+/).map(esc).join('<span class="gap"></span>');}
@@ -551,7 +563,7 @@ var MODE_LIST=[
   {key:'plural',mode:'plural',dir:'ru',t:'Множественное число',d:'Артикль и окончание в единственном и множественном числе'},
   {key:'conj',mode:'conj',dir:'ru',t:'Спряжение глаголов',d:'Впиши местоимение и окончание по русской подсказке'},
   {key:'conj-say',mode:'say',dir:'ru',conj:true,t:'Спряжение вслух',net:true,d:'Скажи по русскому слову все местоимения и формы глагола'},
-  {key:'acc',mode:'say',dir:'ru',acc:true,t:'Винительный падеж',net:true,d:'Произнеси предложение целиком, восстановив артикли и окончания'},
+  {key:'acc',mode:'say',dir:'ru',acc:true,t:'Винительный падеж',net:true,d:'25 предложений из всей лексики курса: произнеси целиком, восстановив артикли и окончания'},
   {key:'say',mode:'say',dir:'gr',t:'Отработка лексики',net:true,d:'Прочитай греческое предложение вслух в микрофон'},
   {key:'say-ru',mode:'say',dir:'ru',t:'Отработка лексики: с русского',net:true,d:'Скажи по-гречески предложение по русскому переводу'},
   {key:'dialog',mode:'dialog',dir:'gr',t:'Занятие с ИИ',dev:true,net:true,d:'Скажи по-русски, чем заняться, и говори с языковой моделью голосом: диалог, слова, вопросы'}
@@ -697,7 +709,7 @@ function startMode(key){
   if(m.net&&!isOnline()){homeMsg='Режим «'+m.t+'» работает только с интернетом: распознавание речи и модель живут в сети.';render();return;}
   var set=currentSet();
   if(!poolWords(set).length)return;
-  if(!modePool(m.mode,poolWords(set),m.acc?'acc':m.conj).length){homeMsg=m.mode==='plural'?'В выбранных словах нет существительных с формой множественного числа.':m.acc?'Для выбранных слов нет упражнений на винительный падеж. Включи основную лексику или выбери другой урок.':(m.mode==='say'&&!m.conj)?'Для выбранных слов ещё нет предложений.':'В выбранных словах нет глаголов со спряжением.'+(extraOf(set).some(function(w){return w.pos==='v'&&verbForms(w);})&&!lexCfg(set).x?' Они есть в дополнительной лексике этого урока: включи её выше.':' Выбери другой урок.');render();return;}
+  if(!modePool(m.mode,poolWords(set),m.acc?'acc':m.conj).length){homeMsg=m.mode==='plural'?'В выбранных словах нет существительных с формой множественного числа.':m.acc?'Упражнений на винительный падеж пока нет.':(m.mode==='say'&&!m.conj)?'Для выбранных слов ещё нет предложений.':'В выбранных словах нет глаголов со спряжением.'+(extraOf(set).some(function(w){return w.pos==='v'&&verbForms(w);})&&!lexCfg(set).x?' Они есть в дополнительной лексике этого урока: включи её выше.':' Выбери другой урок.');render();return;}
   homeMsg='';
   var scope=store.settings.scope==='new'?'new':'all';
   if(scope==='new'&&!freshCount(set))scope='all';
@@ -713,9 +725,11 @@ function startSession(words){
   var set=currentSet();
   var pool=modePool(view.mode,poolWords(set),view.acc?'acc':view.conj);
   var scopeWords=pool.slice();if(view.scope==='new')scopeWords=scopeWords.filter(function(w){return !isLearned(set,view.dir,w);});
-  if(!words){words=scopeWords.slice();if(view.shuffle)shuffle(words);}
+  var accList=null;
+  if(view.acc){accList=accItems();words=accList.map(function(x){return x.w;});scopeWords=words.slice();}
+  else if(!words){words=scopeWords.slice();if(view.shuffle)shuffle(words);}
   if(!words.length){goHome();return;}
-  session={mode:view.mode,dir:view.dir,conj:!!view.conj,acc:!!view.acc,set:set,pool:pool,words:words,scopeWords:scopeWords,i:0,results:[],flipped:false,state:'ask',picked:[],tiles:null,options:null,typed:''};
+  session={mode:view.mode,dir:view.dir,conj:!!view.conj,acc:!!view.acc,accItems:accList,set:set,pool:pool,words:words,scopeWords:scopeWords,i:0,results:[],flipped:false,state:'ask',picked:[],tiles:null,options:null,typed:''};
   view.name='session';prepareItem();render();
 }
 function sessionTitle(){if(session.conj)return 'Спряжение вслух';if(session.acc)return 'Винительный падеж';var t=MODE_TITLE[session.mode];if(session.mode==='flash'||session.mode==='quiz')t+=session.dir==='gr'?' · гр → ру':' · ру → гр';if(session.mode==='say'&&session.dir==='ru')t+=' · с русского';return t;}
@@ -2230,7 +2244,7 @@ function saveResume(){
       var s=session;
       data.session={mode:s.mode,dir:s.dir,i:s.i,turns:s.turns||null,messages:s.messages||null,lang:s.lang||null,usage:s.usage||0,requeued:!!s.requeued,hinted:!!s.hinted,parts:s.parts||null,sentIdx:s.sentIdx||null,heard:s.heard||'',marks:s.marks||null,sayMsg:s.sayMsg||'',sayTrace:s.sayTrace||'',attempts:s.attempts||0,person:s.person,persons:s.persons||null,flipped:!!s.flipped,state:s.state,picked:s.picked||[],typed:s.typed||'',
         grade:s.grade,pickedOpt:s.pickedOpt,tiles:s.tiles,options:s.options,correctOpt:s.correctOpt,target:s.target,
-        words:s.words.map(function(w){return w.gr;}),scopeWords:(s.scopeWords||[]).map(function(w){return w.gr;}),
+        words:s.words.map(function(w){return w.gr;}),scopeWords:(s.scopeWords||[]).map(function(w){return w.gr;}),accIdx:s.accItems?s.accItems.map(function(x){return x.idx;}):null,
         results:Array.prototype.map.call(s.results,function(r){return r?Object.assign({},r,{word:r.word.gr}):null;})};
     }
     if(view.name==='settings'&&micTest.msg&&!micTest.on)data.micTest=micTest;
@@ -2251,8 +2265,9 @@ function restoreResume(){
         session={mode:'dialog',dir:'gr',set:set,pool:poolWords(set),words:[],scopeWords:[],results:[],i:0,state:'ask',turns:trs,messages:msgs,busy:false,err:'',phase:'idle',lang:sv.lang==='ru'?'ru':'el',heard:'',usage:sv.usage||0};}
       else{
       var byGr={};set.words.concat(extraOf(set)).forEach(function(w){byGr[w.gr]=w;});
+      if(v.acc)BUILTIN.forEach(function(st){st.words.forEach(function(w){if(!byGr[w.gr])byGr[w.gr]=w;});});
       var res=function(k){var w=byGr[k];if(!w)throw new Error('missing word '+k);return w;};
-      session={mode:sv.mode,dir:sv.dir,conj:!!v.conj,acc:!!v.acc,set:set,pool:modePool(sv.mode,poolWords(set),v.acc?'acc':v.conj),sentIdx:sv.sentIdx||null,words:sv.words.map(res),scopeWords:sv.scopeWords.map(res),i:sv.i,
+      session={mode:sv.mode,dir:sv.dir,conj:!!v.conj,acc:!!v.acc,set:set,pool:modePool(sv.mode,poolWords(set),v.acc?'acc':v.conj),sentIdx:sv.sentIdx||null,words:sv.words.map(res),accItems:v.acc&&sv.accIdx?sv.words.map(function(k,i){return {w:res(k),idx:sv.accIdx[i]||0};}):null,scopeWords:sv.scopeWords.map(res),i:sv.i,
         results:sv.results.map(function(r){return r?Object.assign({},r,{word:res(r.word)}):null;}),requeued:sv.requeued,hinted:!!sv.hinted,parts:sv.parts||null,heard:sv.heard||'',marks:sv.marks||null,sayMsg:sv.sayMsg||'',sayTrace:sv.sayTrace||'',attempts:sv.attempts||0,person:sv.person,persons:sv.persons||null,
         flipped:sv.flipped,state:sv.state,picked:sv.picked,typed:sv.typed,grade:sv.grade,pickedOpt:sv.pickedOpt,tiles:sv.tiles,options:sv.options,correctOpt:sv.correctOpt,target:sv.target};
       if(v.name==='session'&&!session.words[session.i])throw new Error('bad index');}
