@@ -32,6 +32,11 @@ S.forEach(function(s){s.words.concat(s.extra||[]).forEach(function(w){known[w.gr
   if(w.pos==='v'&&G.verbs[w.gr]){var e=G.verbs[w.gr];if(!(e.ru&&e.ru.length===6)||!(e.f?e.f.length===6:/^(1|2a|2b)$/.test(e.c))){console.log('  ОШИБКА: неполная запись глагола: '+w.gr);errors++;}}
 });});
 Object.keys(G.plural).forEach(function(k){if(!known[k]){console.log('  ОШИБКА: plural для слова не из words.js: '+k);errors++;}});
+Object.keys(G.cases||{}).forEach(function(k){if(!known[k]){console.log('  ОШИБКА: упражнение на падеж для слова не из words.js: '+k);errors++;}
+  (G.cases[k]||[]).forEach(function(e){if(!(e.length===3&&e.every(function(x){return typeof x==='string'&&x;}))){console.log('  ОШИБКА: неполное упражнение на падеж: '+k);errors++;return;}
+    var parts=e[0].split(/_+/),pos=0,ok=true;parts.forEach(function(q){var i=e[1].indexOf(q,pos);if(i<0)ok=false;else pos=i+q.length;});
+    if(!ok){console.log('  ОШИБКА: пропуски не совпадают с полным предложением: '+e[0]+' / '+e[1]);errors++;}});});
+console.log('Упражнений на винительный падеж: '+Object.keys(G.cases||{}).reduce(function(n,k){return n+G.cases[k].length;},0)+'.');
 Object.keys(G.verbs).forEach(function(k){if(!known[k]){console.log('  ОШИБКА: спряжение для слова не из words.js: '+k);errors++;}});
 console.log('Существительных с мн. ч.: '+Object.keys(G.plural).filter(function(k){return G.plural[k];}).length+', глаголов со спряжением: '+Object.keys(G.verbs).length+'.');
 var tc={};S.forEach(function(s){s.words.concat(s.extra||[]).forEach(function(w){tc[w.t]=(tc[w.t]||0)+1;});});

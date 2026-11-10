@@ -24,7 +24,7 @@ var appZoom=1;
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Греческий">
-<meta name="build" content="2026-11-09-1">
+<meta name="build" content="2026-11-10-1">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap">
@@ -177,7 +177,8 @@ input[type=text].big{font-family:var(--display);font-size:24px;text-align:center
 .result.ok{background:var(--good-soft);color:var(--good)}
 .result.bad{background:var(--bad-soft);color:var(--bad)}
 .result.almost{background:var(--warn-soft);color:var(--warn)}
-.prompt .word.sent{font-size:clamp(21px,5.6vw,27px);line-height:1.3}.prompt .word.sent.conj{font-size:clamp(17px,4.4vw,21px);line-height:1.45}.prompt .sw.ok{color:var(--good)}.prompt .sw.miss{color:var(--bad);text-decoration:underline wavy;text-underline-offset:4px}
+.prompt .word.sent{font-size:clamp(21px,5.6vw,27px);line-height:1.3}.gap{display:inline-block;width:1.3em;border-bottom:2px solid var(--accent);vertical-align:baseline;margin:0 1px}
+.prompt .word.sent.conj{font-size:clamp(17px,4.4vw,21px);line-height:1.45}.prompt .sw.ok{color:var(--good)}.prompt .sw.miss{color:var(--bad);text-decoration:underline wavy;text-underline-offset:4px}
 .mic-wrap{display:flex;flex-direction:column;align-items:center;gap:10px;margin-top:22px}
 .mic{width:96px;height:96px;border-radius:50%;border:0;background:var(--accent);color:var(--accent-fg);font-size:40px;line-height:1;box-shadow:var(--shadow);cursor:pointer;touch-action:none;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;transition:transform .15s,background .15s}
 .mic.on{background:var(--bad);transform:scale(1.08);animation:micpulse 1.2s infinite}.mic.busy{opacity:.55}.mic:disabled{opacity:.4;cursor:default}
@@ -294,9 +295,9 @@ input[type=text].big{font-family:var(--display);font-size:24px;text-align:center
   <main id="screen"></main>
   <footer id="actions"></footer>
 </div>
-<script src="words.js?v=2026-11-09-1"></script>
-<script src="sentences.js?v=2026-11-09-1"></script>
-<script src="grammar.js?v=2026-11-09-1"></script>
+<script src="words.js?v=2026-11-10-1"></script>
+<script src="sentences.js?v=2026-11-10-1"></script>
+<script src="grammar.js?v=2026-11-10-1"></script>
 <script>
 (function(){
 'use strict';
@@ -429,7 +430,7 @@ function verbRu(w){var e=GRAMMAR.verbs[w.gr];return e&&e.ru;}
 function modePool(mode,pool,conj){
   if(mode==='plural')return pool.filter(function(w){return w.pos==='n'&&pluralOf(w);});
   if(mode==='conj')return pool.filter(function(w){return w.pos==='v'&&verbForms(w);});
-  if(mode==='say')return conj?pool.filter(function(w){return w.pos==='v'&&verbForms(w);}):pool.filter(function(w){return sentencesFor(w).length;});
+  if(mode==='say')return conj==='acc'?pool.filter(function(w){return casesFor(w).length;}):conj?pool.filter(function(w){return w.pos==='v'&&verbForms(w);}):pool.filter(function(w){return sentencesFor(w).length;});
   return pool;
 }
 /* Предложения режимов 9 и 10 (sentences.js): по нескольку на слово. В сеансе слово получает одно
@@ -441,7 +442,16 @@ function pickSentence(w){
   if(n>1&&k===last)k=(k+1+Math.floor(Math.random()*(n-1)))%n;
   store.sayLast[w.gr]=k;save();return k;
 }
-function sayCur(){if(session.conj)return conjTarget(cur());var w=cur(),k=session.sentIdx&&session.sentIdx[w.gr],x=sentencesFor(w)[k||0]||[w.gr,w.ru];return {gr:x[0],ru:x[1]};}
+function casesFor(w){return (GRAMMAR.cases&&GRAMMAR.cases[w.gr])||[];}
+/* Режим «Винительный падеж»: упражнение из grammar.js, одно на слово за сеанс (случайное). */
+function accTarget(w){
+  var list=casesFor(w);if(!session.caseIdx)session.caseIdx={};
+  if(session.caseIdx[w.gr]==null)session.caseIdx[w.gr]=Math.floor(Math.random()*list.length);
+  var e=list[session.caseIdx[w.gr]]||list[0]||['','',''];
+  return {gr:e[1],ru:e[2],show:e[0],hint:e[1]};
+}
+function gapHtml(t){return String(t).split(/_+/).map(esc).join('<span class="gap"></span>');}
+function sayCur(){if(session.acc)return accTarget(cur());if(session.conj)return conjTarget(cur());var w=cur(),k=session.sentIdx&&session.sentIdx[w.gr],x=sentencesFor(w)[k||0]||[w.gr,w.ru];return {gr:x[0],ru:x[1]};}
 /* Режим «Спряжение вслух»: эталон — местоимения и формы по лицам, «αυτός αυτή αυτό» целиком.
    alts — допустимые варианты для каждого слова эталона: варианты формы (ουν / ουνε), для «они»
    также αυτές и αυτά. hint — само слово (1-е лицо) для подсказки звуком. */
@@ -540,6 +550,7 @@ var MODE_LIST=[
   {key:'plural',mode:'plural',dir:'ru',t:'Множественное число',d:'Артикль и окончание в единственном и множественном числе'},
   {key:'conj',mode:'conj',dir:'ru',t:'Спряжение глаголов',d:'Впиши местоимение и окончание по русской подсказке'},
   {key:'conj-say',mode:'say',dir:'ru',conj:true,t:'Спряжение вслух',net:true,d:'Скажи по русскому слову все местоимения и формы глагола'},
+  {key:'acc',mode:'say',dir:'ru',acc:true,t:'Винительный падеж',net:true,d:'Произнеси предложение целиком, восстановив артикли и окончания'},
   {key:'say',mode:'say',dir:'gr',t:'Отработка лексики',net:true,d:'Прочитай греческое предложение вслух в микрофон'},
   {key:'say-ru',mode:'say',dir:'ru',t:'Отработка лексики: с русского',net:true,d:'Скажи по-гречески предложение по русскому переводу'},
   {key:'dialog',mode:'dialog',dir:'gr',t:'Занятие с ИИ',dev:true,net:true,d:'Скажи по-русски, чем заняться, и говори с языковой моделью голосом: диалог, слова, вопросы'}
@@ -670,7 +681,7 @@ function renderHome(){
     var off=m.net&&!isOnline();
     return '<button class="mode'+(off?' off':'')+'" data-action="pick-mode" data-key="'+m.key+'"><span class="num">'+(i+1)+'</span><span class="txt"><div class="t">'+esc(m.t)+(off?'<span class="badge-dev off">нет сети</span>':m.dev?'<span class="badge-dev">в разработке</span>':'')+'</div><div class="d">'+esc(m.d)+'</div></span><span class="arr">›</span></button>';
   }).join('')+'</div>';
-  if(isIOSDevice()&&!aiAudioPossible())h+='<p class="small muted" style="margin-top:8px">Режимы «Спряжение вслух», «Отработка лексики» и «Занятие с ИИ» на iPhone работают через запись голоса в модель: они появятся после ввода в настройках ключа Google (бесплатный), OpenAI или OpenRouter.</p>';
+  if(isIOSDevice()&&!aiAudioPossible())h+='<p class="small muted" style="margin-top:8px">Режимы «Спряжение вслух», «Винительный падеж», «Отработка лексики» и «Занятие с ИИ» на iPhone работают через запись голоса в модель: они появятся после ввода в настройках ключа Google (бесплатный), OpenAI или OpenRouter.</p>';
   else if(!isIOSDevice()&&canListen&&!aiProvider())h+='<p class="small muted" style="margin-top:8px">Режим «Занятие с ИИ» (разговор голосом по-гречески) появится после ввода ключа API в настройках.</p>';
   if(!n){h+='<p class="notice" style="margin-top:16px">'+(set.mix?'Отметьте выше хотя бы один урок и хотя бы одну часть речи.':set.words.length?'Включите выше лексику и хотя бы одну часть речи.':'В этом наборе нет слов. Добавьте слова в words.js или импортируйте набор в настройках.')+'</p>';}
   return h;
@@ -685,11 +696,11 @@ function startMode(key){
   if(m.net&&!isOnline()){homeMsg='Режим «'+m.t+'» работает только с интернетом: распознавание речи и модель живут в сети.';render();return;}
   var set=currentSet();
   if(!poolWords(set).length)return;
-  if(!modePool(m.mode,poolWords(set),m.conj).length){homeMsg=m.mode==='plural'?'В выбранных словах нет существительных с формой множественного числа.':(m.mode==='say'&&!m.conj)?'Для выбранных слов ещё нет предложений.':'В выбранных словах нет глаголов со спряжением.'+(extraOf(set).some(function(w){return w.pos==='v'&&verbForms(w);})&&!lexCfg(set).x?' Они есть в дополнительной лексике этого урока: включи её выше.':' Выбери другой урок.');render();return;}
+  if(!modePool(m.mode,poolWords(set),m.acc?'acc':m.conj).length){homeMsg=m.mode==='plural'?'В выбранных словах нет существительных с формой множественного числа.':m.acc?'Для выбранных слов нет упражнений на винительный падеж. Включи основную лексику или выбери другой урок.':(m.mode==='say'&&!m.conj)?'Для выбранных слов ещё нет предложений.':'В выбранных словах нет глаголов со спряжением.'+(extraOf(set).some(function(w){return w.pos==='v'&&verbForms(w);})&&!lexCfg(set).x?' Они есть в дополнительной лексике этого урока: включи её выше.':' Выбери другой урок.');render();return;}
   homeMsg='';
   var scope=store.settings.scope==='new'?'new':'all';
   if(scope==='new'&&!freshCount(set))scope='all';
-  view={name:'session',key:key,mode:m.mode,dir:m.dir,conj:!!m.conj,scope:scope,shuffle:store.settings.shuffle!==false};
+  view={name:'session',key:key,mode:m.mode,dir:m.dir,conj:!!m.conj,acc:!!m.acc,scope:scope,shuffle:store.settings.shuffle!==false};
   trackEvent('mode/'+key,m.t);
   if(m.mode==='dialog'){startDialog();return;}
   startSession();
@@ -699,14 +710,14 @@ function plural(n,a,b,c){var m10=n%10,m100=n%100;if(m10===1&&m100!==11)return a;
 /* ---------- session ---------- */
 function startSession(words){
   var set=currentSet();
-  var pool=modePool(view.mode,poolWords(set),view.conj);
+  var pool=modePool(view.mode,poolWords(set),view.acc?'acc':view.conj);
   var scopeWords=pool.slice();if(view.scope==='new')scopeWords=scopeWords.filter(function(w){return !isLearned(set,view.dir,w);});
   if(!words){words=scopeWords.slice();if(view.shuffle)shuffle(words);}
   if(!words.length){goHome();return;}
-  session={mode:view.mode,dir:view.dir,conj:!!view.conj,set:set,pool:pool,words:words,scopeWords:scopeWords,i:0,results:[],flipped:false,state:'ask',picked:[],tiles:null,options:null,typed:''};
+  session={mode:view.mode,dir:view.dir,conj:!!view.conj,acc:!!view.acc,set:set,pool:pool,words:words,scopeWords:scopeWords,i:0,results:[],flipped:false,state:'ask',picked:[],tiles:null,options:null,typed:''};
   view.name='session';prepareItem();render();
 }
-function sessionTitle(){if(session.conj)return 'Спряжение вслух';var t=MODE_TITLE[session.mode];if(session.mode==='flash'||session.mode==='quiz')t+=session.dir==='gr'?' · гр → ру':' · ру → гр';if(session.mode==='say'&&session.dir==='ru')t+=' · с русского';return t;}
+function sessionTitle(){if(session.conj)return 'Спряжение вслух';if(session.acc)return 'Винительный падеж';var t=MODE_TITLE[session.mode];if(session.mode==='flash'||session.mode==='quiz')t+=session.dir==='gr'?' · гр → ру':' · ру → гр';if(session.mode==='say'&&session.dir==='ru')t+=' · с русского';return t;}
 function cur(){return session.words[session.i];}
 function prepareItem(){
   session.flipped=false;session.state='ask';session.picked=[];session.typed='';session.grade=null;session.pickedOpt=null;session.hinted=false;
@@ -931,8 +942,9 @@ function renderSay(w){
   var h=progressHtml();
   if(!done&&isIOSDevice()&&!sayAudioOnly())h+='<p class="notice" style="margin-top:10px">На iPhone распознавание речи в браузере сейчас не работает (ошибка iOS 27), поэтому предложение надиктовывают через клавиатуру.</p>';
   h+=voiceWarnHtml();
-  h+='<div class="prompt"><div class="lang">'+(session.conj?'Глагол':gr?'Греческий':'Русский')+'</div>';
-  if(gr)h+='<div class="word sent">'+sayMarked(w)+'</div><div class="muted" style="margin-top:8px">'+esc(w.ru)+'</div>';
+  h+='<div class="prompt"><div class="lang">'+(session.acc?'Винительный падеж':session.conj?'Глагол':gr?'Греческий':'Русский')+'</div>';
+  if(session.acc){h+='<div class="word sent">'+((done||session.marks)?sayMarked(w):gapHtml(w.show))+'</div><div class="muted" style="margin-top:8px">'+esc(w.ru)+'</div>';}
+  else if(gr)h+='<div class="word sent">'+sayMarked(w)+'</div><div class="muted" style="margin-top:8px">'+esc(w.ru)+'</div>';
   else{h+='<div class="word ru sent">'+esc(w.ru)+'</div>';if(done||session.marks)h+='<div class="word sent'+(session.conj?' conj':'')+'" style="margin-top:10px">'+sayMarked(w)+'</div>';
     else if(session.conj)h+='<p class="small muted" style="margin:8px 0 0">Скажи: εγώ …, εσύ …, αυτός αυτή αυτό …, εμείς …, εσείς …, αυτοί …</p>';}
   if(canSpeak){
@@ -1108,7 +1120,7 @@ function sayAiCheck(wav){
       if(sc.ok)finishSay(true);
     }else s.aiOk=!!res.ok;
     render();
-  },s.conj?'Ученик произносит вслух спряжение греческого глагола в настоящем времени: местоимение и форму для каждого лица (εγώ, εσύ, αυτός αυτή αυτό, εμείς, εσείς, αυτοί); эталон будет дан в самом конце, после записи.':'');
+  },s.acc?'Ученик произносит вслух греческое предложение, в котором на письме были пропущены артикли и окончания винительного падежа; оценивается, правильно ли он их восстановил и произнёс. Эталон будет дан в самом конце, после записи.':s.conj?'Ученик произносит вслух спряжение греческого глагола в настоящем времени: местоимение и форму для каждого лица (εγώ, εσύ, αυτός αυτή αυτό, εμείς, εσείς, αυτοί); эталон будет дан в самом конце, после записи.':'');
 }
 /* Оценка произношения 0–6 тремя кружками: 6 — три зелёных, 5 — два зелёных и жёлтый, 4 — зелёный и два
    жёлтых, 3 — три жёлтых, 2 — два жёлтых и красный, 1 — жёлтый и два красных, 0 — три красных. */
@@ -1923,8 +1935,8 @@ function renderSettings(){
   h+='<h3>Занятие с ИИ</h3>';
   {
     var link=function(u,t){return '<a href="'+u+'" target="_blank" rel="noopener">'+t+'</a>';};
-    h+='<p class="small muted">Ключ API разблокирует режимы 9–11 («Спряжение вслух», «Отработка лексики») на iPhone и режим 12 «Занятие с ИИ» на любых устройствах. Рекомендуются ключи '+link('https://openrouter.ai/settings/keys','OpenRouter')+' или '+link('https://aistudio.google.com/apikey','Google')+'. Бесплатный ключ Google тоже подходит, но тогда стабильно работает только модель 3.1. Можно использовать и ключи '+link('https://platform.claude.com/settings/keys','Anthropic')+' или '+link('https://platform.openai.com/api-keys','OpenAI')+'. Ключ хранится только в этом браузере.</p>';
-    if(!isIOSDevice()&&!canListen)h+='<p class="notice bad">Этот браузер не умеет распознавать речь: без ключа с записью голоса режимы 9–12 не появятся. Открой приложение в Chrome или Safari.</p>';
+    h+='<p class="small muted">Ключ API разблокирует режимы 9–12 («Спряжение вслух», «Винительный падеж», «Отработка лексики») на iPhone и режим 13 «Занятие с ИИ» на любых устройствах. Рекомендуются ключи '+link('https://openrouter.ai/settings/keys','OpenRouter')+' или '+link('https://aistudio.google.com/apikey','Google')+'. Бесплатный ключ Google тоже подходит, но тогда стабильно работает только модель 3.1. Можно использовать и ключи '+link('https://platform.claude.com/settings/keys','Anthropic')+' или '+link('https://platform.openai.com/api-keys','OpenAI')+'. Ключ хранится только в этом браузере.</p>';
+    if(!isIOSDevice()&&!canListen)h+='<p class="notice bad">Этот браузер не умеет распознавать речь: без ключа с записью голоса режимы 9–13 не появятся. Открой приложение в Chrome или Safari.</p>';
     h+='<form id="keyForm" class="keyrow"><input type="text" id="keyInput" class="keyfield" name="greek-api-key" value="'+esc(claudeKey())+'" placeholder="sk-ant-…, sk-or-…, sk-…, AQ.…" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false" inputmode="text" aria-label="Ключ API"><button type="button" class="btn ghost" data-action="key-eye" aria-label="Показать ключ">👁</button><button type="submit" class="btn">Проверить</button>'+(claudeKey()?'<button type="button" class="btn ghost" data-action="key-clear">Удалить</button>':'')+'</form><p class="small muted" id="keyHint" style="margin:4px 0 0;min-height:1.2em">'+(claudeKey()?'Ключ '+esc(AI_PROVIDERS[aiProvider()].name)+'.':'')+'</p>';
     h+=settingsMsgHtml('key');
     var pv=AI_PROVIDERS[aiProvider()];
@@ -1935,7 +1947,7 @@ function renderSettings(){
       h+='<div class="seg" style="margin-top:8px">'+
         '<label class="'+(mode==='model'?'on':'')+(can?'':' off')+'"><input type="radio" name="aiAudio" value="model" data-action="set-ai-audio"'+(mode==='model'?' checked':'')+(can?'':' disabled')+'>Запись голоса в модель</label>'+
         '<label class="'+(mode==='browser'?'on':'')+(noBrowser?' off':'')+'"><input type="radio" name="aiAudio" value="browser" data-action="set-ai-audio"'+(mode==='browser'?' checked':'')+(noBrowser?' disabled':'')+'>Распознаёт браузер</label></div>';
-      if(pid==='anthropic')h+='<p class="small muted" style="margin-top:4px">Claude звук не принимает: речь распознаёт браузер, на iPhone режимы 9–12 с этим ключом не появятся.</p>';
+      if(pid==='anthropic')h+='<p class="small muted" style="margin-top:4px">Claude звук не принимает: речь распознаёт браузер, на iPhone режимы 9–13 с этим ключом не появятся.</p>';
     }
   }
   h+='<h3>Прогресс набора «'+esc(set.title)+'»</h3>';
@@ -2239,7 +2251,7 @@ function restoreResume(){
       else{
       var byGr={};set.words.concat(extraOf(set)).forEach(function(w){byGr[w.gr]=w;});
       var res=function(k){var w=byGr[k];if(!w)throw new Error('missing word '+k);return w;};
-      session={mode:sv.mode,dir:sv.dir,conj:!!v.conj,set:set,pool:modePool(sv.mode,poolWords(set),v.conj),sentIdx:sv.sentIdx||null,words:sv.words.map(res),scopeWords:sv.scopeWords.map(res),i:sv.i,
+      session={mode:sv.mode,dir:sv.dir,conj:!!v.conj,acc:!!v.acc,set:set,pool:modePool(sv.mode,poolWords(set),v.acc?'acc':v.conj),sentIdx:sv.sentIdx||null,words:sv.words.map(res),scopeWords:sv.scopeWords.map(res),i:sv.i,
         results:sv.results.map(function(r){return r?Object.assign({},r,{word:res(r.word)}):null;}),requeued:sv.requeued,hinted:!!sv.hinted,parts:sv.parts||null,heard:sv.heard||'',marks:sv.marks||null,sayMsg:sv.sayMsg||'',sayTrace:sv.sayTrace||'',attempts:sv.attempts||0,person:sv.person,persons:sv.persons||null,
         flipped:sv.flipped,state:sv.state,picked:sv.picked,typed:sv.typed,grade:sv.grade,pickedOpt:sv.pickedOpt,tiles:sv.tiles,options:sv.options,correctOpt:sv.correctOpt,target:sv.target};
       if(v.name==='session'&&!session.words[session.i])throw new Error('bad index');}
