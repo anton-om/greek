@@ -24,7 +24,7 @@ var appZoom=1;
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Греческий">
-<meta name="build" content="2026-11-10-1">
+<meta name="build" content="2026-11-10-2">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap">
@@ -266,6 +266,7 @@ input[type=text].big{font-family:var(--display);font-size:24px;text-align:center
 .cheat .sub{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin:14px 0 2px}
 .art{display:grid;gap:0 14px;align-items:baseline;font-size:14px}
 .art.c3{grid-template-columns:1fr auto auto}.art.c2{grid-template-columns:1fr auto}.art.conj{grid-template-columns:auto auto 1fr;gap:0 12px}.art.conj .A.E{font-size:15px}
+.art.cases{grid-template-columns:auto 1fr 1fr;gap:0 10px}.art.cases .A.E{font-size:14.5px;line-height:1.35}
 .art.conj4{grid-template-columns:auto 1fr 1fr 1fr;gap:0 8px}.art.conj4 .A.E{font-size:15px}.art.conj4>span.h{text-transform:none;letter-spacing:0;font-size:12px}
 .dict-row{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr) auto;gap:10px;align-items:center;padding:4px 0;border-bottom:1px solid var(--line)}
 .dict-row .gr{font-weight:500}.dict-row .spk{width:36px;height:36px;font-size:18px;border:1px solid var(--line);background:var(--surface)}
@@ -295,9 +296,9 @@ input[type=text].big{font-family:var(--display);font-size:24px;text-align:center
   <main id="screen"></main>
   <footer id="actions"></footer>
 </div>
-<script src="words.js?v=2026-11-10-1"></script>
-<script src="sentences.js?v=2026-11-10-1"></script>
-<script src="grammar.js?v=2026-11-10-1"></script>
+<script src="words.js?v=2026-11-10-2"></script>
+<script src="sentences.js?v=2026-11-10-2"></script>
+<script src="grammar.js?v=2026-11-10-2"></script>
 <script>
 (function(){
 'use strict';
@@ -1800,7 +1801,7 @@ function casesHtml(){
   h+='<p class="sub">Неопределённый артикль в винительном падеже</p><div class="art c2"><span class="h">Род</span><span class="h">Ед. ч.</span>';
   h+=ACC_INDEF.map(function(r){return '<span>'+esc(r[0])+'</span><span class="A E">'+esc(r[1])+'</span>';}).join('')+'</div>';
   h+='<p class="note"><span class="muted">'+ACC_INDEF.map(function(r){return grHtml(r[2],r[3]);}).join(' ')+'</span></p>';
-  h+='<p class="sub">Окончания существительных в винительном падеже</p><div class="art c3"><span class="h">Род</span><span class="h">Ед. ч.</span><span class="h">Мн. ч.</span>';
+  h+='<p class="sub">Окончания существительных в винительном падеже</p><div class="art cases"><span class="h">Род</span><span class="h">Ед. ч.</span><span class="h">Мн. ч.</span>';
   h+=ACC_ENDINGS.map(function(r){return '<span>'+esc(r[0])+'</span><span class="A E">'+esc(r[1])+'</span><span class="A E">'+esc(r[2])+'</span>';}).join('')+'</div>';
   h+=ACC_ENDINGS.map(function(r){return '<p class="sub">'+esc(r[0])+' род</p>'+r[3].map(function(e){return '<p class="note"><span class="muted">'+grHtml(e[0],e[1])+' → <span class="ex" data-action="speak" data-text="'+esc(e[2])+'">'+esc(e[2])+'</span></span></p>';}).join('');}).join('');
   h+='<p class="sub">Запомнить</p>';
