@@ -24,7 +24,7 @@ var appZoom=1;
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Греческий">
-<meta name="build" content="2026-11-12-2">
+<meta name="build" content="2026-11-12-3">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap">
@@ -302,9 +302,9 @@ input[type=text].big{font-family:var(--display);font-size:24px;text-align:center
   <main id="screen"></main>
   <footer id="actions"></footer>
 </div>
-<script src="words.js?v=2026-11-12-2"></script>
-<script src="sentences.js?v=2026-11-12-2"></script>
-<script src="grammar.js?v=2026-11-12-2"></script>
+<script src="words.js?v=2026-11-12-3"></script>
+<script src="sentences.js?v=2026-11-12-3"></script>
+<script src="grammar.js?v=2026-11-12-3"></script>
 <script>
 (function(){
 'use strict';
@@ -1981,6 +1981,8 @@ function storyLoad(url){
   var id=storyDocId(url);
   if(!id){storyMsg('Ошибка: это не ссылка на Google Документ. Нужна ссылка вида docs.google.com/document/d/…');render();return;}
   if(!isOnline()){storyMsg('Ошибка: нет сети. Загрузи документ при подключении.');render();return;}
+  /* Другая ссылка: старый рассказ стирается сразу, чтобы при неудачной загрузке не остался чужой текст. */
+  if(story&&story.id!==id){story=null;storyUi.res={};storySave();}
   storyUi.loading=true;storyUi.err='';if(view.name==='settings'){settingsMsg='';}keepScroll=true;render();
   var ctl=new AbortController(),tm=setTimeout(function(){ctl.abort();},30000);
   fetch('https://docs.google.com/document/d/'+id+'/export?format=txt',{signal:ctl.signal,credentials:'omit'})
