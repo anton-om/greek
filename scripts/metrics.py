@@ -60,13 +60,13 @@ def main():
         for s in h.get("stats", []):
             per.setdefault(s["day"], {})[h["path"]] = s.get("daily", 0)
     page_total = {s["day"]: s.get("daily", 0) for s in total.get("stats", [])}
-    cols = ["день", "посет", "просм", "нов.устр"] + [SHORT[m] for m in MODES] + ["завершено", "шпарг"]
+    cols = ["день", "посет", "просм", "нов.устр"] + [SHORT[m] for m in MODES] + ["завершено", "шпарг", "словарь", "рассказ", "расск.пров"]
     rows = []
     for d in days:
         p = per.get(d, {})
-        visitors = sum(v for k, v in p.items() if not k.startswith(("mode/", "done/")) and k not in ("cheat", "new-device"))
+        visitors = sum(v for k, v in p.items() if k.startswith("/"))  # пути страницы; события (mode/…, cheat, dict, story…) не считаются
         done = sum(v for k, v in p.items() if k.startswith("done/"))
-        rows.append([d, visitors, page_total.get(d, 0), p.get("new-device", 0)] + [p.get("mode/" + m, 0) for m in MODES] + [done, p.get("cheat", 0)])
+        rows.append([d, visitors, page_total.get(d, 0), p.get("new-device", 0)] + [p.get("mode/" + m, 0) for m in MODES] + [done, p.get("cheat", 0), p.get("dict", 0), p.get("story", 0), p.get("story-check", 0)])
     w = [max(len(str(x)) for x in col) for col in zip(cols, *rows)] if rows else [len(c) for c in cols]
     line = lambda r: "  ".join(str(x).rjust(w[i]) if i else str(x).ljust(w[i]) for i, x in enumerate(r))
     print(f"GoatCounter {SITE}, {start.date()} — {end.date()}")

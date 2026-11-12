@@ -24,7 +24,7 @@ var appZoom=1;
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Греческий">
-<meta name="build" content="2026-11-12-1">
+<meta name="build" content="2026-11-12-2">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap">
@@ -271,6 +271,12 @@ input[type=text].big{font-family:var(--display);font-size:24px;text-align:center
 .dict-row{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr) auto;gap:10px;align-items:center;padding:4px 0;border-bottom:1px solid var(--line)}
 .dict-row .gr{font-weight:500}.dict-row .spk{width:36px;height:36px;font-size:18px;border:1px solid var(--line);background:var(--surface)}
 .dict #dictQ{width:100%}
+.story-sec{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:12px 14px;margin-top:12px}
+.story-q{margin:0 0 6px;font-weight:600}.story-q .n{color:var(--muted);margin-right:4px}.story-q .qgr{font-weight:500;color:var(--muted)}
+.story-ru{margin:0 0 8px;color:var(--muted);font-size:14px}.story-gr{margin:0;font-family:var(--display);font-size:20px;line-height:1.35;overflow-wrap:anywhere}
+.story-gr p{margin:0 0 4px}.story-tools{display:flex;gap:10px;align-items:center;margin-top:10px}.story-tools .st{flex:1;font-size:13px;color:var(--muted)}
+.story .result{margin-top:10px;padding:10px 12px}.story .result .mark{font-size:22px}.story-form{display:flex;gap:8px;margin-top:8px}.story-form input{flex:1;min-width:0}.story-form .btn{flex:0 0 auto}
+.story-hidden{color:var(--muted);font-size:14px;font-family:inherit}
 .dict-row .ru{color:var(--muted)}.dict-ok{color:var(--good);font-weight:700}.dict-l{margin:12px 0 2px;font-weight:700;font-family:var(--display);font-size:17px}
 .art.conj4.c2{grid-template-columns:auto 1fr 1fr}
 .art.conj4 .A.E small{display:block;font-size:11.5px;font-weight:400;color:var(--muted);margin-top:1px}
@@ -296,9 +302,9 @@ input[type=text].big{font-family:var(--display);font-size:24px;text-align:center
   <main id="screen"></main>
   <footer id="actions"></footer>
 </div>
-<script src="words.js?v=2026-11-12-1"></script>
-<script src="sentences.js?v=2026-11-12-1"></script>
-<script src="grammar.js?v=2026-11-12-1"></script>
+<script src="words.js?v=2026-11-12-2"></script>
+<script src="sentences.js?v=2026-11-12-2"></script>
+<script src="grammar.js?v=2026-11-12-2"></script>
 <script>
 (function(){
 'use strict';
@@ -622,6 +628,7 @@ function render(){
   else if(view.name==='settings'){title='Настройки';html=renderSettings();}
   else if(view.name==='cheat'){title='Шпаргалка';html=renderCheat();}
   else if(view.name==='dict'){title='Словарь';html=renderDict();}
+  else if(view.name==='story'){title='Рассказ о себе';html=renderStory();}
   topTitle.textContent=title;
   var st=screen.scrollTop;screen.innerHTML=html;actions.innerHTML=foot;
   screen.scrollTop=keepScroll?st:0;var keepScrollDone=keepScroll;keepScroll=false;
@@ -660,6 +667,7 @@ function renderHome(){
   var sets=allSets();
   var h=installHtml()+'<div class="hero"><div class="hero-h"><h2>Греческие слова</h2><button class="icon-btn" data-action="settings" aria-label="Настройки">⚙</button></div><p class="muted small">Карточки, письмо и тесты по наборам слов.</p></div>';
   h+='<h3>Справка</h3><button class="mode" data-action="cheat"><span class="num">Αα</span><span class="txt"><div class="t">Шпаргалка</div><div class="d">Алфавит, ударение, артикли, окончания, падежи, местоимения, спряжение глаголов</div></span><span class="arr">›</span></button>';
+  if(story)h+='<button class="mode" data-action="story"><span class="num">Я</span><span class="txt"><div class="t">Рассказ о себе</div><div class="d">'+esc((story.title||'Мой рассказ')+': '+story.sections.length+' '+plural(story.sections.length,'раздел','раздела','разделов')+'. Озвучка'+(aiAudioPossible()?' и проверка произношения':'')+' по разделам')+'</div></span><span class="arr">›</span></button>';
   h+='<h3>Набор слов</h3>'+'<div class="setbox">';
   h+='<div class="row"><select id="setSelect" aria-label="Набор слов">'+sets.map(function(s){return '<option value="'+esc(s.id)+'"'+(s.id===set.id?' selected':'')+'>'+esc(s.title)+' ('+s.words.length+')</option>';}).join('')
     +'<option value="'+MIX_ID+'"'+(set.mix?' selected':'')+'>Custom: свой выбор уроков'+(set.mix?' ('+n+')':'')+'</option></select></div>';
@@ -1930,6 +1938,106 @@ function renderCheat(){
   return h;
 }
 
+/* ---------- рассказ о себе ----------
+   Личный текст ученика (ответы на вопросы устного экзамена) из его Google Документа. Хранится только
+   в этом браузере (localStorage, отдельный ключ, не сбрасывается вместе с прогрессом) и никуда не
+   уходит, кроме модели ИИ при проверке произношения. Документ должен быть открыт по ссылке для чтения:
+   тогда docs.google.com/document/d/ID/export?format=txt отдаёт текст с заголовком CORS для любого
+   источника (проверено 2026-11-12). Разделы — нумерованные строки «1. Вопрос / Ερώτηση;», ниже ответ
+   по-русски и по-гречески; греческие строки озвучиваются и проверяются, русские — подсказка. */
+var STORY_KEY='greek-words:story';
+var story=null;try{story=JSON.parse(localStorage.getItem(STORY_KEY)||'null');if(story&&!(story.sections&&story.sections.length))story=null;}catch(e){story=null;}
+var storyUi={rec:-1,busy:-1,res:{},err:'',loading:false,hide:false,shown:{}};
+function storySave(){try{if(story)localStorage.setItem(STORY_KEY,JSON.stringify(story));else localStorage.removeItem(STORY_KEY);}catch(e){}}
+/* Политонические знаки, набранные по ошибке (ὼ, ὲ), приводятся к обычному ударению. */
+function storyMono(t){return String(t).normalize('NFD').replace(/[̀͂]/g,'́').replace(/[̓̔ͅ]/g,'').normalize('NFC');}
+function hasGreek(t){return /[Ͱ-Ͽἀ-῿]/.test(t);}
+function storyDocId(u){var m=String(u||'').match(/docs\.google\.com\/document\/(?:u\/\d+\/)?d\/([A-Za-z0-9_-]+)/);return m?m[1]:'';}
+function storyParse(txt){
+  var lines=String(txt||'').replace(/^﻿/,'').split(/\r?\n/).map(function(l){return l.replace(/\s+/g,' ').trim();});
+  var start=/^(\d+)\s*[.)]\s+(.*)$/,numbered=lines.some(function(l){return start.test(l);});
+  var secs=[],cur=null,title='';
+  function open(n,head){cur={n:n,q:'',qgr:'',ru:[],gr:[]};secs.push(cur);
+    if(head){var parts=head.split(/\s*\/\s*/);cur.q=parts.filter(function(p){return !hasGreek(p);}).join(' / ');cur.qgr=storyMono(parts.filter(hasGreek).join(' '));}}
+  lines.forEach(function(l){
+    if(!l){if(!numbered)cur=null;return;}
+    if(numbered){var m=l.match(start);if(m){open(m[1],m[2]);return;}if(!cur){if(!title)title=l;return;}}
+    else if(!cur){if(!secs.length&&!title&&!hasGreek(l)){title=l;return;}open(String(secs.length+1),hasGreek(l)?'':l);if(!hasGreek(l))return;}
+    if(hasGreek(l))cur.gr.push(storyMono(l));else cur.ru.push(l);
+  });
+  return {title:title,sections:secs.filter(function(x){return x.gr.length;})};
+}
+function storyText(sec){return sec.gr.map(function(l){return /[.;!?…]$/.test(l)?l:l+'.';}).join(' ');}
+function storyApply(txt,url,id){
+  var p=storyParse(txt);
+  if(!p.sections.length){storyMsg('Ошибка: в документе не нашлось разделов с греческим текстом. Нужны нумерованные вопросы («1. …») и под ними ответ по-гречески.');render();return;}
+  story={url:url||'',id:id||'',title:p.title,sections:p.sections,at:Date.now()};
+  storyUi.res={};storyUi.err='';storyUi.shown={};storySave();trackEvent('story-load','Рассказ: загрузка');
+  storyMsg('Загружено: '+(p.title||'рассказ')+', '+p.sections.length+' '+plural(p.sections.length,'раздел','раздела','разделов')+'. Режим «Рассказ о себе» появился на главном экране после шпаргалки.');render();
+}
+/* Сообщения загрузки: в настройках — в разделе «Рассказ о себе», на экране рассказа — вверху. */
+function storyMsg(m){if(view.name==='settings'){settingsMsg=m;settingsMsgAt='story';keepScroll=true;}else storyUi.err=m;}
+function storyLoad(url){
+  var id=storyDocId(url);
+  if(!id){storyMsg('Ошибка: это не ссылка на Google Документ. Нужна ссылка вида docs.google.com/document/d/…');render();return;}
+  if(!isOnline()){storyMsg('Ошибка: нет сети. Загрузи документ при подключении.');render();return;}
+  storyUi.loading=true;storyUi.err='';if(view.name==='settings'){settingsMsg='';}keepScroll=true;render();
+  var ctl=new AbortController(),tm=setTimeout(function(){ctl.abort();},30000);
+  fetch('https://docs.google.com/document/d/'+id+'/export?format=txt',{signal:ctl.signal,credentials:'omit'})
+    .then(function(r){clearTimeout(tm);if(!r.ok)throw new Error('HTTP '+r.status);return r.text();})
+    .then(function(t){storyUi.loading=false;if(/^\s*<(!doctype|html)/i.test(t))throw new Error('html');storyApply(t,url,id);})
+    .catch(function(e){clearTimeout(tm);storyUi.loading=false;
+      storyMsg('Ошибка: не удалось загрузить документ'+(e.name==='AbortError'?' (нет ответа за 30 секунд)':e.message==='html'?'':' ('+e.message+')')+'. Проверь, что он открыт по ссылке: в Google Документах «Поделиться» → «Все, у кого есть ссылка» → «Читатель».');render();});
+}
+function storyStop(){if(storyUi.rec>=0){storyUi.rec=-1;if(recOn)try{recStop();}catch(e){}}}
+function storyMicDown(ev,i){
+  if(!story||storyUi.rec>=0||storyUi.busy>=0||!aiAudioPossible()||!isOnline())return;ev.preventDefault();
+  try{speechSynthesis.cancel();}catch(e){}
+  storyUi.rec=i;storyUi.err='';var b=ev.target.closest('.story-mic');if(b)b.classList.add('on');
+  var st=document.getElementById('sst-'+i);if(st)st.textContent='Говори… Отпусти, когда закончишь.';
+  recStart(function(e){if(e&&storyUi.rec===i){storyUi.rec=-1;storyUi.res[i]={err:'Нет доступа к микрофону. Разреши его в настройках браузера.'};keepScroll=true;render();}});
+}
+function storyMicUp(){
+  if(storyUi.rec<0)return;var i=storyUi.rec;storyUi.rec=-1;
+  var r=recOn?recStop():{seconds:0};
+  if(r.seconds<0.4){storyUi.res[i]={err:'Держи кнопку нажатой всё время, пока говоришь.'};keepScroll=true;render();return;}
+  storyCheck(i,r.wav);
+}
+function storyCheck(i,wav){
+  var sec=story.sections[i];if(!sec||storyUi.busy>=0)return;
+  storyUi.busy=i;storyUi.res[i]=null;keepScroll=true;render();
+  var t0=Date.now();
+  aiSpeechCheck(wav,storyText(sec),function(err,res){
+    if(storyUi.busy!==i)return;storyUi.busy=-1;
+    storyUi.res[i]=err?{err:err}:{heard:res.heard,score:res.score,ok:res.ok,feedback:res.feedback,ms:Date.now()-t0};
+    trackEvent('story-check','Рассказ: проверка');keepScroll=true;if(view.name==='story')render();
+  },'Ученик рассказывает о себе наизусть по собственному подготовленному тексту (ответ на вопрос устного экзамена); эталон — этот текст, он будет дан в самом конце, после записи. Если ученик пересказал своими словами, пропустил или заменил часть предложений, но говорил по-гречески понятно, это не ошибка произношения: в feedback отметь, что пропущено или сказано иначе, а score ставь за произношение того, что прозвучало.');
+}
+function renderStory(){
+  var h='<div class="story">';
+  var audio=aiAudioPossible(),online=isOnline();
+  if(!story)return h+'<p class="notice">Рассказ не загружен. Добавь ссылку на свой Google Документ в настройках, раздел «Рассказ о себе».</p><div class="row" style="margin-top:12px"><button class="btn" data-action="settings">Открыть настройки</button></div></div>';
+  var n=story.sections.length;
+  h+='<div class="row" style="justify-content:space-between;flex-wrap:wrap"><b>'+esc(story.title||'Мой рассказ')+'</b><span class="small muted">'+n+' '+plural(n,'раздел','раздела','разделов')+'</span></div>';
+  h+='<div class="row" style="margin-top:8px;flex-wrap:wrap">'+(story.id?'<button class="btn" data-action="story-refresh"'+(storyUi.loading||!online?' disabled':'')+'>'+(storyUi.loading?'Загружаю…':'Обновить из документа')+'</button>':'')+
+    '<label class="check" style="margin:0"><input type="checkbox" data-action="story-hide"'+(storyUi.hide?' checked':'')+'><span class="lbl">Скрыть греческий</span></label></div>';
+  if(storyUi.err)h+='<p class="notice '+(storyUi.err.indexOf('Ошибка')===0?'bad':'ok')+'" style="margin-top:8px">'+esc(storyUi.err)+'</p>';
+  if(audio&&!online)h+='<p class="small muted" style="margin-top:8px">Нет сети: проверка через ИИ недоступна, озвучка работает.</p>';
+  story.sections.forEach(function(sec,i){
+    var r=storyUi.res[i],hidden=storyUi.hide&&!storyUi.shown[i];
+    h+='<div class="story-sec" id="ssec-'+i+'"><p class="story-q"><span class="n">'+esc(sec.n)+'.</span>'+esc(sec.q)+(sec.qgr?' <span class="qgr">/ '+esc(sec.qgr)+'</span>'+(canSpeak?' <button class="icon-btn spk" style="width:30px;height:30px;font-size:15px" data-action="story-speak" data-text="'+esc(sec.qgr)+'" aria-label="Озвучить вопрос">🔊</button>':''):'')+'</p>';
+    if(sec.ru.length)h+='<p class="story-ru">'+sec.ru.map(esc).join('<br>')+'</p>';
+    h+='<div class="story-gr">'+(hidden?'<p class="story-hidden"><button class="linkbtn" data-action="story-show" data-i="'+i+'">Показать греческий текст</button></p>':sec.gr.map(function(l){return '<p>'+esc(l)+'</p>';}).join(''))+'</div>';
+    h+='<div class="story-tools">'+(canSpeak?'<button class="btn" data-action="story-speak" data-text="'+esc(storyText(sec))+'">🔊 Озвучить</button>':'')+
+      (audio?'<button class="mic sm story-mic'+(storyUi.rec===i?' on':'')+(storyUi.busy===i?' busy':'')+'" type="button" data-i="'+i+'" aria-label="Держи и говори"'+(storyUi.busy>=0||!online?' disabled':'')+'>🎤</button>':'')+
+      '<span class="st" id="sst-'+i+'">'+(storyUi.busy===i?'Отправляю запись в ИИ…':audio&&online?'Нажми и держи 🎤, пока говоришь':'')+'</span></div>';
+    if(r&&r.err)h+='<p class="notice bad" style="margin-top:10px">'+esc(r.err)+'</p>';
+    else if(r)h+='<div class="result '+(r.ok?'ok':'almost')+'" role="status"><span class="mark">🤖</span><div class="body"><div>'+scoreDots(r.score)+' ИИ услышал: «'+esc(r.heard||'')+'»</div><div class="small">'+esc(r.feedback||'')+(r.ms?' <span class="muted">('+Math.round(r.ms/100)/10+' с)</span>':'')+'</div></div></div>';
+    h+='</div>';
+  });
+  return h+'</div>';
+}
+
 /* ---------- settings ---------- */
 var settingsMsg='',settingsMsgAt='';var confirmReset=false;var confirmDelete=null;var folds={};var keepScroll=false;
 /* Сообщение настроек показывается в том разделе, к которому относится (settingsMsgAt: 'key',
@@ -1965,6 +2073,11 @@ function renderSettings(){
       if(pid==='anthropic')h+='<p class="small muted" style="margin-top:4px">Claude звук не принимает: речь распознаёт браузер, на iPhone режимы 9–13 с этим ключом не появятся.</p>';
     }
   }
+  h+='<h3>Рассказ о себе</h3>';
+  h+='<p class="small muted">Режим для подготовки устного рассказа о себе по своему тексту. Как добавить: 1) напиши рассказ в Google Документе: разделы начинаются с номера, например «1. Как вас зовут? / Πώς σας λένε;», ниже ответ по-русски и по-гречески; 2) в документе нажми «Поделиться» → «Все, у кого есть ссылка» → «Читатель» и скопируй ссылку; 3) вставь её сюда и нажми «Загрузить». Режим появится на главном экране после шпаргалки: каждый раздел можно озвучить'+(aiAudioPossible()?', а запись своего ответа отправить на проверку произношения в ИИ':'; с ключом ИИ, принимающим звук (см. выше), появится и проверка произношения')+'. Текст хранится только в этом браузере и не отправляется никуда, кроме модели ИИ при проверке.</p>';
+  h+='<form id="storyForm" class="story-form"><input type="text" id="storyUrl" inputmode="url" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="https://docs.google.com/document/d/…" value="'+esc(story?story.url:'')+'"'+(storyUi.loading?' disabled':'')+'><button type="submit" class="btn"'+(storyUi.loading?' disabled':'')+'>'+(storyUi.loading?'Загружаю…':'Загрузить')+'</button></form>';
+  h+=settingsMsgHtml('story');
+  if(story)h+='<p class="small muted" style="margin-top:8px">Загружен: '+esc(story.title||'рассказ')+', '+story.sections.length+' '+plural(story.sections.length,'раздел','раздела','разделов')+(story.at?', '+new Date(story.at).toLocaleDateString('ru-RU'):'')+'. Чтобы подтянуть правки из документа, нажми «Загрузить» ещё раз.</p><div class="row" style="margin-top:8px"><button class="btn" data-action="story-clear">Удалить рассказ</button></div>';
   h+='<h3>Прогресс набора «'+esc(set.title)+'»</h3>';
   h+='<p class="small muted">Изучено: '+learnedCount(set,null)+' / '+set.words.length+'. Отметка у слова общая для всех уроков и обоих направлений; сброс снимает её со всех слов набора, включая дополнительные.</p>';
   if(confirmReset){h+='<div class="row"><button class="btn bad" data-action="reset-progress-yes">Да, сбросить</button><button class="btn" data-action="reset-progress-no">Отмена</button></div>';}
@@ -2003,7 +2116,7 @@ function parseImport(text){
 }
 
 /* ---------- actions ---------- */
-function goHome(){sayStop();dialogStop();recRelease();micTest={};view={name:'home'};session=null;render();}
+function goHome(){sayStop();dialogStop();storyStop();recRelease();micTest={};view={name:'home'};session=null;render();}
 
 /* ---------- установка на экран «Домой» ----------
    Android/Chrome: системный диалог через beforeinstallprompt. iPhone: API нет, показываем
@@ -2051,6 +2164,11 @@ document.addEventListener('click',function(ev){
     case 'test-speech':speak('Καλημέρα');settingsMsg=speechStatus();settingsMsgAt='speech';keepScroll=true;render();break;
     case 'cheat':view={name:'cheat'};trackEvent('cheat','Шпаргалка');render();break;
     case 'dict':view={name:'dict'};trackEvent('dict','Словарь');render();break;
+    case 'story':view={name:'story'};storyUi.err='';trackEvent('story','Рассказ о себе');render();break;
+    case 'story-refresh':if(story&&story.id)storyLoad(story.url);break;
+    case 'story-clear':story=null;storySave();storyUi.res={};storyUi.err='';if(view.name==='settings'){settingsMsg='Рассказ удалён с этого устройства.';settingsMsgAt='story';keepScroll=true;}render();break;
+    case 'story-show':storyUi.shown[el.getAttribute('data-i')]=true;keepScroll=true;render();break;
+    case 'story-speak':speak(el.getAttribute('data-text'),true);break;
     case 'fold':folds[el.getAttribute('data-key')]=!folds[el.getAttribute('data-key')];keepScroll=true;render();break;
     case 'topics-all':case 'topics-none':{
       var tpAll={};if(a==='topics-none'){TOPIC_LIST.concat([['other']]).forEach(function(q){tpAll[q[0]]=false;});}
@@ -2124,6 +2242,7 @@ document.addEventListener('click',function(ev){
 document.addEventListener('change',function(ev){
   var el=ev.target;
   if(el.id==='modelSelect'){store.settings.claudeModel=el.value;save();keepScroll=true;render();return;}
+  if(el.getAttribute('data-action')==='story-hide'){storyUi.hide=el.checked;storyUi.shown={};keepScroll=true;render();return;}
   if(el.id==='setSelect'){store.setId=el.value;
     if(el.value===MIX_ID&&!allSets().some(function(x){return store.mix&&store.mix[x.id];})){store.mix={_pos:Object.assign({},POS_DEFAULT),_posV:2};allSets().forEach(function(s){store.mix[s.id]={w:true,x:false};});}
     save();render();return;}
@@ -2153,6 +2272,7 @@ document.addEventListener('submit',function(ev){
   if(ev.target.id==='typeForm'){ev.preventDefault();if(session.state==='ask')checkTyped();else next();}
   if(ev.target.id==='sayForm'){ev.preventDefault();sayCheckTyped();}
   if(ev.target.id==='keyForm'){ev.preventDefault();keySave();}
+  if(ev.target.id==='storyForm'){ev.preventDefault();var su=document.getElementById('storyUrl');storyLoad(su?su.value.trim():'');}
   if(ev.target.id==='gramForm'){ev.preventDefault();if(session.state==='ask'){if(session.mode==='conj')checkConj();else checkPlural();}else next();}
 });
 document.addEventListener('keydown',function(ev){
@@ -2226,10 +2346,10 @@ function endDrag(ev){
   }else if(card&&Math.abs(dx)<8){flip();}
 }
 document.addEventListener('pointerup',endDrag);
-screen.addEventListener('pointerdown',function(ev){if(ev.target.closest('#mic')){if(session&&session.mode==='dialog')dialogMicDown(ev);else micDown(ev);}});
-function micRelease(){if(session&&session.mode==='dialog')dialogMicUp();else micUp();}
+screen.addEventListener('pointerdown',function(ev){var sm=ev.target.closest('.story-mic');if(sm){storyMicDown(ev,parseInt(sm.getAttribute('data-i'),10));return;}if(ev.target.closest('#mic')){if(session&&session.mode==='dialog')dialogMicDown(ev);else micDown(ev);}});
+function micRelease(){if(view.name==='story'){storyMicUp();return;}if(session&&session.mode==='dialog')dialogMicUp();else micUp();}
 document.addEventListener('pointerup',micRelease);document.addEventListener('pointercancel',micRelease);
-screen.addEventListener('contextmenu',function(ev){if(ev.target.closest('#mic'))ev.preventDefault();});
+screen.addEventListener('contextmenu',function(ev){if(ev.target.closest('#mic')||ev.target.closest('.story-mic'))ev.preventDefault();});
 document.addEventListener('pointercancel',function(ev){if(drag&&ev.pointerId===drag.id){if(drag.el){drag.el.classList.remove('drag');drag.el.style.transform='';}drag=null;}});
 document.addEventListener('click',function(ev){if(suppressClick){ev.stopPropagation();ev.preventDefault();}},true);
 
