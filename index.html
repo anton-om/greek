@@ -24,7 +24,7 @@ var appZoom=1;
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Греческий">
-<meta name="build" content="2026-11-12-5">
+<meta name="build" content="2026-11-15-1">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap">
@@ -277,6 +277,7 @@ input[type=text].big{font-family:var(--display);font-size:24px;text-align:center
 .story-gr p{margin:0 0 4px}.story-tools{display:flex;gap:10px;align-items:center;margin-top:10px}.story-tools .st{flex:1;font-size:13px;color:var(--muted)}
 .story .result{margin-top:10px;padding:10px 12px}.story .result .mark{font-size:22px}.story-form{display:flex;gap:8px;margin-top:8px}.story-form input{flex:1;min-width:0}.story-form .btn{flex:0 0 auto}
 .story-hidden{color:var(--muted);font-size:14px;font-family:inherit}
+.story-gr,.story-q{user-select:text;-webkit-user-select:text;-webkit-touch-callout:default}
 .dict-row .ru{color:var(--muted)}.dict-ok{color:var(--good);font-weight:700}.dict-l{margin:12px 0 2px;font-weight:700;font-family:var(--display);font-size:17px}
 .art.conj4.c2{grid-template-columns:auto 1fr 1fr}
 .art.conj4 .A.E small{display:block;font-size:11.5px;font-weight:400;color:var(--muted);margin-top:1px}
@@ -302,9 +303,9 @@ input[type=text].big{font-family:var(--display);font-size:24px;text-align:center
   <main id="screen"></main>
   <footer id="actions"></footer>
 </div>
-<script src="words.js?v=2026-11-12-5"></script>
-<script src="sentences.js?v=2026-11-12-5"></script>
-<script src="grammar.js?v=2026-11-12-5"></script>
+<script src="words.js?v=2026-11-15-1"></script>
+<script src="sentences.js?v=2026-11-15-1"></script>
+<script src="grammar.js?v=2026-11-15-1"></script>
 <script>
 (function(){
 'use strict';
@@ -364,8 +365,8 @@ function currentSet(){if(store.setId===MIX_ID)return mixSet();var sets=allSets()
 /* Отметка «изучено» едина для слова во всех уроках и без направления: store.learned=[gr...].
    Старые форматы (progress[setId].all, ещё раньше {gr:[],ru:[]}) объединяются в общий список
    при первом обращении, после чего progress удаляется. typeHits[gr] — сколько раз подряд слово
-   написано в режиме «Пишем сами» верно с первого раза и без подсказки: после двух оно отмечается
-   изученным само. */
+   написано в режиме «Пишем сами» верно с первого раза и без подсказки (только первый ответ в сеансе,
+   запущенном с главного экрана): после трёх оно отмечается изученным само. */
 function learnedList(){
   if(!store.learned)store.learned=[];
   if(store.progress){var L=store.learned;Object.keys(store.progress).forEach(function(id){var p=store.progress[id]||{};
@@ -729,7 +730,7 @@ function startMode(key){
 function plural(n,a,b,c){var m10=n%10,m100=n%100;if(m10===1&&m100!==11)return a;if(m10>=2&&m10<=4&&(m100<10||m100>=20))return b;return c;}
 
 /* ---------- session ---------- */
-function startSession(words){
+function startSession(words,review){
   var set=currentSet();
   var pool=modePool(view.mode,poolWords(set),view.acc?'acc':view.conj);
   var scopeWords=pool.slice();if(view.scope==='new')scopeWords=scopeWords.filter(function(w){return !isLearned(set,view.dir,w);});
@@ -737,7 +738,7 @@ function startSession(words){
   if(view.acc){accList=accItems();words=accList.map(function(x){return x.w;});scopeWords=words.slice();}
   else if(!words){words=scopeWords.slice();if(view.shuffle)shuffle(words);}
   if(!words.length){goHome();return;}
-  session={mode:view.mode,dir:view.dir,conj:!!view.conj,acc:!!view.acc,accItems:accList,set:set,pool:pool,words:words,scopeWords:scopeWords,i:0,results:[],flipped:false,state:'ask',picked:[],tiles:null,options:null,typed:''};
+  session={mode:view.mode,dir:view.dir,conj:!!view.conj,acc:!!view.acc,accItems:accList,set:set,pool:pool,words:words,scopeWords:scopeWords,i:0,results:[],flipped:false,state:'ask',picked:[],tiles:null,options:null,typed:'',review:!!review};
   view.name='session';prepareItem();render();
 }
 function sessionTitle(){if(session.conj)return 'Спряжение вслух';if(session.acc)return 'Винительный падеж';var t=MODE_TITLE[session.mode];if(session.mode==='flash'||session.mode==='quiz')t+=session.dir==='gr'?' · гр → ру':' · ру → гр';if(session.mode==='say'&&session.dir==='ru')t+=' · с русского';return t;}
@@ -1118,9 +1119,9 @@ function micDown(ev){
 }
 function micUp(){
   if(!session||session.mode!=='say'||session.micState!=='on')return;
-  if(recOn){var r=recStop();if(r.seconds>=0.4)session.wav=r.wav;}
+  var rr=null;if(recOn){rr=recStop();if(rr.seconds>=0.4&&!recSilent(rr))session.wav=rr.wav;}
   if(sayAudioOnly()){
-    if(!session.wav){session.micState='';session.sayMsg='Держи кнопку нажатой всё время, пока говоришь.';render();return;}
+    if(!session.wav){session.micState='';session.sayMsg=rr&&recSilent(rr)?REC_EMPTY:'Держи кнопку нажатой всё время, пока говоришь.';render();return;}
     setMicState('busy');sayAiCheck(session.wav);return;
   }
   var a=recAtt;if(!a||a.done||a.released)return;
@@ -1432,25 +1433,36 @@ function dialogAsk(audio){
    усредняются до 16 кГц. Процессор подключён к выходу через нулевую громкость (иначе Chrome его
    не запускает), поэтому эха в динамиках нет. Поток микрофона живёт до конца занятия. */
 var recCtx=null,recStream=null,recNode=null,recSrc=null,recGain=null,recBuf=[],recRate=0,recOn=false;
+/* После озвучки (speechSynthesis) на iPhone аудиоконтекст остаётся в состоянии interrupted, а дорожка
+   микрофона бывает muted: запись шла, но из нулей. Поэтому на каждую запись создаётся новый
+   аудиоконтекст прямо в жесте нажатия (старый закрывается), а заглушенная или закрытая дорожка
+   запрашивается заново. */
 function recStart(cb){
   if(recOn){cb(null);return;}
-  var go=function(){
-    try{var AC=window.AudioContext||window.webkitAudioContext;if(!recCtx)recCtx=new AC();if(recCtx.state==='suspended')recCtx.resume();
-      recRate=recCtx.sampleRate;recBuf=[];recOn=true;
+  try{var AC=window.AudioContext||window.webkitAudioContext;if(recCtx){try{recCtx.close();}catch(e){}}recCtx=new AC();
+    if(recCtx.state!=='running'){var p=recCtx.resume();if(p&&p.catch)p.catch(function(){});}
+  }catch(e){recCtx=null;cb(e);return;}
+  var begin=function(){
+    try{recRate=recCtx.sampleRate;recBuf=[];recOn=true;
       recSrc=recCtx.createMediaStreamSource(recStream);recNode=recCtx.createScriptProcessor(4096,1,1);recGain=recCtx.createGain();recGain.gain.value=0;
       recNode.onaudioprocess=function(e){if(recOn)recBuf.push(new Float32Array(e.inputBuffer.getChannelData(0)));};
       recSrc.connect(recNode);recNode.connect(recGain);recGain.connect(recCtx.destination);cb(null);
     }catch(e){recOn=false;cb(e);}
   };
-  if(recStream&&recStream.active)go();
-  else if(navigator.mediaDevices&&navigator.mediaDevices.getUserMedia)navigator.mediaDevices.getUserMedia({audio:true}).then(function(st){recStream=st;go();}).catch(function(e){cb(e);});
+  var tr=recStream&&recStream.getAudioTracks()[0];
+  if(recStream&&recStream.active&&tr&&tr.readyState==='live'&&!tr.muted)begin();
+  else if(navigator.mediaDevices&&navigator.mediaDevices.getUserMedia){recRelease();navigator.mediaDevices.getUserMedia({audio:true}).then(function(st){recStream=st;begin();}).catch(function(e){cb(e);});}
   else cb(new Error('no getUserMedia'));
 }
+/* peak — максимальная амплитуда: по ней ловится пустая запись (микрофон не передал звук). */
 function recStop(){
   recOn=false;try{recSrc.disconnect();recNode.disconnect();recGain.disconnect();}catch(e){}
-  var n=0;recBuf.forEach(function(b){n+=b.length;});var all=new Float32Array(n),o=0;recBuf.forEach(function(b){all.set(b,o);o+=b.length;});recBuf=[];
-  return {wav:wavEncode(all,recRate,16000),seconds:recRate?n/recRate:0};
+  var n=0,peak=0;recBuf.forEach(function(b){n+=b.length;for(var i=0;i<b.length;i+=16){var v=b[i]<0?-b[i]:b[i];if(v>peak)peak=v;}});
+  var all=new Float32Array(n),o=0;recBuf.forEach(function(b){all.set(b,o);o+=b.length;});recBuf=[];
+  return {wav:wavEncode(all,recRate,16000),seconds:recRate?n/recRate:0,peak:peak};
 }
+var REC_EMPTY='Запись пустая: микрофон не передал звук. Попробуй ещё раз, а если повторится — открой режим заново.';
+function recSilent(r){return r.seconds>=0.4&&r.peak<0.002;}
 function recRelease(){if(recStream){try{recStream.getTracks().forEach(function(t){t.stop();});}catch(e){}recStream=null;}}
 function wavEncode(samples,rate,target){
   var ratio=rate/target,len=Math.floor(samples.length/ratio),out=new Int16Array(len);
@@ -1540,6 +1552,7 @@ function dialogMicUp(){
   if(s.phase==='rec'){
     var r=recStop();s.phase='idle';
     if(r.seconds<0.4){s.err='Держи кнопку нажатой всё время, пока говоришь.';render();return;}
+    if(recSilent(r)){s.err=REC_EMPTY;render();return;}
     dialogSendAudio(r.wav);return;
   }
   if(s.phase==='listen'&&!s.released){
@@ -1660,15 +1673,18 @@ function resultHtml(w){
   return '<div class="result bad" role="status"><span class="mark">✗</span><div class="body"><div>Неверно. Правильно:</div><div class="ans">'+esc(full)+'</div><div class="small muted">Слово вернётся через несколько вопросов.</div></div>'+spk+'</div>';
 }
 
+var TYPE_HITS=3;
 function finishItem(grade,given){
   if(grade==='exact'&&session.hinted)grade='hint';
   session.grade=grade;session.state='done';
   var ok=grade==='exact';
-  /* Режим «Пишем сами», первое появление слова в сеансе: счёт верных ответов с первого раза без
-     подсказки; ошибка или подсказка обнуляет счёт, второй подряд верный ответ отмечает слово изученным. */
-  if(session.mode==='type'&&session.words.indexOf(cur())===session.i){var w=cur();if(!store.typeHits)store.typeHits={};
+  /* Режим «Пишем сами»: счёт верных ответов с первого раза без подсказки. Считается только первый
+     ответ на слово в сеансе, запущенном с главного экрана по всему набору (session.review — повтор
+     ошибок, «те, что учу» или «сначала» с экрана итогов — не считается). Ошибка или подсказка
+     обнуляет счёт, третий подряд верный ответ отмечает слово изученным. */
+  if(session.mode==='type'&&!session.review&&!session.results[session.i]&&session.words.indexOf(cur())===session.i){var w=cur();if(!store.typeHits)store.typeHits={};
     if(ok){var n=(store.typeHits[w.gr]||0)+1;store.typeHits[w.gr]=n;
-      if(n>=2&&!isLearned(session.set,null,w)){setLearned(session.set,null,w,true);session.autoLearned=(session.autoLearned||[]).concat([w]);}}
+      if(n>=TYPE_HITS&&!isLearned(session.set,null,w)){setLearned(session.set,null,w,true);session.autoLearned=(session.autoLearned||[]).concat([w]);}}
     else delete store.typeHits[w.gr];
     save();}
   if(!session.results[session.i]){
@@ -1723,7 +1739,7 @@ function renderEnd(){
     if(wrong.length){h+='<h3 style="margin-top:6px">Ошибки</h3><div class="mistakes">'+wrong.map(function(r){return '<div class="mistake"><span class="g">'+esc(r.word.gr)+'</span><span class="r">'+esc(r.word.ru)+(r.given?'<br><s class="small">'+esc(r.given)+'</s>':'')+'</span></div>';}).join('')+'</div>';}
     h+='</div>';
     if(session.mode==='tiles'||session.mode==='type'){
-      if(session.autoLearned&&session.autoLearned.length)h+='<p class="notice ok" style="margin-top:10px">Отмечены изученными: '+session.autoLearned.map(function(w){return esc(w.gr);}).join(', ')+' — дважды написаны верно с первого раза.</p>';
+      if(session.autoLearned&&session.autoLearned.length)h+='<p class="notice ok" style="margin-top:10px">Отмечены изученными: '+session.autoLearned.map(function(w){return esc(w.gr);}).join(', ')+' — трижды написаны верно с первого раза.</p>';
       var upd=learnedUpdates();
       if(upd.unlearn.length||upd.learn.length){
         h+='<h3 style="margin-top:14px">Список изученных</h3><div class="stack" style="gap:8px">';
@@ -2001,8 +2017,9 @@ function storyMicDown(ev,i){
 }
 function storyMicUp(){
   if(storyUi.rec<0)return;var i=storyUi.rec;storyUi.rec=-1;
-  var r=recOn?recStop():{seconds:0};
+  var r=recOn?recStop():{seconds:0,peak:0};
   if(r.seconds<0.4){storyUi.res[i]={err:'Держи кнопку нажатой всё время, пока говоришь.'};keepScroll=true;render();return;}
+  if(recSilent(r)){storyUi.res[i]={err:REC_EMPTY};keepScroll=true;render();return;}
   storyCheck(i,r.wav);
 }
 function storyCheck(i,wav){
@@ -2015,6 +2032,25 @@ function storyCheck(i,wav){
     trackEvent('story-check','Рассказ: проверка');keepScroll=true;if(view.name==='story')render();
   },'Ученик рассказывает о себе наизусть по собственному подготовленному тексту (ответ на вопрос устного экзамена); эталон — этот текст, он будет дан в самом конце, после записи. Если ученик пересказал своими словами, пропустил или заменил часть предложений, но говорил по-гречески понятно, это не ошибка произношения: в feedback отметь, что пропущено или сказано иначе, а score ставь за произношение того, что прозвучало.');
 }
+/* Озвучка выделенного: если в тексте рассказа выделено слово или фраза, кнопка «Озвучить» читает
+   только их. На iPhone касание кнопки снимает выделение раньше click, поэтому последнее непустое
+   выделение запоминается на 2 с и после озвучки возвращается на место. */
+var storySel={text:'',range:null,at:0};
+document.addEventListener('selectionchange',function(){
+  if(view.name!=='story')return;
+  try{var sel=window.getSelection();var t=sel?String(sel).replace(/\s+/g,' ').trim():'';
+    if(t&&sel.rangeCount&&screen.contains(sel.anchorNode)){storySel={text:t,range:sel.getRangeAt(0).cloneRange(),at:Date.now()};}
+    else if(storySel.text)storySel.at=Date.now();}catch(e){}
+});
+function storySelection(){
+  var t='';try{var sel=window.getSelection();t=sel?String(sel).replace(/\s+/g,' ').trim():'';if(t&&!screen.contains(sel.anchorNode))t='';}catch(e){}
+  if(t)return t;
+  if(storySel.text&&Date.now()-storySel.at<2000){
+    try{var s2=window.getSelection();if(s2&&storySel.range&&screen.contains(storySel.range.startContainer)){s2.removeAllRanges();s2.addRange(storySel.range);}}catch(e){}
+    return storySel.text;
+  }
+  return '';
+}
 function renderStory(){
   var h='<div class="story">';
   var audio=aiAudioPossible(),online=isOnline();
@@ -2025,6 +2061,7 @@ function renderStory(){
     '<label class="check" style="margin:0"><input type="checkbox" data-action="story-hide"'+(storyUi.hide?' checked':'')+'><span class="lbl">Скрыть греческий</span></label></div>';
   if(storyUi.err)h+='<p class="notice '+(storyUi.err.indexOf('Ошибка')===0?'bad':'ok')+'" style="margin-top:8px">'+esc(storyUi.err)+'</p>';
   if(audio&&!online)h+='<p class="small muted" style="margin-top:8px">Нет сети: проверка через ИИ недоступна, озвучка работает.</p>';
+  if(canSpeak)h+='<p class="small muted" style="margin-top:8px">Выдели слово или часть ответа и нажми «Озвучить» — прозвучит только выделенное.</p>';
   story.sections.forEach(function(sec,i){
     var r=storyUi.res[i],hidden=storyUi.hide&&!storyUi.shown[i];
     h+='<div class="story-sec" id="ssec-'+i+'"><p class="story-q"><span class="n">'+esc(sec.n)+'.</span>'+esc(sec.q)+(sec.qgr?' <span class="qgr">/ '+esc(sec.qgr)+'</span>'+(canSpeak?' <button class="icon-btn spk" style="width:30px;height:30px;font-size:15px" data-action="story-speak" data-text="'+esc(sec.qgr)+'" aria-label="Озвучить вопрос">🔊</button>':''):'')+'</p>';
@@ -2170,7 +2207,7 @@ document.addEventListener('click',function(ev){
     case 'story-refresh':if(story&&story.id)storyLoad(story.url);break;
     case 'story-clear':story=null;storySave();storyUi.res={};storyUi.err='';if(view.name==='settings'){settingsMsg='Рассказ удалён с этого устройства.';settingsMsgAt='story';keepScroll=true;}render();break;
     case 'story-show':storyUi.shown[el.getAttribute('data-i')]=true;keepScroll=true;render();break;
-    case 'story-speak':speak(el.getAttribute('data-text'),true);break;
+    case 'story-speak':speak(storySelection()||el.getAttribute('data-text'),true);break;
     case 'fold':folds[el.getAttribute('data-key')]=!folds[el.getAttribute('data-key')];keepScroll=true;render();break;
     case 'topics-all':case 'topics-none':{
       var tpAll={};if(a==='topics-none'){TOPIC_LIST.concat([['other']]).forEach(function(q){tpAll[q[0]]=false;});}
@@ -2223,11 +2260,11 @@ document.addEventListener('click',function(ev){
       if(ok){setTimeout(function(){if(session&&session.state==='done'&&view.name==='session')next();},650);}
       break;
     }
-    case 'retry-learning':{var ws=session.results.filter(function(r){return r&&!r.known;}).map(function(r){return r.word;});startSession(ws);break;}
+    case 'retry-learning':{var ws=session.results.filter(function(r){return r&&!r.known;}).map(function(r){return r.word;});startSession(ws,true);break;}
     case 'unlearn-wrong':{var u1=learnedUpdates().unlearn;u1.forEach(function(w){setLearned(session.set,session.dir,w,false);});session.endMsg='Снята отметка «изучено»: '+u1.length+' '+plural(u1.length,'слово','слова','слов')+'.';render();break;}
     case 'learn-correct':{var u2=learnedUpdates().learn;u2.forEach(function(w){setLearned(session.set,session.dir,w,true);});session.endMsg='Отмечено изученными: '+u2.length+' '+plural(u2.length,'слово','слова','слов')+'.';render();break;}
-    case 'retry-wrong':{var ww=firstWrong().map(function(r){return r.word;});startSession(ww);break;}
-    case 'restart':{var all=uniqWords(session.words);if(view.shuffle)shuffle(all);startSession(all);break;}
+    case 'retry-wrong':{var ww=firstWrong().map(function(r){return r.word;});startSession(ww,true);break;}
+    case 'restart':{var all=uniqWords(session.words);if(view.shuffle)shuffle(all);startSession(all,true);break;}
     case 'reset-progress':confirmReset=true;render();break;
     case 'reset-progress-no':confirmReset=false;render();break;
     case 'reset-progress-yes':{var s=currentSet();s.words.concat(extraOf(s)).forEach(function(w){setLearned(s,null,w,false);});confirmReset=false;settingsMsgAt='';settingsMsg='Прогресс набора «'+s.title+'» сброшен.';render();break;}
@@ -2348,7 +2385,7 @@ function endDrag(ev){
   }else if(card&&Math.abs(dx)<8){flip();}
 }
 document.addEventListener('pointerup',endDrag);
-screen.addEventListener('pointerdown',function(ev){var sm=ev.target.closest('.story-mic');if(sm){storyMicDown(ev,parseInt(sm.getAttribute('data-i'),10));return;}if(ev.target.closest('#mic')){if(session&&session.mode==='dialog')dialogMicDown(ev);else micDown(ev);}});
+screen.addEventListener('pointerdown',function(ev){if(ev.target.closest('[data-action="story-speak"]')&&ev.pointerType==='mouse')ev.preventDefault();var sm=ev.target.closest('.story-mic');if(sm){storyMicDown(ev,parseInt(sm.getAttribute('data-i'),10));return;}if(ev.target.closest('#mic')){if(session&&session.mode==='dialog')dialogMicDown(ev);else micDown(ev);}});
 function micRelease(){if(view.name==='story'){storyMicUp();return;}if(session&&session.mode==='dialog')dialogMicUp();else micUp();}
 document.addEventListener('pointerup',micRelease);document.addEventListener('pointercancel',micRelease);
 screen.addEventListener('contextmenu',function(ev){if(ev.target.closest('#mic')||ev.target.closest('.story-mic'))ev.preventDefault();});
@@ -2364,7 +2401,7 @@ function saveResume(){
     var data={view:view,setId:currentSet().id};
     if(session&&(view.name==='session'||view.name==='end')){
       var s=session;
-      data.session={mode:s.mode,dir:s.dir,i:s.i,turns:s.turns||null,messages:s.messages||null,lang:s.lang||null,usage:s.usage||0,requeued:!!s.requeued,hinted:!!s.hinted,parts:s.parts||null,sentIdx:s.sentIdx||null,heard:s.heard||'',marks:s.marks||null,sayMsg:s.sayMsg||'',sayTrace:s.sayTrace||'',attempts:s.attempts||0,person:s.person,persons:s.persons||null,flipped:!!s.flipped,state:s.state,picked:s.picked||[],typed:s.typed||'',
+      data.session={mode:s.mode,dir:s.dir,i:s.i,turns:s.turns||null,messages:s.messages||null,lang:s.lang||null,usage:s.usage||0,requeued:!!s.requeued,review:!!s.review,hinted:!!s.hinted,parts:s.parts||null,sentIdx:s.sentIdx||null,heard:s.heard||'',marks:s.marks||null,sayMsg:s.sayMsg||'',sayTrace:s.sayTrace||'',attempts:s.attempts||0,person:s.person,persons:s.persons||null,flipped:!!s.flipped,state:s.state,picked:s.picked||[],typed:s.typed||'',
         grade:s.grade,pickedOpt:s.pickedOpt,tiles:s.tiles,options:s.options,correctOpt:s.correctOpt,target:s.target,
         words:s.words.map(function(w){return w.gr;}),scopeWords:(s.scopeWords||[]).map(function(w){return w.gr;}),accIdx:s.accItems?s.accItems.map(function(x){return x.idx;}):null,
         results:Array.prototype.map.call(s.results,function(r){return r?Object.assign({},r,{word:r.word.gr}):null;})};
@@ -2390,7 +2427,7 @@ function restoreResume(){
       if(v.acc)BUILTIN.forEach(function(st){st.words.forEach(function(w){if(!byGr[w.gr])byGr[w.gr]=w;});});
       var res=function(k){var w=byGr[k];if(!w)throw new Error('missing word '+k);return w;};
       session={mode:sv.mode,dir:sv.dir,conj:!!v.conj,acc:!!v.acc,set:set,pool:modePool(sv.mode,poolWords(set),v.acc?'acc':v.conj),sentIdx:sv.sentIdx||null,words:sv.words.map(res),accItems:v.acc&&sv.accIdx?sv.words.map(function(k,i){return {w:res(k),idx:sv.accIdx[i]||0};}):null,scopeWords:sv.scopeWords.map(res),i:sv.i,
-        results:sv.results.map(function(r){return r?Object.assign({},r,{word:res(r.word)}):null;}),requeued:sv.requeued,hinted:!!sv.hinted,parts:sv.parts||null,heard:sv.heard||'',marks:sv.marks||null,sayMsg:sv.sayMsg||'',sayTrace:sv.sayTrace||'',attempts:sv.attempts||0,person:sv.person,persons:sv.persons||null,
+        results:sv.results.map(function(r){return r?Object.assign({},r,{word:res(r.word)}):null;}),requeued:sv.requeued,review:!!sv.review,hinted:!!sv.hinted,parts:sv.parts||null,heard:sv.heard||'',marks:sv.marks||null,sayMsg:sv.sayMsg||'',sayTrace:sv.sayTrace||'',attempts:sv.attempts||0,person:sv.person,persons:sv.persons||null,
         flipped:sv.flipped,state:sv.state,picked:sv.picked,typed:sv.typed,grade:sv.grade,pickedOpt:sv.pickedOpt,tiles:sv.tiles,options:sv.options,correctOpt:sv.correctOpt,target:sv.target};
       if(v.name==='session'&&!session.words[session.i])throw new Error('bad index');}
     }
