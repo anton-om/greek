@@ -24,7 +24,7 @@ var appZoom=1;
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Греческий">
-<meta name="build" content="2026-11-17-1">
+<meta name="build" content="2026-11-17-2">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <!-- Шрифт подключается без блокировки отрисовки: media=print, после загрузки — all. Без сети
@@ -272,6 +272,7 @@ input[type=text].big{font-family:var(--display);font-size:24px;text-align:center
 .art{display:grid;gap:0 14px;align-items:baseline;font-size:14px}
 .art.c3{grid-template-columns:1fr auto auto}.art.c2{grid-template-columns:1fr auto}.art.conj{grid-template-columns:auto auto 1fr;gap:0 12px}.art.conj .A.E{font-size:15px}
 .art.cases{grid-template-columns:auto 1fr 1fr;gap:0 10px}.art.cases .A.E{font-size:14.5px;line-height:1.35}
+.art.nums{grid-template-columns:auto 1fr auto;gap:0 12px}.art.nums .n{font-variant-numeric:tabular-nums;text-align:right;color:var(--muted);font-size:13px}.art.nums .A.E{font-size:16px}.art.nums .R{color:var(--muted);font-size:13px;text-align:right}
 .art.c4{grid-template-columns:auto 1fr 1fr 1fr;gap:0 8px}.art.c4 .A{font-size:18px}.art.c4 .A.E{font-size:14.5px;line-height:1.35}.art.c4>span.g{font-size:13px}
 .art.conj4{grid-template-columns:auto 1fr 1fr 1fr;gap:0 8px}.art.conj4 .A.E{font-size:15px}.art.conj4>span.h{text-transform:none;letter-spacing:0;font-size:12px}
 .dict-row{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr) auto;gap:10px;align-items:center;padding:4px 0;border-bottom:1px solid var(--line)}
@@ -309,9 +310,9 @@ input[type=text].big{font-family:var(--display);font-size:24px;text-align:center
   <main id="screen"></main>
   <footer id="actions"></footer>
 </div>
-<script src="words.js?v=2026-11-17-1"></script>
-<script src="sentences.js?v=2026-11-17-1"></script>
-<script src="grammar.js?v=2026-11-17-1"></script>
+<script src="words.js?v=2026-11-17-2"></script>
+<script src="sentences.js?v=2026-11-17-2"></script>
+<script src="grammar.js?v=2026-11-17-2"></script>
 <script>
 (function(){
 'use strict';
@@ -1921,6 +1922,29 @@ function casesHtml(){
   h+='<p class="note">Ударение часто сдвигается к концу слова: '+grHtml('ο άνθρωπος → του ανθρώπου','человек')+', '+grHtml('ο δάσκαλος → των δασκάλων','учитель')+', '+grHtml('το αυτοκίνητο → του αυτοκινήτου','автомобиль')+', '+grHtml('η ώρα → των ωρών','час')+', '+grHtml('ο μαθητής → των μαθητών','ученик')+'.</p>';
   return h;
 }
+/* Числительные: раздаточный материал к уроку 10 (1–20, десятки, сотни), тысяча добавлена для полноты.
+   Формы для 1, 3, 4, сотен и тысячи зависят от рода существительного. */
+var CHEAT_NUMS=[
+  ['1–20',[[1,'ένα','один'],[2,'δύο','два'],[3,'τρία','три'],[4,'τέσσερα','четыре'],[5,'πέντε','пять'],[6,'έξι','шесть'],[7,'επτά','семь'],[8,'οκτώ','восемь'],[9,'εννέα','девять'],[10,'δέκα','десять'],
+    [11,'έντεκα','одиннадцать'],[12,'δώδεκα','двенадцать'],[13,'δεκατρία','тринадцать'],[14,'δεκατέσσερα','четырнадцать'],[15,'δεκαπέντε','пятнадцать'],[16,'δεκαέξι','шестнадцать'],[17,'δεκαεπτά','семнадцать'],[18,'δεκαοκτώ','восемнадцать'],[19,'δεκαεννέα','девятнадцать'],[20,'είκοσι','двадцать']]],
+  ['Десятки',[[30,'τριάντα','тридцать'],[40,'σαράντα','сорок'],[50,'πενήντα','пятьдесят'],[60,'εξήντα','шестьдесят'],[70,'εβδομήντα','семьдесят'],[80,'ογδόντα','восемьдесят'],[90,'ενενήντα','девяносто']]],
+  ['Сотни',[[100,'εκατό','сто'],[200,'διακόσια','двести'],[300,'τριακόσια','триста'],[400,'τετρακόσια','четыреста'],[500,'πεντακόσια','пятьсот'],[600,'εξακόσια','шестьсот'],[700,'εφτακόσια','семьсот'],[800,'οκτακόσια','восемьсот'],[900,'εννιακόσια','девятьсот']]],
+  ['Тысяча',[[1000,'χίλια','тысяча']]]
+];
+var NUM_GENDER=[['1','ένας','μία','ένα'],['3','τρεις','τρεις','τρία'],['4','τέσσερις','τέσσερις','τέσσερα'],['200','διακόσιοι','διακόσιες','διακόσια'],['1000','χίλιοι','χίλιες','χίλια']];
+function numsHtml(){
+  var h='<p class="note">Нажми на число, чтобы услышать его. Числа от 5 до 100 и десятки не меняются по родам.</p>';
+  CHEAT_NUMS.forEach(function(g){
+    h+='<p class="sub">'+esc(g[0])+'</p><div class="art nums">'+g[1].map(function(n){return '<span class="n">'+n[0]+'</span><span class="A E"><span class="ex" data-action="speak" data-text="'+esc(n[1])+'">'+esc(n[1])+'</span></span><span class="R">'+esc(n[2])+'</span>';}).join('')+'</div>';
+  });
+  h+='<p class="sub">Род: 1, 3, 4, сотни и тысяча</p><div class="art c4"><span class="h"></span><span class="h">Муж.</span><span class="h">Жен.</span><span class="h">Сред.</span>';
+  h+=NUM_GENDER.map(function(r){return '<span class="g">'+r[0]+'</span>'+r.slice(1).map(function(x){return '<span class="A E"><span class="ex" data-action="speak" data-text="'+esc(x)+'">'+esc(x)+'</span></span>';}).join('');}).join('')+'</div>';
+  h+='<p class="note">Эти числительные согласуются с существительным, как прилагательные: '+grHtml('ένας φίλος','один друг')+', '+grHtml('μία φίλη','одна подруга')+', '+grHtml('ένα παιδί','один ребёнок')+'; '+grHtml('τρεις μαθητές','три ученика')+', '+grHtml('τέσσερις καρέκλες','четыре стула')+', '+grHtml('τέσσερα βιβλία','четыре книги')+'; '+grHtml('διακόσιες γυναίκες','двести женщин')+', '+grHtml('χίλιοι άντρες','тысяча мужчин')+'. Остальные сотни меняются так же: τριακόσιοι, -ες, -α. Слово δύο не меняется.</p>';
+  h+='<p class="sub">Составные числа</p>';
+  h+='<p class="note">Десятки и единицы ставятся рядом, без союза: '+grHtml('είκοσι ένα','21')+', '+grHtml('τριάντα πέντε','35')+', '+grHtml('ενενήντα εννέα','99')+'. Перед следующим числом εκατό становится εκατόν: '+grHtml('εκατόν ένα','101')+', '+grHtml('εκατόν είκοσι','120')+'; сотни больше ста не меняются: '+grHtml('διακόσια πενήντα','250')+', '+grHtml('χίλια εννιακόσια ογδόντα τέσσερα','1984')+'.</p>';
+  h+='<p class="note">Разговорные варианты: '+['εφτά','οχτώ','εννιά','δεκαεφτά','δεκαοχτώ','δεκαεννιά','επτακόσια'].map(function(v){return '<span class="ex" data-action="speak" data-text="'+v+'">'+v+'</span>';}).join(', ')+'.</p>';
+  return h;
+}
 /* Спряжение глаголов в настоящем времени: по презентации к четвёртому уроку */
 var CONJ_PERSONS=['εγώ','εσύ','αυτός, -ή, -ό','εμείς','εσείς','αυτοί, -ές, -ά'];
 var CONJ_EIMAI=[['είμαι','я есть'],['είσαι','ты есть'],['είναι','он, она, оно есть'],['είμαστε','мы есть'],['είστε','вы есть'],['είναι','они есть']];
@@ -2024,6 +2048,7 @@ function renderCheat(){
   h+='<details class="sec"><summary>Падежи</summary><div class="body">'+casesHtml()+'</div></details>';
   h+='<details class="sec"><summary>Местоимения</summary><div class="body">'+pronHtml()+'</div></details>';
   h+='<details class="sec"><summary>Спряжение глаголов</summary><div class="body">'+conjHtml()+'</div></details>';
+  h+='<details class="sec"><summary>Числительные</summary><div class="body">'+numsHtml()+'</div></details>';
   h+='</div>';
   return h;
 }
