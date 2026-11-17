@@ -53,9 +53,14 @@ self.addEventListener('fetch',function(e){
     return;
   }
   if(/fonts\.(googleapis|gstatic)\.com$/.test(url.hostname)){
+    /* Из кеша; без копии — сеть не дольше 4 с, иначе пустой ответ: шрифт не должен задерживать
+       страницу на вайфае без интернета. */
     e.respondWith(caches.open(CACHE).then(function(c){return c.match(req).then(function(hit){
-      var net=fetch(req).then(function(r){if(r.ok||r.type==='opaque')c.put(req,r.clone());return r;}).catch(function(){return hit;});
-      return hit||net;
+      if(hit)return hit;
+      var empty=new Response('',{status:200,headers:{'content-type':/googleapis/.test(url.hostname)?'text/css':'application/octet-stream'}});
+      var timeout=new Promise(function(res){setTimeout(function(){res(empty);},4000);});
+      var net=fetch(req).then(function(r){if(r.ok||r.type==='opaque')c.put(req,r.clone());return r;}).catch(function(){return empty;});
+      return Promise.race([net,timeout]);
     });}));
   }
 });

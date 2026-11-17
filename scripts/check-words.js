@@ -25,6 +25,11 @@ S.forEach(function(s){(s.extra||[]).forEach(function(w){var t=strip(w.gr);if(t.s
 // grammar.js: у каждого существительного есть запись plural (форма или null), у каждого
 // однословного глагола — спряжение; лишних ключей нет.
 require(require('path').join(__dirname,'..','grammar.js'));
+function gapParts(show,full){
+  var fixed=String(show).split(/_+/),gaps=[],pos=0,s=String(full);
+  for(var i=0;i<fixed.length-1;i++){pos+=fixed[i].length;var nxt=fixed[i+1],end=i+1===fixed.length-1?(nxt?s.lastIndexOf(nxt):s.length):s.indexOf(nxt,pos+1);if(end<pos)end=pos;gaps.push(s.slice(pos,end));pos=end;}
+  return {fixed:fixed,gaps:gaps};
+}
 var G=window.GRAMMAR,known={};
 S.forEach(function(s){s.words.concat(s.extra||[]).forEach(function(w){known[w.gr]=1;
   if(w.pos==='n'&&!(w.gr in G.plural)){console.log('  ОШИБКА: нет plural в grammar.js: '+w.gr);errors++;}
@@ -32,11 +37,13 @@ S.forEach(function(s){s.words.concat(s.extra||[]).forEach(function(w){known[w.gr
   if(w.pos==='v'&&G.verbs[w.gr]){var e=G.verbs[w.gr];if(!(e.ru&&e.ru.length===6)||!(e.f?e.f.length===6:/^(1|2a|2b)$/.test(e.c))){console.log('  ОШИБКА: неполная запись глагола: '+w.gr);errors++;}}
 });});
 Object.keys(G.plural).forEach(function(k){if(!known[k]){console.log('  ОШИБКА: plural для слова не из words.js: '+k);errors++;}});
-Object.keys(G.cases||{}).forEach(function(k){if(!known[k]){console.log('  ОШИБКА: упражнение на падеж для слова не из words.js: '+k);errors++;}
-  (G.cases[k]||[]).forEach(function(e){if(!(e.length===3&&e.every(function(x){return typeof x==='string'&&x;}))){console.log('  ОШИБКА: неполное упражнение на падеж: '+k);errors++;return;}
+['cases','gen'].forEach(function(cs){Object.keys(G[cs]||{}).forEach(function(k){if(!known[k]){console.log('  ОШИБКА: упражнение на падеж для слова не из words.js: '+k);errors++;}
+  (G[cs][k]||[]).forEach(function(e){if(!(e.length===3&&e.every(function(x){return typeof x==='string'&&x;}))){console.log('  ОШИБКА: неполное упражнение на падеж: '+k);errors++;return;}
     var parts=e[0].split(/_+/),pos=0,ok=true;parts.forEach(function(q){var i=e[1].indexOf(q,pos);if(i<0)ok=false;else pos=i+q.length;});
-    if(!ok){console.log('  ОШИБКА: пропуски не совпадают с полным предложением: '+e[0]+' / '+e[1]);errors++;}});});
-console.log('Упражнений на винительный падеж: '+Object.keys(G.cases||{}).reduce(function(n,k){return n+G.cases[k].length;},0)+'.');
+    if(!ok){console.log('  ОШИБКА: пропуски не совпадают с полным предложением: '+e[0]+' / '+e[1]);errors++;}
+    // Режим «Падежи: пишем» вписывает пропуски в поля: каждый пропуск должен быть непустым.
+    var gp=gapParts(e[0],e[1]);if(gp.fixed.map(function(f,i){return f+(gp.gaps[i]||'');}).join('')!==e[1]||gp.gaps.some(function(x){return !x.trim();})){console.log('  ОШИБКА: пропуск не восстанавливается по полному предложению: '+e[0]+' / '+e[1]);errors++;}});});});
+console.log('Упражнений на винительный падеж: '+Object.keys(G.cases||{}).reduce(function(n,k){return n+G.cases[k].length;},0)+', на родительный: '+Object.keys(G.gen||{}).reduce(function(n,k){return n+G.gen[k].length;},0)+'.');
 Object.keys(G.verbs).forEach(function(k){if(!known[k]){console.log('  ОШИБКА: спряжение для слова не из words.js: '+k);errors++;}});
 console.log('Существительных с мн. ч.: '+Object.keys(G.plural).filter(function(k){return G.plural[k];}).length+', глаголов со спряжением: '+Object.keys(G.verbs).length+'.');
 var tc={};S.forEach(function(s){s.words.concat(s.extra||[]).forEach(function(w){tc[w.t]=(tc[w.t]||0)+1;});});
