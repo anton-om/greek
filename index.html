@@ -24,7 +24,7 @@ var appZoom=1;
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Греческий">
-<meta name="build" content="2026-11-23-1">
+<meta name="build" content="2026-11-23-2">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <!-- Шрифт подключается без блокировки отрисовки: media=print, после загрузки — all. Без сети
@@ -311,9 +311,9 @@ input[type=text].big{font-family:var(--display);font-size:24px;text-align:center
   <main id="screen"></main>
   <footer id="actions"></footer>
 </div>
-<script src="words.js?v=2026-11-23-1"></script>
-<script src="sentences.js?v=2026-11-23-1"></script>
-<script src="grammar.js?v=2026-11-23-1"></script>
+<script src="words.js?v=2026-11-23-2"></script>
+<script src="sentences.js?v=2026-11-23-2"></script>
+<script src="grammar.js?v=2026-11-23-2"></script>
 <script>
 (function(){
 'use strict';
@@ -462,7 +462,7 @@ function pickSentence(w){
 /* Упражнения на падежи (grammar.js): cases — винительный, gen — родительный, формат одинаковый:
    [предложение с пропусками, полное предложение, перевод]. cs — набор падежей сеанса: acc, gen
    или all (оба вперемешку, режим «Падежи: пишем»). */
-var CASE_SETS={acc:{src:'cases',t:'Винительный падеж',ru:'винительного падежа'},gen:{src:'gen',t:'Родительный падеж',ru:'родительного падежа'}};
+var CASE_SETS={acc:{src:'cases',t:'Винительный падеж',ru:'винительного падежа'},gen:{src:'gen',t:'Родительный падеж',ru:'родительного падежа'},prep:{src:'prep',t:'Предлоги',ru:'предлогов από, σε и με'}};
 function caseKinds(cs){return cs==='all'?['acc','gen']:[cs||'acc'];}
 function casesFor(w,k){var src=CASE_SETS[k||'acc'].src;return (GRAMMAR[src]&&GRAMMAR[src][w.gr])||[];}
 function hasCases(w,cs){return caseKinds(cs).some(function(k){return casesFor(w,k).length;});}
@@ -472,12 +472,14 @@ function hasCases(w,cs){return caseKinds(cs).some(function(k){return casesFor(w,
 var ACC_PER_SESSION=25;
 function accWords(cs){var seen={},out=[];BUILTIN.forEach(function(st){st.words.forEach(function(w){if(!seen[w.gr]&&hasCases(w,cs)){seen[w.gr]=1;out.push(w);}});});return out;}
 function accCategory(w,e){if(/(^|\s)(τους|τις|τα|των)(\s|$)/.test(e[1])||/(^|\s)(δύο|τρία|τρεις|πολλ)/.test(e[1]))return 'p';return /^ο /.test(w.gr)?'m':/^η /.test(w.gr)?'f':'n';}
+/* Режим «Предлоги: пишем» балансирует не по роду, а по предлогу в первом пропуске: σε (στο…), από, με. */
+function prepCategory(e){var g=gapParts(e[0],e[1]).gaps[0]||'';return /^σ/.test(g)?'se':/^από/.test(g)?'apo':'me';}
 function accItems(cs){
-  var groups={m:[],f:[],n:[],p:[]};
-  accWords(cs).forEach(function(w){caseKinds(cs).forEach(function(k){casesFor(w,k).forEach(function(e,i){groups[accCategory(w,e)].push({w:w,idx:i,k:k});});});});
-  Object.keys(groups).forEach(function(k){shuffle(groups[k]);});
-  var out=[],keys=['m','f','n','p'],k=0,guard=0;
-  while(out.length<ACC_PER_SESSION&&guard++<4*ACC_PER_SESSION){var g=groups[keys[k%4]];k++;if(g.length)out.push(g.shift());if(!keys.some(function(q){return groups[q].length;}))break;}
+  var keys=cs==='prep'?['se','apo','me']:['m','f','n','p'],groups={};keys.forEach(function(k){groups[k]=[];});
+  accWords(cs).forEach(function(w){caseKinds(cs).forEach(function(k){casesFor(w,k).forEach(function(e,i){groups[cs==='prep'?prepCategory(e):accCategory(w,e)].push({w:w,idx:i,k:k});});});});
+  keys.forEach(function(k){shuffle(groups[k]);});
+  var out=[],k=0,guard=0,n=keys.length;
+  while(out.length<ACC_PER_SESSION&&guard++<n*ACC_PER_SESSION){var g=groups[keys[k%n]];k++;if(g.length)out.push(g.shift());if(!keys.some(function(q){return groups[q].length;}))break;}
   return out;
 }
 function accTarget(w){
@@ -592,6 +594,7 @@ var MODE_LIST=[
   {key:'plural',mode:'plural',dir:'ru',t:'Множественное число',d:'Артикль и окончание в единственном и множественном числе'},
   {key:'conj',mode:'conj',dir:'ru',t:'Спряжение глаголов',d:'Впиши местоимение и окончание по русской подсказке'},
   {key:'cases',mode:'cases',dir:'ru',acc:true,cs:'all',t:'Падежи: пишем',d:'25 предложений из всей лексики курса: впиши артикли и окончания винительного и родительного падежа'},
+  {key:'prep',mode:'cases',dir:'ru',acc:true,cs:'prep',t:'Предлоги: пишем',d:'25 предложений: впиши από, σε или με со слитным артиклем (στο, από τον, με τη) и окончание'},
   {key:'conj-say',mode:'say',dir:'ru',conj:true,t:'Спряжение вслух',net:true,d:'Скажи по русскому слову все местоимения и формы глагола'},
   {key:'acc',mode:'say',dir:'ru',acc:true,cs:'acc',t:'Винительный падеж вслух',net:true,d:'25 предложений из всей лексики курса: произнеси целиком, восстановив артикли и окончания'},
   {key:'gen',mode:'say',dir:'ru',acc:true,cs:'gen',t:'Родительный падеж вслух',net:true,d:'То же для родительного падежа: чей? кого? чего? — του, της, των'},
@@ -602,7 +605,7 @@ var MODE_LIST=[
 /* Режимы 9 и 10 на iPhone не показываются: распознавание речи в WebKit не работает
    (docs/ios-speech-recognition.md), а диктовка через клавиатуру узнаёт слова хуже. */
 function modeList(){return MODE_LIST.filter(function(m){if(m.mode==='say')return isIOSDevice()?aiAudioPossible():true;if(m.mode==='dialog')return dialogAvailable();return true;});}
-var MODE_TITLE={dialog:'Занятие с ИИ',cases:'Падежи: пишем',flash:'Карточки',tiles:'Учимся писать',type:'Пишем сами',quiz:'Варианты ответа',plural:'Множественное число',conj:'Спряжение глаголов',say:'Отработка лексики'};
+var MODE_TITLE={dialog:'Занятие с ИИ',cases:'Падежи: пишем',prep:'Предлоги: пишем',flash:'Карточки',tiles:'Учимся писать',type:'Пишем сами',quiz:'Варианты ответа',plural:'Множественное число',conj:'Спряжение глаголов',say:'Отработка лексики'};
 
 var screen=document.getElementById('screen');
 var APP_BUILD=(document.querySelector('meta[name=build]')||{}).content||'';
@@ -766,7 +769,7 @@ function startSession(words,review){
   session={mode:view.mode,dir:view.dir,conj:!!view.conj,acc:!!view.acc,cs:view.cs||null,accItems:accList,set:set,pool:pool,words:words,scopeWords:scopeWords,i:0,results:[],flipped:false,state:'ask',picked:[],tiles:null,options:null,typed:'',review:!!review};
   view.name='session';prepareItem();render();
 }
-function sessionTitle(){if(session.conj)return 'Спряжение вслух';if(session.acc)return session.mode==='cases'?MODE_TITLE.cases:(CASE_SETS[session.cs]||CASE_SETS.acc).t+' вслух';var t=MODE_TITLE[session.mode];if(session.mode==='flash'||session.mode==='quiz')t+=session.dir==='gr'?' · гр → ру':' · ру → гр';if(session.mode==='say'&&session.dir==='ru')t+=' · с русского';return t;}
+function sessionTitle(){if(session.conj)return 'Спряжение вслух';if(session.acc)return session.mode==='cases'?(session.cs==='prep'?MODE_TITLE.prep:MODE_TITLE.cases):(CASE_SETS[session.cs]||CASE_SETS.acc).t+' вслух';var t=MODE_TITLE[session.mode];if(session.mode==='flash'||session.mode==='quiz')t+=session.dir==='gr'?' · гр → ру':' · ру → гр';if(session.mode==='say'&&session.dir==='ru')t+=' · с русского';return t;}
 function cur(){return session.words[session.i];}
 function prepareItem(){
   session.flipped=false;session.state='ask';session.picked=[];session.typed='';session.grade=null;session.pickedOpt=null;session.hinted=false;
@@ -954,7 +957,7 @@ function renderCases(w){
     if(i<gp.gaps.length)h+='<input type="text" class="gi" data-k="g'+i+'" size="'+Math.max(2,Array.from(gp.gaps[i]).length+1)+'" lang="el" inputmode="text" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" aria-label="пропуск '+(i+1)+'" value="'+esc(P['g'+i]||'')+'"'+(ask?'':' disabled')+'>';
   });
   h+='</div>';
-  if(ask)h+='<p class="hint">Впиши пропущенные буквы: артикль и окончание. Ударения учитываются.</p><button type="submit" class="btn primary" style="width:100%">Проверить</button>';
+  if(ask)h+='<p class="hint">'+(t.k==='prep'?'Впиши предлог с артиклем (στο, στην, από τον, με τη…) и окончание. Ударения учитываются.':'Впиши пропущенные буквы: артикль и окончание. Ударения учитываются.')+'</p><button type="submit" class="btn primary" style="width:100%">Проверить</button>';
   h+='</form>';
   h+=gramResultHtml(w,t.gr);
   return{html:h,foot:ask?'':doneFoot()};
@@ -2226,8 +2229,8 @@ function renderSettings(){
   h+='<h3>Занятие с ИИ</h3>';
   {
     var link=function(u,t){return '<a href="'+u+'" target="_blank" rel="noopener">'+t+'</a>';};
-    h+='<p class="small muted">Ключ API разблокирует режимы 10–14 («Спряжение вслух», «Винительный падеж вслух», «Родительный падеж вслух», «Отработка лексики») на iPhone и режим 15 «Занятие с ИИ» на любых устройствах. Рекомендуются ключи '+link('https://openrouter.ai/settings/keys','OpenRouter')+' или '+link('https://aistudio.google.com/apikey','Google')+'. Бесплатный ключ Google тоже подходит, но тогда стабильно работает только модель 3.1. Можно использовать и ключи '+link('https://platform.claude.com/settings/keys','Anthropic')+' или '+link('https://platform.openai.com/api-keys','OpenAI')+'. Ключ хранится только в этом браузере.</p>';
-    if(!isIOSDevice()&&!canListen)h+='<p class="notice bad">Этот браузер не умеет распознавать речь: без ключа с записью голоса режимы 10–15 не появятся. Открой приложение в Chrome или Safari.</p>';
+    h+='<p class="small muted">Ключ API разблокирует режимы 11–15 («Спряжение вслух», «Винительный падеж вслух», «Родительный падеж вслух», «Отработка лексики») на iPhone и режим 16 «Занятие с ИИ» на любых устройствах. Рекомендуются ключи '+link('https://openrouter.ai/settings/keys','OpenRouter')+' или '+link('https://aistudio.google.com/apikey','Google')+'. Бесплатный ключ Google тоже подходит, но тогда стабильно работает только модель 3.1. Можно использовать и ключи '+link('https://platform.claude.com/settings/keys','Anthropic')+' или '+link('https://platform.openai.com/api-keys','OpenAI')+'. Ключ хранится только в этом браузере.</p>';
+    if(!isIOSDevice()&&!canListen)h+='<p class="notice bad">Этот браузер не умеет распознавать речь: без ключа с записью голоса режимы 11–16 не появятся. Открой приложение в Chrome или Safari.</p>';
     h+='<form id="keyForm" class="keyrow"><input type="text" id="keyInput" class="keyfield" name="greek-api-key" value="'+esc(claudeKey())+'" placeholder="sk-ant-…, sk-or-…, sk-…, AQ.…" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false" inputmode="text" aria-label="Ключ API"><button type="button" class="btn ghost" data-action="key-eye" aria-label="Показать ключ">👁</button><button type="submit" class="btn">Проверить</button>'+(claudeKey()?'<button type="button" class="btn ghost" data-action="key-clear">Удалить</button>':'')+'</form><p class="small muted" id="keyHint" style="margin:4px 0 0;min-height:1.2em">'+(claudeKey()?'Ключ '+esc(AI_PROVIDERS[aiProvider()].name)+'.':'')+'</p>';
     h+=settingsMsgHtml('key');
     var pv=AI_PROVIDERS[aiProvider()];
@@ -2238,7 +2241,7 @@ function renderSettings(){
       h+='<div class="seg" style="margin-top:8px">'+
         '<label class="'+(mode==='model'?'on':'')+(can?'':' off')+'"><input type="radio" name="aiAudio" value="model" data-action="set-ai-audio"'+(mode==='model'?' checked':'')+(can?'':' disabled')+'>Запись голоса в модель</label>'+
         '<label class="'+(mode==='browser'?'on':'')+(noBrowser?' off':'')+'"><input type="radio" name="aiAudio" value="browser" data-action="set-ai-audio"'+(mode==='browser'?' checked':'')+(noBrowser?' disabled':'')+'>Распознаёт браузер</label></div>';
-      if(pid==='anthropic')h+='<p class="small muted" style="margin-top:4px">Claude звук не принимает: речь распознаёт браузер, на iPhone режимы 10–15 с этим ключом не появятся.</p>';
+      if(pid==='anthropic')h+='<p class="small muted" style="margin-top:4px">Claude звук не принимает: речь распознаёт браузер, на iPhone режимы 11–16 с этим ключом не появятся.</p>';
     }
   }
   h+='<h3>Рассказ о себе</h3>';
