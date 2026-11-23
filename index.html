@@ -24,7 +24,7 @@ var appZoom=1;
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Греческий">
-<meta name="build" content="2026-11-23-5">
+<meta name="build" content="2026-11-23-6">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <!-- Шрифт подключается без блокировки отрисовки: media=print, после загрузки — all. Без сети
@@ -243,7 +243,10 @@ input[type=text].big{font-family:var(--display);font-size:24px;text-align:center
 .grow .cell.art .gi{text-align:center}
 .gi:disabled{opacity:.7}
 /* Падежи: пишем — поля прямо в тексте предложения */
-.rule{margin-top:12px;padding:10px 14px;border-radius:var(--radius);background:var(--surface);border:1px solid var(--line);font-size:14px;line-height:1.5}.rule b{color:var(--accent)}.rule p{margin:6px 0 0}
+.grules{margin-top:12px;padding:2px 14px;border-radius:var(--radius);background:var(--surface);border:1px solid var(--line);font-size:14px;line-height:1.5}
+.grule{padding:10px 0;border-top:1px solid var(--line)}.grule:first-child{border-top:0}
+.grule .gh{font-size:19px;line-height:1.4;overflow-wrap:anywhere}.grule .gh b{color:var(--accent)}.grule .gh .was{font-size:14px;color:var(--muted)}
+.grule p{margin:6px 0 0}.grule p b{color:var(--accent)}
 .gram.cases{margin-top:14px}.csent{font-size:21px;line-height:2.1;overflow-wrap:anywhere}
 .csent .gi{display:inline-block;width:auto;font-size:21px;padding:2px 6px;margin:0 2px;text-align:center;vertical-align:baseline}
 .notice.install{font-size:15px}.notice.install .row{display:flex;gap:8px}.notice.install .btn{flex:1}.notice.install .btn.ghost{flex:0 0 auto}
@@ -312,9 +315,9 @@ input[type=text].big{font-family:var(--display);font-size:24px;text-align:center
   <main id="screen"></main>
   <footer id="actions"></footer>
 </div>
-<script src="words.js?v=2026-11-23-5"></script>
-<script src="sentences.js?v=2026-11-23-5"></script>
-<script src="grammar.js?v=2026-11-23-5"></script>
+<script src="words.js?v=2026-11-23-6"></script>
+<script src="sentences.js?v=2026-11-23-6"></script>
+<script src="grammar.js?v=2026-11-23-6"></script>
 <script>
 (function(){
 'use strict';
@@ -930,11 +933,7 @@ function renderGram(w){
   if(ask)h+='<p class="hint">'+esc(GRAM_HINT[t.k]||GRAM_HINT.acc)+'</p><button type="submit" class="btn primary" style="width:100%">Проверить</button>';
   h+='</form>';
   h+=gramResultHtml(w,t.gr);
-  if(!ask&&session.grade!=='exact'&&session.grade!=='hint'){
-    var rules=[],seen={};
-    gp.gaps.forEach(function(g,i){if(session.grade==='accent'||!gapOk(P['g'+i],g,t.alts&&t.alts[i],false)){var r=gramRule(t,gp,i);if(r&&!seen[r]){seen[r]=1;rules.push(r);}}});
-    if(rules.length)h+='<div class="rule"><b>Правило</b>'+rules.map(function(r){return '<p>'+r+'</p>';}).join('')+'</div>';
-  }
+  if(!ask&&session.grade!=='exact'&&session.grade!=='hint')h+=gramRulesHtml(t,gp,P);
   return{html:h,foot:ask?'':doneFoot()};
 }
 var GRAM_HINT={acc:'Впиши пропущенные буквы: артикль и окончание. Ударения учитываются.',gen:'Впиши артикль и окончание родительного падежа. Ударения учитываются.',prep:'Впиши предлог с артиклем (στο, στην, από τον, με τη…) и окончание. Ударения учитываются.',plural:'Впиши артикль и окончание множественного числа. Ударения учитываются.',conj:'Впиши окончание глагола для этого лица. Ударения учитываются.',mix:'Впиши всё, чего не хватает: окончания глаголов, предлоги, артикли и окончания. Ударения учитываются.'};
@@ -956,20 +955,18 @@ var GEN_END={m:'Родительный падеж, мужской род: -ος 
 var NU_RULE=' ν у τη(ν) и στη(ν) остаётся перед гласной и перед κ, π, τ, ξ, ψ, μπ, ντ, γκ (την κουζίνα, στην πόλη), перед остальными согласными отпадает (τη σαλάτα, στη θάλασσα).';
 function wordGender(w){return /^(ο|οι) /.test(w.gr)?'m':/^η /.test(w.gr)?'f':'n';}
 var PREP_RULES=[['για','Предлог για («для, ради») с артиклем не сливается: για τον, για τη(ν), για το.'],['χωρίς','Предлог χωρίς («без») обычно стоит без артикля: χωρίς ζάχαρη, χωρίς γάλα.'],['μετά','Предлог μετά («после»): μετά το φαγητό, μετά τη δουλειά.'],['πριν','πριν («до, перед») употребляется как πριν από: πριν από το φαγητό.'],['προς','Предлог προς («к, в направлении»): προς το σπίτι.'],['μέχρι','Предлог μέχρι («до»): μέχρι τις έξι, μέχρι το σπίτι.'],['κάτω','κάτω από («под»): κάτω από το τραπέζι.'],['πάνω','πάνω σε («на поверхности»): πάνω στο τραπέζι.'],['δίπλα','δίπλα σε («рядом с»): δίπλα στο σπίτι.'],['κοντά','κοντά σε («близко к»): κοντά στη θάλασσα.']];
+function conjGroup(e){return e.c==='2a'?CONJ_GROUPS[1]:e.c==='2b'?CONJ_GROUPS[2]:CONJ_GROUPS[0];}
 function ruleConj(gr,p){var e=GRAMMAR.verbs[gr]||{};
   if(e.f)return 'Неправильный глагол '+gr+', его формы запоминаются целиком: '+CONJ_PERSONS.map(function(pr,j){return pr+' '+e.f[j];}).join(', ')+'.';
-  var grp=e.c==='2a'?CONJ_GROUPS[1]:e.c==='2b'?CONJ_GROUPS[2]:CONJ_GROUPS[0];
-  return 'Глагол '+gr+' группы '+grp[0]+', как '+grp[1]+'. Окончания: '+CONJ_PERSONS.map(function(pr,j){return pr+' '+grp[2][j];}).join(', ')+'. Здесь '+PERSONS_GR[p]+' → '+grp[2][p]+' ('+grp[3][p]+').';}
-function rulePlural(w){var ph=pluralHead(w)||{sg:w.gr,pl:pluralOf(w)},sp=stemSplit(ph.sg,ph.pl);
-  return 'Множественное число: артикль '+sp.art1+' → '+sp.art2+', окончание '+(sp.end1?'-'+sp.end1:'')+' → '+(sp.end2?'-'+sp.end2:'без изменений')+' ('+ph.sg+' → '+ph.pl+'). '+PL_RULES[wordGender(w)];}
+  var grp=conjGroup(e);
+  return 'Глагол '+gr+' — группа '+grp[0]+', как '+grp[1]+'. Окончания: '+CONJ_PERSONS.map(function(pr,j){return pr+' '+grp[2][j];}).join(', ')+'.';}
+function rulePlural(w){return 'Множественное число. '+PL_RULES[wordGender(w)];}
 function rulePrep(g,gd,pl){var nu=gd==='f'&&!pl?NU_RULE:'';
   if(/^(στ|σε$|σε )/.test(g))return 'Предлог σε сливается с определённым артиклем: σε + τον → στον, σε + τη(ν) → στη(ν), σε + το → στο, во множественном числе στους, στις, στα; без артикля остаётся σε (σε μία ώρα). Отвечает на вопросы «где?» и «куда?». После σε винительный падеж.'+nu;
   if(/^από/.test(g))return 'Предлог από («откуда? от кого? из чего?») с артиклем не сливается: από τον, από τη(ν), από το, από τους, από τις, από τα. После από винительный падеж.'+nu;
   if(/^με/.test(g))return 'Предлог με («с кем? на чём? чем?») с артиклем не сливается: με τον, με τη(ν), με το, με τους, με τις, με τα. После με винительный падеж.'+nu;
   var r=PREP_RULES.filter(function(x){return g.indexOf(x[0])===0;})[0];
   return (r?r[1]:'Предлог с артиклем не сливается.')+' После предлога стоит винительный падеж.';}
-/* tok — артикль целиком, если пропуск охватывает только его часть (τ__ → τον): по нему видно, что
-   пропущен артикль, а не окончание существительного. */
 function ruleCase(g,tok,gd,pl,isGen){
   if(/^(έναν|ένα|μία|μια)$/.test(tok))return 'Неопределённый артикль в винительном падеже: ένας → έναν (мужской род), μία и ένα не меняются.';
   if(/^(τον|την|τη|το|τους|τις|τα|του|της|των)$/.test(tok)){
@@ -977,19 +974,84 @@ function ruleCase(g,tok,gd,pl,isGen){
     return 'Артикль в винительном падеже: ο → τον, η → τη(ν), το → το; во множественном числе οι → τους (мужской род), οι → τις (женский), τα → τα.'+(gd==='f'&&!pl?NU_RULE:'');}
   var tbl=isGen?GEN_END:ACC_END;
   return tbl[pl?'p':(isGen?gd:(gd==='m'?'m':'f'))];}
+/* Роль пропуска: в комбинированных заданиях задана в данных (grammar.js: mix), для остальных видов
+   выводится из вида задания: окончание глагола (v:глагол:лицо), предлог (prep), множественное число
+   (pl:слово), артикль или окончание падежа (acc, accp, gen, genp: слово). */
+function gapRole(t,gp,i){
+  var w=t.w,k=t.k,g=(gp.gaps[i]||'').trim().toLowerCase();
+  if(k==='mix')return String(((t.e&&t.e[3])||[])[i]||'');
+  if(k==='conj')return 'v:'+w.gr+':'+t.idx;
+  if(k==='plural')return 'pl:'+w.gr;
+  if(/^(στ|σε$|σε |από|με)/.test(g))return 'prep';
+  return (k==='gen'?'gen':'acc')+(t.e&&accCategory(w,t.e)==='p'?'p':'')+':'+w.gr;
+}
+/* Существительное после предлога: в комбинированном задании — следующий пропуск с ролью падежа,
+   в задании одного вида — слово задания. */
+function prepNoun(t,gp,i){
+  if(t.k!=='mix')return {gr:t.w.gr,pl:!!(t.e&&accCategory(t.w,t.e)==='p')};
+  var m=String(((t.e&&t.e[3])||[])[i+1]||'').split(':');
+  return /^(acc|gen)/.test(m[0])&&m[1]?{gr:m[1],pl:/p$/.test(m[0])}:null;
+}
+/* tok — артикль целиком, если пропуск охватывает только его часть (τ__ → τον): по нему видно, что
+   пропущен артикль, а не окончание существительного. */
+function gapTok(gp,i){return ((gp.fixed[i]||'').match(/\S*$/)[0]+(gp.gaps[i]||'').trim()).toLowerCase();}
+/* Слово, в котором стоит пропуск: кусок до пропуска, пропуск, кусок после (без знаков препинания). */
+function gapWord(gp,i,x){var head=(gp.fixed[i]||'').match(/\S*$/)[0],tail=(gp.fixed[i+1]||'').match(/^\S*/)[0].replace(/[.,;!?·]+$/,'');return {head:head,x:x,tail:tail,word:head+x+tail};}
+function nextLetter(gp,i){var f=gp.fixed[i+1]||'';return /^\s/.test(f)?f.trim().charAt(0).toLowerCase():'';}
 function gramRule(t,gp,i){
-  var w=t.w,k=t.k,g=(gp.gaps[i]||'').trim().toLowerCase(),tok=((gp.fixed[i]||'').match(/\S*$/)[0]+g).toLowerCase();
-  if(k==='conj')return ruleConj(w.gr,t.idx);
-  if(k==='plural')return rulePlural(w);
-  if(k==='mix'){var m=String(((t.e&&t.e[3])||[])[i]||'').split(':');
-    if(m[0]==='v')return ruleConj(m[1],+m[2]);
-    if(m[0]==='prep')return rulePrep(g,null,false);
-    if(m[0]==='pl')return rulePlural({gr:m[1]});
-    if(!m[1])return '';
-    return ruleCase(g,tok,wordGender({gr:m[1]}),/p$/.test(m[0]),m[0].indexOf('gen')===0);}
-  var gd=wordGender(w),pl=!!(t.e&&accCategory(w,t.e)==='p');
-  if(/^(στ|σε$|σε |από|με)/.test(g))return rulePrep(g,gd,pl);
-  return ruleCase(g,tok,gd,pl,k==='gen');
+  var m=gapRole(t,gp,i).split(':'),g=(gp.gaps[i]||'').trim().toLowerCase(),tok=gapTok(gp,i);
+  if(m[0]==='v')return ruleConj(m[1],+m[2]);
+  if(m[0]==='prep'){var n=prepNoun(t,gp,i);return rulePrep(g,n?wordGender(n):null,!!(n&&n.pl));}
+  if(m[0]==='pl')return rulePlural({gr:m[1]});
+  if(!m[1])return '';
+  return ruleCase(g,tok,wordGender({gr:m[1]}),/p$/.test(m[0]),m[0].indexOf('gen')===0);
+}
+/* «Как проверить»: порядок действий для этого пропуска — вопрос к слову, род по словарной форме,
+   нужный артикль или окончание, для τη(ν)/στη(ν) первая буква следующего слова. */
+var GENDER_RU={m:'мужской',f:'женский',n:'средний'};
+var ART_ACC={m:'τον',f:'τη(ν)',n:'το'},ART_ACC_PL={m:'τους',f:'τις',n:'τα'};
+function nuHow(tok,gp,i){var L=nextLetter(gp,i);if(!L||!/^σ?την?$/.test(tok))return '';
+  return ' Следующее слово начинается на «'+L+'», поэтому ν '+(/ν$/.test(tok)?'остаётся':'отпадает')+': '+tok+'.';}
+function gramHow(t,gp,i){
+  var m=gapRole(t,gp,i).split(':'),g=(gp.gaps[i]||'').trim(),gl=g.toLowerCase(),tok=gapTok(gp,i),word=gapWord(gp,i,g).word;
+  if(m[0]==='v'){var p=+m[2],e=GRAMMAR.verbs[m[1]]||{},sv='Найди, кто выполняет действие, и замени его местоимением: здесь '+PERSONS_GR[p]+' ('+PERSONS_RU[p]+').';
+    if(e.f)return sv+' Глагол неправильный, форма этого лица: '+e.f[p]+'.';
+    var grp=conjGroup(e);
+    return sv+' Группа видна по словарной форме '+m[1]+' ('+(e.c==='1'?'безударное -ω':'ударное '+grp[0].slice(4))+'), окончание этого лица '+grp[2][p]+', как '+grp[3][p]+': '+m[1]+' → '+word+'.';}
+  if(m[0]==='prep'){var n=prepNoun(t,gp,i),last=gl.replace(/^.*\s/,'');
+    var q=/^(στ|σε)/.test(gl)?'«где?» или «куда?» → σε':/^από/.test(gl)?'«откуда?», «от кого?», «из чего?» → από':/^με/.test(gl)?'«с кем?», «с чем?», «чем?» → με':/^για/.test(gl)?'«для кого?», «для чего?» → για':/^χωρίς/.test(gl)?'«без чего?» → χωρίς':'сверь с переводом → '+gl.replace(/\s+(τον|την|τη|το|τους|τις|τα)$/,'');
+    var sp='Задай вопрос от глагола: '+q+'.';
+    if(n){var gd=wordGender(n),art=(n.pl?ART_ACC_PL:ART_ACC)[gd],rod=n.gr+' — '+GENDER_RU[gd]+' род'+(n.pl?', множественное число':'');
+      if(/^στ/.test(gl))sp+=' Род по словарной форме: '+rod+', артикль винительного падежа '+art+', слитно с σε: '+tok+'.';
+      else if(/\s(τον|την|τη|το|τους|τις|τα)$/.test(gl))sp+=' После предлога артикль винительного падежа: '+rod+' → '+last+'.';
+      sp+=nuHow(last,gp,i);}
+    return sp;}
+  if(m[0]==='pl'){var w={gr:m[1]};if(!pluralOf(w))return '';var ph=pluralHead(w)||{sg:w.gr,pl:pluralOf(w)},ss=stemSplit(ph.sg,ph.pl);
+    return 'Проверь число по переводу: речь о нескольких → множественное число. Род по словарной форме: '+ph.sg+' — '+GENDER_RU[wordGender(w)]+' род. Артикль '+ss.art1+' → '+ss.art2+', окончание '+(ss.end1?'-'+ss.end1:'')+' → '+(ss.end2?'-'+ss.end2:'без изменений')+': '+ph.sg+' → '+ph.pl+'.';}
+  if(!m[1])return '';
+  var isGen=m[0].indexOf('gen')===0,pl=/p$/.test(m[0]),gd2=wordGender({gr:m[1]}),isArt=/^(τον|την|τη|το|τους|τις|τα|του|της|των|έναν|ένα|μία|μια)$/.test(tok);
+  var sc=isGen?'Задай вопрос «кого? чего? чей?»: слово называет владельца или уточняет другое существительное → родительный падеж.':'Задай вопрос от глагола или предлога: «кого? что?» → винительный падеж.';
+  sc+=' Род по словарной форме: '+m[1]+' — '+GENDER_RU[gd2]+' род'+(pl?', множественное число':'')+'.';
+  if(isArt)return sc+' Артикль '+(isGen?'родительного':'винительного')+' падежа: '+tok+'.'+(isGen?'':nuHow(tok,gp,i));
+  var ss2=stemSplit(m[1],word),e1=ss2.end1,e2=ss2.end2;
+  return sc+(norm(e1,false)===norm(e2,false)?' Окончание не меняется':' Окончание -'+e1+' → -'+e2)+': '+m[1]+' → '+word+'.';
+}
+/* Разбор ошибок: отдельный блок на каждый неверный пропуск — слово с правильным пропуском и тем, что
+   было написано, затем правило и способ проверить себя. */
+function gramRulesHtml(t,gp,P){
+  var A=t.alts||[],h='';
+  gp.gaps.forEach(function(g,i){
+    var given=(P['g'+i]||'').trim();if(gapOk(given,g,A[i],true))return;
+    var wd=gapWord(gp,i,g),b='<div class="grule"><div class="gh" lang="el">'+esc(wd.head)+'<b>'+esc(g)+'</b>'+esc(wd.tail);
+    if(given)b+=' <span class="was">написано: '+esc(wd.head+given+wd.tail)+'</span>';
+    b+='</div>';
+    if(gapOk(given,g,A[i],false))b+='<p>Ошибка только в ударении.</p>';
+    var r=gramRule(t,gp,i),how=gramHow(t,gp,i);
+    if(r)b+='<p><b>Правило.</b> '+r+'</p>';
+    if(how)b+='<p><b>Как проверить.</b> '+how+'</p>';
+    h+=b+'</div>';
+  });
+  return h?'<div class="grules">'+h+'</div>':'';
 }
 /* ---------- режимы 8–10: отработка грамматики и лексики голосом ----------
    Распознавание — Web Speech API браузера (Chrome, Safari), язык el-GR. Кнопку микрофона держат,
