@@ -24,7 +24,7 @@ var appZoom=1;
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Греческий">
-<meta name="build" content="2026-11-23-4">
+<meta name="build" content="2026-11-23-5">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <!-- Шрифт подключается без блокировки отрисовки: media=print, после загрузки — all. Без сети
@@ -312,9 +312,9 @@ input[type=text].big{font-family:var(--display);font-size:24px;text-align:center
   <main id="screen"></main>
   <footer id="actions"></footer>
 </div>
-<script src="words.js?v=2026-11-23-4"></script>
-<script src="sentences.js?v=2026-11-23-4"></script>
-<script src="grammar.js?v=2026-11-23-4"></script>
+<script src="words.js?v=2026-11-23-5"></script>
+<script src="sentences.js?v=2026-11-23-5"></script>
+<script src="grammar.js?v=2026-11-23-5"></script>
 <script>
 (function(){
 'use strict';
@@ -463,7 +463,7 @@ function pickSentence(w){
 /* Упражнения на падежи (grammar.js): cases — винительный, gen — родительный, формат одинаковый:
    [предложение с пропусками, полное предложение, перевод]. cs — набор падежей сеанса: acc, gen
    или all (оба вперемешку, режим «Падежи: пишем»). */
-var CASE_SETS={acc:{src:'cases',t:'Винительный падеж',ru:'винительного падежа'},gen:{src:'gen',t:'Родительный падеж',ru:'родительного падежа'},prep:{src:'prep',t:'Предлоги',ru:'предлогов από, σε и με'},plural:{t:'Множественное число'},conj:{t:'Спряжение глагола'}};
+var CASE_SETS={acc:{src:'cases',t:'Винительный падеж',ru:'винительного падежа'},gen:{src:'gen',t:'Родительный падеж',ru:'родительного падежа'},prep:{src:'prep',t:'Предлоги',ru:'предлогов από, σε и με'},mix:{src:'mix',t:'Всё вместе',ru:'падежей, предлоги и окончания глаголов'},plural:{t:'Множественное число'},conj:{t:'Спряжение глагола'}};
 function caseKinds(cs){return cs==='all'?['acc','gen']:[cs||'acc'];}
 function casesFor(w,k){var c=CASE_SETS[k||'acc'];return (c&&c.src&&GRAMMAR[c.src]&&GRAMMAR[c.src][w.gr])||[];}
 function hasCases(w,cs){return caseKinds(cs).some(function(k){return casesFor(w,k).length;});}
@@ -472,12 +472,13 @@ function hasCases(w,cs){return caseKinds(cs).some(function(k){return casesFor(w,
    основной лексике курса; множественное число и спряжение — существительные и глаголы выбранного
    набора. Элемент сеанса: {w: слово, idx: номер упражнения (у глагола — лицо 0–5), k: вид}. */
 var ACC_PER_SESSION=25;
-function accWords(cs){var seen={},out=[];BUILTIN.forEach(function(st){st.words.forEach(function(w){if(!seen[w.gr]&&hasCases(w,cs)){seen[w.gr]=1;out.push(w);}});});return out;}
+function accWords(cs){var seen={},out=[];BUILTIN.forEach(function(st){st.words.concat(cs==='mix'?(st.extra||[]):[]).forEach(function(w){if(!seen[w.gr]&&hasCases(w,cs)){seen[w.gr]=1;out.push(w);}});});return out;}
 function accCategory(w,e){if(/(^|\s)(τους|τις|τα|των)(\s|$)/.test(e[1])||/(^|\s)(δύο|τρία|τρεις|πολλ)/.test(e[1]))return 'p';return /^ο /.test(w.gr)?'m':/^η /.test(w.gr)?'f':'n';}
-function gramKinds(cs,mode){return cs==='gram'?(mode==='say'?['acc','gen','prep','conj']:['acc','gen','prep','plural','conj']):caseKinds(cs);}
+/* Порядок видов в сеансе: каждое второе задание — комбинированное («всё вместе»). */
+function gramKinds(cs,mode){return cs==='gram'?(mode==='say'?['mix','acc','mix','gen','mix','prep','mix','conj']:['mix','acc','mix','gen','mix','prep','mix','plural','mix','conj']):caseKinds(cs);}
 function accItems(cs,pool,mode){
   var kinds=gramKinds(cs,mode),groups={};
-  kinds.forEach(function(k){groups[k]=[];
+  kinds.forEach(function(k){if(groups[k])return;groups[k]=[];
     if(k==='plural')(pool||[]).filter(function(w){return w.pos==='n'&&pluralOf(w)&&pluralHead(w);}).forEach(function(w){groups[k].push({w:w,idx:0,k:k});});
     else if(k==='conj')(pool||[]).filter(function(w){return w.pos==='v'&&verbForms(w);}).forEach(function(w){groups[k].push({w:w,idx:Math.floor(Math.random()*6),k:k});});
     else accWords(k).forEach(function(w){casesFor(w,k).forEach(function(e,i){groups[k].push({w:w,idx:i,k:k});});});
@@ -502,8 +503,12 @@ function accTarget(w){
     return {gr:sg+' → '+sp.art2+' '+sp.stem2+sp.end2+ph.tail,ru:w.ru,show:sg+' → ___ '+sp.stem2+(sp.end2?'___':'')+ph.tail,hint:pluralOf(w),k:k,w:w,idx:0};}
   if(k==='conj'){var p=it?it.idx:0,cp=conjSplit(w,p),forms=verbForms(w);
     return {gr:PERSONS_GR[p]+' '+cp.stem+cp.ends[0],ru:verbRu(w)[p],show:PERSONS_GR[p]+' '+cp.stem+'___',hint:forms[p].split('/')[0].trim(),k:k,w:w,idx:p,alts:[cp.ends]};}
-  var list=casesFor(w,k),e=(it&&list[it.idx])||list[0]||['','',''];
-  return {gr:e[1],ru:e[2],show:e[0],hint:e[1],k:k,w:w,idx:it?it.idx:0,e:e};
+  var list=casesFor(w,k),e=(it&&list[it.idx])||list[0]||['','',''],alts=null;
+  if(k==='mix'&&e[3]){var gp=gapParts(e[0],e[1]);alts=e[3].map(function(r,i){var m=String(r).split(':');if(m[0]!=='v')return null;
+    var vars=String((verbForms({gr:m[1]})||[])[+m[2]]||'').split('/').map(function(x){return x.trim();}),before=gp.fixed[i],gap=gp.gaps[i]||'';
+    for(var q=0;q<=before.length;q++){var st=before.slice(q);if(/\s/.test(st))continue;if(vars.some(function(v){return norm(st+gap)===norm(v);}))return vars.filter(function(v){return norm(v).indexOf(norm(st))===0;}).map(function(v){return v.slice(st.length);});}
+    return null;});}
+  return {gr:e[1],ru:e[2],show:e[0],hint:e[1],k:k,w:w,idx:it?it.idx:0,e:e,alts:alts};
 }
 /* Содержимое пропусков: части предложения между подчёркиваниями ищутся в полном предложении по
    порядку (scripts/check-words.js проверяет, что каждый пропуск восстанавливается и не пуст). */
@@ -932,7 +937,7 @@ function renderGram(w){
   }
   return{html:h,foot:ask?'':doneFoot()};
 }
-var GRAM_HINT={acc:'Впиши пропущенные буквы: артикль и окончание. Ударения учитываются.',gen:'Впиши артикль и окончание родительного падежа. Ударения учитываются.',prep:'Впиши предлог с артиклем (στο, στην, από τον, με τη…) и окончание. Ударения учитываются.',plural:'Впиши артикль и окончание множественного числа. Ударения учитываются.',conj:'Впиши окончание глагола для этого лица. Ударения учитываются.'};
+var GRAM_HINT={acc:'Впиши пропущенные буквы: артикль и окончание. Ударения учитываются.',gen:'Впиши артикль и окончание родительного падежа. Ударения учитываются.',prep:'Впиши предлог с артиклем (στο, στην, από τον, με τη…) и окончание. Ударения учитываются.',plural:'Впиши артикль и окончание множественного числа. Ударения учитываются.',conj:'Впиши окончание глагола для этого лица. Ударения учитываются.',mix:'Впиши всё, чего не хватает: окончания глаголов, предлоги, артикли и окончания. Ударения учитываются.'};
 function gapOk(given,gap,alts,acc){return [gap].concat(alts||[]).some(function(x){return norm(given||'',acc)===norm(x,acc);});}
 function checkGram(){
   var w=cur(),t=accTarget(w),gp=gapParts(t.show,t.gr),P=session.parts||{},A=t.alts||[];
@@ -950,24 +955,41 @@ var ACC_END={m:'Мужской род в винительном падеже т�
 var GEN_END={m:'Родительный падеж, мужской род: -ος → -ου, -ης → -η, -ας → -α (ο φίλος → του φίλου, ο μαθητής → του μαθητή). Ударение часто уходит к концу: ο άνθρωπος → του ανθρώπου.',f:'Женский род в родительном падеже добавляет -ς: -α → -ας, -η → -ης (η μητέρα → της μητέρας, η πόλη → της πόλης).',n:'Средний род в родительном падеже: -ο → -ου (το βιβλίο → του βιβλίου), -ι → -ιού с ударением на конце (το παιδί → του παιδιού), -μα → -ματος (το όνομα → του ονόματος).',p:'Родительный падеж множественного числа у всех родов на -ων (των φίλων, των γυναικών, των παιδιών), ударение часто уходит на последний слог.'};
 var NU_RULE=' ν у τη(ν) и στη(ν) остаётся перед гласной и перед κ, π, τ, ξ, ψ, μπ, ντ, γκ (την κουζίνα, στην πόλη), перед остальными согласными отпадает (τη σαλάτα, στη θάλασσα).';
 function wordGender(w){return /^(ο|οι) /.test(w.gr)?'m':/^η /.test(w.gr)?'f':'n';}
-function gramRule(t,gp,i){
-  var w=t.w,k=t.k,g=(gp.gaps[i]||'').trim().toLowerCase();
-  if(k==='conj'){var e=GRAMMAR.verbs[w.gr]||{},p=t.idx;
-    if(e.f)return 'Неправильный глагол, его формы запоминаются целиком: '+CONJ_PERSONS.map(function(pr,j){return pr+' '+e.f[j];}).join(', ')+'.';
-    var grp=e.c==='2a'?CONJ_GROUPS[1]:e.c==='2b'?CONJ_GROUPS[2]:CONJ_GROUPS[0];
-    return 'Глагол группы '+grp[0]+', как '+grp[1]+'. Окончания: '+CONJ_PERSONS.map(function(pr,j){return pr+' '+grp[2][j];}).join(', ')+'. Здесь '+PERSONS_GR[p]+' → '+grp[2][p]+' ('+grp[3][p]+').';}
-  if(k==='plural'){var sp=stemSplit(w.gr,pluralOf(w)),gd=wordGender(w);
-    return 'Множественное число: артикль '+sp.art1+' → '+sp.art2+', окончание '+(sp.end1?'-'+sp.end1:'')+' → '+(sp.end2?'-'+sp.end2:'без изменений')+'. '+PL_RULES[gd];}
-  var gd=wordGender(w),pl=t.e&&accCategory(w,t.e)==='p',isGen=k==='gen';
-  if(/^(στ|σε$|σε )/.test(g))return 'Предлог σε сливается с определённым артиклем: σε + τον → στον, σε + τη(ν) → στη(ν), σε + το → στο, во множественном числе στους, στις, στα; без артикля остаётся σε (σε μία ώρα). Отвечает на вопросы «где?» и «куда?». После σε винительный падеж.'+(gd==='f'&&!pl?NU_RULE:'');
-  if(/^από/.test(g))return 'Предлог από («откуда? от кого? из чего?») с артиклем не сливается: από τον, από τη(ν), από το, от τους, από τις, από τα. После από винительный падеж.'+(gd==='f'&&!pl?NU_RULE:'');
-  if(/^με/.test(g))return 'Предлог με («с кем? на чём? чем?») с артиклем не сливается: με τον, με τη(ν), με το, με τους, με τις, με τα. После με винительный падеж.'+(gd==='f'&&!pl?NU_RULE:'');
-  if(/^(έναν|ένα|μία|μια)$/.test(g))return 'Неопределённый артикль в винительном падеже: ένας → έναν (мужской род), μία и ένα не меняются.';
-  if(/^(τον|την|τη|το|τους|τις|τα|του|της|των)$/.test(g)){
+var PREP_RULES=[['για','Предлог για («для, ради») с артиклем не сливается: για τον, για τη(ν), για το.'],['χωρίς','Предлог χωρίς («без») обычно стоит без артикля: χωρίς ζάχαρη, χωρίς γάλα.'],['μετά','Предлог μετά («после»): μετά το φαγητό, μετά τη δουλειά.'],['πριν','πριν («до, перед») употребляется как πριν από: πριν από το φαγητό.'],['προς','Предлог προς («к, в направлении»): προς το σπίτι.'],['μέχρι','Предлог μέχρι («до»): μέχρι τις έξι, μέχρι το σπίτι.'],['κάτω','κάτω από («под»): κάτω από το τραπέζι.'],['πάνω','πάνω σε («на поверхности»): πάνω στο τραπέζι.'],['δίπλα','δίπλα σε («рядом с»): δίπλα στο σπίτι.'],['κοντά','κοντά σε («близко к»): κοντά στη θάλασσα.']];
+function ruleConj(gr,p){var e=GRAMMAR.verbs[gr]||{};
+  if(e.f)return 'Неправильный глагол '+gr+', его формы запоминаются целиком: '+CONJ_PERSONS.map(function(pr,j){return pr+' '+e.f[j];}).join(', ')+'.';
+  var grp=e.c==='2a'?CONJ_GROUPS[1]:e.c==='2b'?CONJ_GROUPS[2]:CONJ_GROUPS[0];
+  return 'Глагол '+gr+' группы '+grp[0]+', как '+grp[1]+'. Окончания: '+CONJ_PERSONS.map(function(pr,j){return pr+' '+grp[2][j];}).join(', ')+'. Здесь '+PERSONS_GR[p]+' → '+grp[2][p]+' ('+grp[3][p]+').';}
+function rulePlural(w){var ph=pluralHead(w)||{sg:w.gr,pl:pluralOf(w)},sp=stemSplit(ph.sg,ph.pl);
+  return 'Множественное число: артикль '+sp.art1+' → '+sp.art2+', окончание '+(sp.end1?'-'+sp.end1:'')+' → '+(sp.end2?'-'+sp.end2:'без изменений')+' ('+ph.sg+' → '+ph.pl+'). '+PL_RULES[wordGender(w)];}
+function rulePrep(g,gd,pl){var nu=gd==='f'&&!pl?NU_RULE:'';
+  if(/^(στ|σε$|σε )/.test(g))return 'Предлог σε сливается с определённым артиклем: σε + τον → στον, σε + τη(ν) → στη(ν), σε + το → στο, во множественном числе στους, στις, στα; без артикля остаётся σε (σε μία ώρα). Отвечает на вопросы «где?» и «куда?». После σε винительный падеж.'+nu;
+  if(/^από/.test(g))return 'Предлог από («откуда? от кого? из чего?») с артиклем не сливается: από τον, από τη(ν), από το, από τους, από τις, από τα. После από винительный падеж.'+nu;
+  if(/^με/.test(g))return 'Предлог με («с кем? на чём? чем?») с артиклем не сливается: με τον, με τη(ν), με το, με τους, με τις, με τα. После με винительный падеж.'+nu;
+  var r=PREP_RULES.filter(function(x){return g.indexOf(x[0])===0;})[0];
+  return (r?r[1]:'Предлог с артиклем не сливается.')+' После предлога стоит винительный падеж.';}
+/* tok — артикль целиком, если пропуск охватывает только его часть (τ__ → τον): по нему видно, что
+   пропущен артикль, а не окончание существительного. */
+function ruleCase(g,tok,gd,pl,isGen){
+  if(/^(έναν|ένα|μία|μια)$/.test(tok))return 'Неопределённый артикль в винительном падеже: ένας → έναν (мужской род), μία и ένα не меняются.';
+  if(/^(τον|την|τη|το|τους|τις|τα|του|της|των)$/.test(tok)){
     if(isGen)return 'Артикль в родительном падеже: ο → του, η → της, το → του; во множественном числе для всех родов των (των φίλων, των παιδιών).';
     return 'Артикль в винительном падеже: ο → τον, η → τη(ν), το → το; во множественном числе οι → τους (мужской род), οι → τις (женский), τα → τα.'+(gd==='f'&&!pl?NU_RULE:'');}
   var tbl=isGen?GEN_END:ACC_END;
-  return tbl[pl?'p':(isGen?gd:(gd==='m'?'m':'f'))];
+  return tbl[pl?'p':(isGen?gd:(gd==='m'?'m':'f'))];}
+function gramRule(t,gp,i){
+  var w=t.w,k=t.k,g=(gp.gaps[i]||'').trim().toLowerCase(),tok=((gp.fixed[i]||'').match(/\S*$/)[0]+g).toLowerCase();
+  if(k==='conj')return ruleConj(w.gr,t.idx);
+  if(k==='plural')return rulePlural(w);
+  if(k==='mix'){var m=String(((t.e&&t.e[3])||[])[i]||'').split(':');
+    if(m[0]==='v')return ruleConj(m[1],+m[2]);
+    if(m[0]==='prep')return rulePrep(g,null,false);
+    if(m[0]==='pl')return rulePlural({gr:m[1]});
+    if(!m[1])return '';
+    return ruleCase(g,tok,wordGender({gr:m[1]}),/p$/.test(m[0]),m[0].indexOf('gen')===0);}
+  var gd=wordGender(w),pl=!!(t.e&&accCategory(w,t.e)==='p');
+  if(/^(στ|σε$|σε |από|με)/.test(g))return rulePrep(g,gd,pl);
+  return ruleCase(g,tok,gd,pl,k==='gen');
 }
 /* ---------- режимы 8–10: отработка грамматики и лексики голосом ----------
    Распознавание — Web Speech API браузера (Chrome, Safari), язык el-GR. Кнопку микрофона держат,
@@ -2566,7 +2588,7 @@ function restoreResume(){
         session={mode:'dialog',dir:'gr',set:set,pool:poolWords(set),words:[],scopeWords:[],results:[],i:0,state:'ask',turns:trs,messages:msgs,busy:false,err:'',phase:'idle',lang:sv.lang==='ru'?'ru':'el',heard:'',usage:sv.usage||0};}
       else{
       var byGr={};set.words.concat(extraOf(set)).forEach(function(w){byGr[w.gr]=w;});
-      if(v.acc)BUILTIN.forEach(function(st){st.words.forEach(function(w){if(!byGr[w.gr])byGr[w.gr]=w;});});
+      if(v.acc)BUILTIN.forEach(function(st){st.words.concat(st.extra||[]).forEach(function(w){if(!byGr[w.gr])byGr[w.gr]=w;});});
       var res=function(k){var w=byGr[k];if(!w)throw new Error('missing word '+k);return w;};
       session={mode:sv.mode,dir:sv.dir,conj:!!v.conj,acc:!!v.acc,cs:v.cs||null,set:set,pool:modePool(sv.mode,poolWords(set),v.acc?v.cs:v.conj),sentIdx:sv.sentIdx||null,words:sv.words.map(res),accItems:v.acc&&sv.accIdx?sv.words.map(function(k,i){return {w:res(k),idx:sv.accIdx[i]||0,k:(sv.accK&&sv.accK[i])||'acc'};}):null,scopeWords:sv.scopeWords.map(res),i:sv.i,
         results:sv.results.map(function(r){if(!r)return null;var o=Object.assign({},r,{word:res(r.word)});if(r.it)o.it={w:res(r.it.w),idx:r.it.idx,k:r.it.k};return o;}),requeued:sv.requeued,review:!!sv.review,hinted:!!sv.hinted,parts:sv.parts||null,heard:sv.heard||'',marks:sv.marks||null,sayMsg:sv.sayMsg||'',sayTrace:sv.sayTrace||'',attempts:sv.attempts||0,person:sv.person,persons:sv.persons||null,

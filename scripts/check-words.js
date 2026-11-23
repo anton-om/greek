@@ -43,6 +43,25 @@ Object.keys(G.plural).forEach(function(k){if(!known[k]){console.log('  ОШИБ�
     if(!ok){console.log('  ОШИБКА: пропуски не совпадают с полным предложением: '+e[0]+' / '+e[1]);errors++;}
     // Режим «Падежи: пишем» вписывает пропуски в поля: каждый пропуск должен быть непустым.
     var gp=gapParts(e[0],e[1]);if(gp.fixed.map(function(f,i){return f+(gp.gaps[i]||'');}).join('')!==e[1]||gp.gaps.some(function(x){return !x.trim();})){console.log('  ОШИБКА: пропуск не восстанавливается по полному предложению: '+e[0]+' / '+e[1]);errors++;}});});});
+// mix: комбинированные упражнения с ролями пропусков (см. docs/adding-lessons.md).
+var PREP_RE=/^(στ|σε|από|με|για|χωρίς|μετά|πριν|προς|μέχρι|κάτω|πάνω|δίπλα|κοντά)/;
+function verbVariants(gr,p){var e=G.verbs[gr];if(!e)return null;var g=gr,f;
+  if(e.f)f=e.f;else if(e.c==='1'){var st=g.replace(/ω$/,'');f=[st+'ω',st+'εις',st+'ει',st+'ουμε',st+'ετε',st+'ουν / '+st+'ουνε'];}
+  else if(e.c==='2a'){var sa=g.replace(/(άω|ώ)$/,'');f=[sa+'ώ / '+sa+'άω',sa+'άς',sa+'ά / '+sa+'άει',sa+'άμε / '+sa+'ούμε',sa+'άτε',sa+'άνε / '+sa+'ούν / '+sa+'ούνε'];}
+  else{var sb=g.replace(/ώ$/,'');f=[sb+'ώ',sb+'είς',sb+'εί',sb+'ούμε',sb+'είτε',sb+'ούν / '+sb+'ούνε'];}
+  return String(f[p]||'').split('/').map(function(x){return x.trim().toLowerCase();});}
+var mixN=0;Object.keys(G.mix||{}).forEach(function(k){if(!known[k]){console.log('  ОШИБКА: комбинированное упражнение для слова не из words.js: '+k);errors++;}
+  G.mix[k].forEach(function(e){mixN++;var gp=gapParts(e[0],e[1]),roles=e[3]||[];
+    if(gp.fixed.map(function(f,i){return f+(gp.gaps[i]||'');}).join('')!==e[1]||gp.gaps.some(function(x){return !x.trim();})){console.log('  ОШИБКА: пропуск не восстанавливается: '+e[0]+' / '+e[1]);errors++;}
+    if(roles.length!==gp.gaps.length){console.log('  ОШИБКА: ролей '+roles.length+', пропусков '+gp.gaps.length+': '+e[0]);errors++;}
+    roles.forEach(function(r,i){var m=String(r).split(':'),gap=(gp.gaps[i]||'').trim().toLowerCase();
+      if(m[0]==='v'){var vs=verbVariants(m[1],+m[2]);if(!vs){console.log('  ОШИБКА: глагол не из grammar.js: '+m[1]+' ('+e[0]+')');errors++;return;}
+        var before=gp.fixed[i],ok=false;for(var s=0;s<=before.length&&!ok;s++){var st=before.slice(s);if(!/\s/.test(st)&&vs.indexOf((st+gap).toLowerCase())>=0)ok=true;}
+        if(!ok){console.log('  ОШИБКА: форма глагола не совпадает: '+m[1]+' лицо '+m[2]+', пропуск «'+gap+'» ('+e[0]+')');errors++;}}
+      else if(m[0]==='prep'){if(!PREP_RE.test(gap)){console.log('  ОШИБКА: в пропуске с ролью prep нет предлога: «'+gap+'» ('+e[0]+')');errors++;}}
+      else if(/^(acc|accp|gen|genp|pl)$/.test(m[0])){if(!known[m[1]]){console.log('  ОШИБКА: слово роли не из words.js: '+m[1]+' ('+e[0]+')');errors++;}}
+      else{console.log('  ОШИБКА: неизвестная роль '+r+' ('+e[0]+')');errors++;}});});});
+console.log('Комбинированных упражнений: '+mixN+'.');
 console.log('Упражнений на винительный падеж: '+Object.keys(G.cases||{}).reduce(function(n,k){return n+G.cases[k].length;},0)+', на родительный: '+Object.keys(G.gen||{}).reduce(function(n,k){return n+G.gen[k].length;},0)+', на предлоги: '+Object.keys(G.prep||{}).reduce(function(n,k){return n+G.prep[k].length;},0)+'.');
 Object.keys(G.verbs).forEach(function(k){if(!known[k]){console.log('  ОШИБКА: спряжение для слова не из words.js: '+k);errors++;}});
 console.log('Существительных с мн. ч.: '+Object.keys(G.plural).filter(function(k){return G.plural[k];}).length+', глаголов со спряжением: '+Object.keys(G.verbs).length+'.');
