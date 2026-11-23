@@ -24,7 +24,7 @@ var appZoom=1;
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Греческий">
-<meta name="build" content="2026-11-21-1">
+<meta name="build" content="2026-11-23-1">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <!-- Шрифт подключается без блокировки отрисовки: media=print, после загрузки — all. Без сети
@@ -273,6 +273,7 @@ input[type=text].big{font-family:var(--display);font-size:24px;text-align:center
 .art.c3{grid-template-columns:1fr auto auto}.art.c2{grid-template-columns:1fr auto}.art.conj{grid-template-columns:auto auto 1fr;gap:0 12px}.art.conj .A.E{font-size:15px}
 .art.cases{grid-template-columns:auto 1fr 1fr;gap:0 10px}.art.cases .A.E{font-size:14.5px;line-height:1.35}
 .art.nums{grid-template-columns:auto 1fr auto;gap:0 12px}.art.nums .n{font-variant-numeric:tabular-nums;text-align:right;color:var(--muted);font-size:13px}.art.nums .A.E{font-size:16px}.art.nums .R{color:var(--muted);font-size:13px;text-align:right}
+.art.c4.prep{grid-template-columns:auto auto auto 1fr}.art.c4.prep .A.E{text-align:left}
 .art.c4{grid-template-columns:auto 1fr 1fr 1fr;gap:0 8px}.art.c4 .A{font-size:18px}.art.c4 .A.E{font-size:14.5px;line-height:1.35}.art.c4>span.g{font-size:13px}
 .art.conj4{grid-template-columns:auto 1fr 1fr 1fr;gap:0 8px}.art.conj4 .A.E{font-size:15px}.art.conj4>span.h{text-transform:none;letter-spacing:0;font-size:12px}
 .dict-row{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr) auto;gap:10px;align-items:center;padding:4px 0;border-bottom:1px solid var(--line)}
@@ -310,9 +311,9 @@ input[type=text].big{font-family:var(--display);font-size:24px;text-align:center
   <main id="screen"></main>
   <footer id="actions"></footer>
 </div>
-<script src="words.js?v=2026-11-21-1"></script>
-<script src="sentences.js?v=2026-11-21-1"></script>
-<script src="grammar.js?v=2026-11-21-1"></script>
+<script src="words.js?v=2026-11-23-1"></script>
+<script src="sentences.js?v=2026-11-23-1"></script>
+<script src="grammar.js?v=2026-11-23-1"></script>
 <script>
 (function(){
 'use strict';
@@ -1945,6 +1946,34 @@ function numsHtml(){
   h+='<p class="note">Разговорные варианты: '+['εφτά','οχτώ','εννιά','δεκαεφτά','δεκαοχτώ','δεκαεννιά','επτακόσια'].map(function(v){return '<span class="ex" data-action="speak" data-text="'+v+'">'+v+'</span>';}).join(', ')+'.</p>';
   return h;
 }
+/* Предлоги από, σε и με: по презентациям к урокам 10 и 11. После всех трёх — винительный падеж. */
+var PREP_SE=[['Мужской','τον','στον','στον κήπο','в саду'],['Женский','τη(ν)','στη(ν)','στην κουζίνα','на кухне'],['Средний','το','στο','στο σπίτι','дома'],['Мн. ч. муж.','τους','στους','στους φίλους μου','у моих друзей'],['Мн. ч. жен.','τις','στις','στις τσάντες','в сумках'],['Мн. ч. сред.','τα','στα','στα βουνά','в горах']];
+var PREP_USES={
+  se:[['Место (где?)','Το βιβλίο είναι στο τραπέζι.','Книга на столе.','Μένω στην Αθήνα.','Я живу в Афинах.'],['Направление (куда?)','Πηγαίνω στο σχολείο.','Я иду в школу.','Πηγαίνω στην παραλία.','Я иду на пляж.'],['Время (через, в)','Θα έρθω σε μία ώρα.','Я приду через час.','Το ραντεβού είναι σε δύο μέρες.','Встреча через два дня.'],['Кому, к кому','Αυτό ανήκει σε μένα.','Это принадлежит мне.','Μιλάω στη Μαρία.','Я говорю с Марией.']],
+  apo:[['Происхождение','Είμαι από την Ελλάδα.','Я из Греции.','Από πού είσαι;','Откуда ты?'],['Откуда, от чего','Το τρένο φεύγει από τον σταθμό.','Поезд отправляется со станции.','Επιστρέφω από τη δουλειά.','Я возвращаюсь с работы.'],['Начало времени','Η έκθεση ξεκινάει από τη Δευτέρα.','Выставка начинается с понедельника.','Δουλεύω από το πρωί.','Я работаю с утра.'],['Расстояние','Το σπίτι είναι πέντε χιλιόμετρα από το κέντρο.','Дом в пяти километрах от центра.','Το χωριό είναι μακριά από τη θάλασσα.','Деревня далеко от моря.'],['Материал','Το τραπέζι είναι από ξύλο.','Стол из дерева.','Η τσάντα είναι από πλαστικό.','Сумка из пластика.'],['Причина, от кого','Νυστάζω από την κούραση.','Я хочу спать от усталости.','Έχω δώρο από τη γιαγιά.','У меня подарок от бабушки.']],
+  me:[['С кем','Πηγαίνω με τον φίλο μου.','Я иду с моим другом.','Πίνω καφέ με τη Μαρία.','Я пью кофе с Марией.'],['На чём','Ταξιδεύω με το αυτοκίνητο.','Я путешествую на машине.','Πηγαίνω στη δουλειά με το λεωφορείο.','Я еду на работу на автобусе.'],['Чем','Κόβω το ψωμί με μαχαίρι.','Я режу хлеб ножом.','Γράφω με μολύβι.','Я пишу карандашом.']]
+};
+var PREP_CMP=[['από','откуда, от кого, из чего','Είμαι από την Αυστρία.','Я из Австрии.'],['σε','где, куда, кому','Πηγαίνω στο γραφείο.','Я иду в офис.'],['με','с кем, на чём, чем','Ταξιδεύω με το τρένο.','Я путешествую на поезде.']];
+function prepUses(list){return list.map(function(u){return '<p class="note"><b>'+esc(u[0])+'</b><br><span class="muted">'+grHtml(u[1],u[2])+' '+grHtml(u[3],u[4])+'</span></p>';}).join('');}
+function prepHtml(){
+  var h='<p class="note">После <b>από</b>, <b>σε</b> и <b>με</b> существительное стоит в винительном падеже (см. раздел «Падежи»): από τον σταθμό, στη Μαρία, με τον φίλο μου.</p>';
+  h+='<p class="sub">σε — в, на, у, к</p>';
+  h+='<p class="note">Отвечает на вопросы «где?» и «куда?». С определённым артиклем сливается: σε + τον → στον, σε + τη(ν) → στη(ν), σε + το → στο. Без артикля остаётся σε: σε μία ώρα, σε ένα ράφι.</p>';
+  h+='<div class="art c4 prep"><span class="h">Род</span><span class="h">Вин. арт.</span><span class="h">σε +</span><span class="h">Пример</span>';
+  h+=PREP_SE.map(function(r){return '<span class="g">'+esc(r[0])+'</span><span class="A E">'+esc(r[1])+'</span><span class="A E">'+esc(r[2])+'</span><span class="small">'+grHtml(r[3],r[4])+'</span>';}).join('')+'</div>';
+  h+='<p class="note">ν в στην и στον по тому же правилу, что у артикля: στην κουζίνα, στην πόλη, но στη σαλάτα, στη θάλασσα.</p>';
+  h+=prepUses(PREP_USES.se);
+  h+='<p class="sub">από — от, из, с</p>';
+  h+='<p class="note">Отвечает на вопросы «откуда?», «от чего?», «с какого времени?». С артиклем не сливается: από τον σταθμό, από τη Ρωσία, από το σπίτι, από τους φίλους.</p>';
+  h+=prepUses(PREP_USES.apo);
+  h+='<p class="sub">με — с, на, посредством</p>';
+  h+='<p class="note">Отвечает на вопросы «с кем?», «на чём?», «чем?». Тоже без слияния: με τον φίλο μου, με τη Μαρία, με το ποδήλατο.</p>';
+  h+=prepUses(PREP_USES.me);
+  h+='<p class="sub">Сравнение</p><div class="art cases"><span class="h">Предлог</span><span class="h">Вопрос</span><span class="h">Пример</span>';
+  h+=PREP_CMP.map(function(r){return '<span class="A E"><span class="ex" data-action="speak" data-text="'+esc(r[0])+'">'+esc(r[0])+'</span></span><span class="small muted">'+esc(r[1])+'</span><span class="A E">'+grHtml(r[2],r[3])+'</span>';}).join('')+'</div>';
+  h+='<p class="note">Запомнить: από — движение откуда-то или источник, σε — место или направление, με — компания или средство. В одной фразе часто все вместе: '+grHtml('Πηγαίνω από το σπίτι στη δουλειά με το λεωφορείο.','Я еду из дома на работу на автобусе.')+'</p>';
+  return h;
+}
 /* Спряжение глаголов в настоящем времени: по презентации к четвёртому уроку */
 var CONJ_PERSONS=['εγώ','εσύ','αυτός, -ή, -ό','εμείς','εσείς','αυτοί, -ές, -ά'];
 var CONJ_EIMAI=[['είμαι','я есть'],['είσαι','ты есть'],['είναι','он, она, оно есть'],['είμαστε','мы есть'],['είστε','вы есть'],['είναι','они есть']];
@@ -2046,6 +2075,7 @@ function renderCheat(){
   h+='<details class="sec"><summary>Артикли</summary><div class="body">'+articlesHtml()+'</div></details>';
   h+='<details class="sec"><summary>Окончания существительных</summary><div class="body">'+endingsHtml()+'</div></details>';
   h+='<details class="sec"><summary>Падежи</summary><div class="body">'+casesHtml()+'</div></details>';
+  h+='<details class="sec"><summary>Предлоги από, σε, με</summary><div class="body">'+prepHtml()+'</div></details>';
   h+='<details class="sec"><summary>Местоимения</summary><div class="body">'+pronHtml()+'</div></details>';
   h+='<details class="sec"><summary>Спряжение глаголов</summary><div class="body">'+conjHtml()+'</div></details>';
   h+='<details class="sec"><summary>Числительные</summary><div class="body">'+numsHtml()+'</div></details>';
