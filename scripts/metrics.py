@@ -17,8 +17,8 @@ import argparse, datetime as dt, json, os, sys, urllib.parse, urllib.request
 SITE = os.environ.get("GOATCOUNTER_SITE", "learn-greek")
 BASE = f"https://{SITE}.goatcounter.com/api/v0"
 # До 2026-11-23 вместо gram и gram-say были отдельные режимы plural, conj, cases, prep, conj-say, acc, gen.
-MODES = ["flash-gr", "flash-ru", "quiz-gr", "quiz-ru", "tiles", "type", "gram", "gram-say", "say", "say-ru", "dialog"]
-SHORT = {"flash-gr": "карт гр", "flash-ru": "карт ру", "quiz-gr": "вар гр", "quiz-ru": "вар ру", "tiles": "плитки", "type": "письмо", "plural": "мн.ч", "gram": "грамм", "gram-say": "гр вслух", "say": "речь", "say-ru": "речь ру", "dialog": "диалог"}
+MODES = ["flash-gr", "flash-ru", "quiz-gr", "quiz-ru", "tiles", "type", "gram", "gram-say", "say", "say-ru", "dialog", "listen"]
+SHORT = {"flash-gr": "карт гр", "flash-ru": "карт ру", "quiz-gr": "вар гр", "quiz-ru": "вар ру", "tiles": "плитки", "type": "письмо", "plural": "мн.ч", "gram": "грамм", "gram-say": "гр вслух", "say": "речь", "say-ru": "речь ру", "dialog": "диалог", "listen": "слушаем"}
 
 
 def token():

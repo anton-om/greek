@@ -24,7 +24,7 @@ var appZoom=1;
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Греческий">
-<meta name="build" content="2026-11-23-6">
+<meta name="build" content="2026-11-24-1">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <!-- Шрифт подключается без блокировки отрисовки: media=print, после загрузки — all. Без сети
@@ -249,6 +249,14 @@ input[type=text].big{font-family:var(--display);font-size:24px;text-align:center
 .grule p{margin:6px 0 0}.grule p b{color:var(--accent)}
 .gram.cases{margin-top:14px}.csent{font-size:21px;line-height:2.1;overflow-wrap:anywhere}
 .csent .gi{display:inline-block;width:auto;font-size:21px;padding:2px 6px;margin:0 2px;text-align:center;vertical-align:baseline}
+/* Режим 12: пассивная отработка лексики — четыре строки, звучащая подсвечена */
+.listen{margin-top:12px;background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:6px 16px}
+.listen .ln{padding:12px 10px;margin:0 -10px;border-radius:10px;transition:background .2s,color .2s}
+.listen .ln+.ln{border-top:1px solid var(--line)}
+.listen .ln.el{font-family:var(--display);font-size:clamp(24px,7vw,32px);font-weight:600;line-height:1.2;overflow-wrap:anywhere}
+.listen .ln.ru{font-size:clamp(18px,5vw,22px);color:var(--muted);line-height:1.3}
+.listen .ln.sent.el{font-size:clamp(20px,5.4vw,25px);font-weight:500;line-height:1.3}
+.listen .ln.on{background:var(--accent-soft);color:var(--accent);border-top-color:transparent}
 .notice.install{font-size:15px}.notice.install .row{display:flex;gap:8px}.notice.install .btn{flex:1}.notice.install .btn.ghost{flex:0 0 auto}
 /* cheat sheet */
 .cheat{display:flex;flex-direction:column;gap:10px;margin-top:8px}
@@ -315,9 +323,9 @@ input[type=text].big{font-family:var(--display);font-size:24px;text-align:center
   <main id="screen"></main>
   <footer id="actions"></footer>
 </div>
-<script src="words.js?v=2026-11-23-6"></script>
-<script src="sentences.js?v=2026-11-23-6"></script>
-<script src="grammar.js?v=2026-11-23-6"></script>
+<script src="words.js?v=2026-11-24-1"></script>
+<script src="sentences.js?v=2026-11-24-1"></script>
+<script src="grammar.js?v=2026-11-24-1"></script>
 <script>
 (function(){
 'use strict';
@@ -621,12 +629,13 @@ var MODE_LIST=[
   {key:'gram-say',mode:'say',dir:'ru',acc:true,cs:'gram',t:'Грамматика вслух',net:true,d:'То же голосом: предложения с пропусками в падежах и предлогах и спряжение глаголов целиком'},
   {key:'say',mode:'say',dir:'gr',t:'Отработка лексики',net:true,d:'Прочитай греческое предложение вслух в микрофон'},
   {key:'say-ru',mode:'say',dir:'ru',t:'Отработка лексики: с русского',net:true,d:'Скажи по-гречески предложение по русскому переводу'},
-  {key:'dialog',mode:'dialog',dir:'gr',t:'Занятие с ИИ',dev:true,net:true,d:'Скажи по-русски, чем заняться, и говори с языковой моделью голосом: диалог, слова, вопросы'}
+  {key:'dialog',mode:'dialog',dir:'gr',t:'Занятие с ИИ',dev:true,net:true,d:'Скажи по-русски, чем заняться, и говори с языковой моделью голосом: диалог, слова, вопросы'},
+  {key:'listen',mode:'listen',dir:'gr',t:'Пассивная отработка лексики',d:'Озвучка по кругу без нажатий: слово, перевод, предложение, перевод — для дороги'}
 ];
 /* Режимы 9 и 10 на iPhone не показываются: распознавание речи в WebKit не работает
    (docs/ios-speech-recognition.md), а диктовка через клавиатуру узнаёт слова хуже. */
 function modeList(){return MODE_LIST.filter(function(m){if(m.mode==='say')return isIOSDevice()?aiAudioPossible():true;if(m.mode==='dialog')return dialogAvailable();return true;});}
-var MODE_TITLE={dialog:'Занятие с ИИ',gram:'Грамматика: пишем',flash:'Карточки',tiles:'Учимся писать',type:'Пишем сами',quiz:'Варианты ответа',plural:'Множественное число',conj:'Спряжение глаголов',say:'Отработка лексики'};
+var MODE_TITLE={dialog:'Занятие с ИИ',gram:'Грамматика: пишем',flash:'Карточки',tiles:'Учимся писать',type:'Пишем сами',quiz:'Варианты ответа',plural:'Множественное число',conj:'Спряжение глаголов',say:'Отработка лексики',listen:'Пассивная отработка лексики'};
 
 var screen=document.getElementById('screen');
 var APP_BUILD=(document.querySelector('meta[name=build]')||{}).content||'';
@@ -788,6 +797,7 @@ function startSession(words,review){
   else if(!words){words=scopeWords.slice();if(view.shuffle)shuffle(words);}
   if(!words.length){goHome();return;}
   session={mode:view.mode,dir:view.dir,conj:!!view.conj,acc:!!view.acc,cs:view.cs||null,accItems:accList,set:set,pool:pool,words:words,scopeWords:scopeWords,i:0,results:[],flipped:false,state:'ask',picked:[],tiles:null,options:null,typed:'',review:!!review};
+  if(view.mode==='listen')session.listen={playing:false,step:-1,round:0,off:{}};
   view.name='session';prepareItem();render();
 }
 function sessionTitle(){if(session.conj)return 'Спряжение вслух';if(session.mode==='gram')return MODE_TITLE.gram;if(session.acc)return session.cs==='gram'?'Грамматика вслух':(CASE_SETS[session.cs]||CASE_SETS.acc).t+' вслух';var t=MODE_TITLE[session.mode];if(session.mode==='flash'||session.mode==='quiz')t+=session.dir==='gr'?' · гр → ру':' · ру → гр';if(session.mode==='say'&&session.dir==='ru')t+=' · с русского';return t;}
@@ -843,6 +853,7 @@ function renderSession(){
   if(session.mode==='tiles')return renderTiles(w);
   if(session.mode==='type')return renderType(w);
   if(session.mode==='gram')return renderGram(w);
+  if(session.mode==='listen')return renderListen();
   if(session.mode==='say')return renderSay(sayCur());
   return renderQuiz(w);
 }
@@ -1053,6 +1064,66 @@ function gramRulesHtml(t,gp,P){
   });
   return h?'<div class="grules">'+h+'</div>':'';
 }
+/* ---------- режим 12: пассивная отработка лексики ----------
+   Озвучка по кругу без нажатий: греческое слово, русский перевод, предложение со словом (из
+   sentences.js), его перевод, пауза, следующее слово. Когда слова кончились, круг начинается
+   заново, и для каждого слова берётся следующее предложение из его списка (начало списка для
+   каждого слова своё, случайное). На экране все четыре строки текущего слова, звучащая подсвечена.
+   Без русского голоса переводы только показываются. Пока идёт озвучка, экран не гаснет (Wake
+   Lock, где есть); после возврата на вкладку озвучка продолжается с той же строки. Ссылка на
+   текущую фразу хранится в listenUtt: без неё Chrome может собрать её сборщиком мусора и не
+   прислать end. */
+var listenGen=0,listenUtt=null,wakeLock=null;
+var LISTEN_PAUSE=[500,700,600,1600];
+function ruVoiceMissing(){var all=[];try{all=speechSynthesis.getVoices()||[];}catch(e){}return canSpeak&&all.length>0&&!ruVoice();}
+function listenLines(w){
+  var L=session.listen,ss=sentencesFor(w),lines=[{lang:'el',text:w.gr,say:primaryTarget(w.gr)},{lang:'ru',text:w.ru}];
+  if(ss.length){if(L.off[w.gr]==null)L.off[w.gr]=Math.floor(Math.random()*ss.length);var st=ss[(L.off[w.gr]+L.round)%ss.length];lines.push({lang:'el',text:st[0],say:st[0],sent:true});lines.push({lang:'ru',text:st[1],sent:true});}
+  return lines;
+}
+function listenCardHtml(){
+  var w=cur(),L=session.listen,lines=listenLines(w);
+  var h='<div class="progress"><i style="width:'+pct(session.i,session.words.length)+'%"></i></div><div class="counter"><span>'+(session.i+1)+' / '+session.words.length+(L.round?' · круг '+(L.round+1):'')+'</span><span>'+esc(session.set.title)+'</span></div>';
+  return h+'<div class="listen">'+lines.map(function(l,i){return '<div class="ln '+l.lang+(l.sent?' sent':'')+(L.playing&&L.step===i?' on':'')+'"'+(l.lang==='el'?' lang="el"':'')+'>'+esc(l.text)+'</div>';}).join('')+'</div>';
+}
+/* Смена строки или слова во время озвучки обновляет только карточку, без перерисовки экрана и
+   кнопки «Остановить»: иначе нажатие в момент перерисовки теряется. */
+function listenPaint(){var c=document.getElementById('listenCard');if(c&&view.name==='session')c.innerHTML=listenCardHtml();else render();}
+function renderListen(){
+  var L=session.listen;
+  var h='<div id="listenCard">'+listenCardHtml()+'</div>';
+  h+='<p class="small muted" style="margin-top:10px">'+(L.playing?'Озвучка идёт по кругу: слово, перевод, предложение, перевод, затем следующее слово. На новом круге предложения другие.':'Нажми «Запустить»: слова набора прозвучат по кругу с переводом и предложением, без нажатий. Пока идёт озвучка, экран не гаснет.')+(isIOSDevice()?' На iPhone озвучку глушит переключатель беззвучного режима.':'')+(ruVoiceMissing()?' Русский голос не найден: переводы показываются без озвучки.':'')+'</p>'+voiceWarnHtml();
+  var foot=!canSpeak?'<p class="notice bad">Браузер не поддерживает синтез речи.</p>':L.playing?'<button class="btn primary" data-action="listen-stop">■ Остановить</button>':'<button class="btn primary" data-action="listen-play">▶ Запустить</button>';
+  return {html:h,foot:foot};
+}
+function listenPlay(){
+  if(!session||session.mode!=='listen'||!canSpeak)return;
+  var L=session.listen,gen=++listenGen;L.playing=true;render();wakeAcquire();
+  withVoices(function(){if(gen!==listenGen)return;try{speechSynthesis.cancel();}catch(e){}setTimeout(function(){listenNext(gen,L.step>=0);},80);});
+}
+/* again — повторить текущую строку (возврат на вкладку), иначе перейти к следующей. */
+function listenNext(gen,again){
+  if(gen!==listenGen||!session||session.mode!=='listen')return;
+  var L=session.listen,w=cur(),lines=listenLines(w);
+  if(!again){L.step++;
+    if(L.step>=lines.length){session.i++;if(session.i>=session.words.length){session.i=0;L.round++;if(view.shuffle)shuffle(session.words);}L.step=0;w=cur();lines=listenLines(w);}}
+  listenPaint();
+  var l=lines[L.step],pause=L.step===lines.length-1?LISTEN_PAUSE[3]:LISTEN_PAUSE[L.step];
+  var after=function(){if(gen!==listenGen)return;setTimeout(function(){listenNext(gen,false);},pause);};
+  if(l.lang==='ru'&&!ruVoice()){setTimeout(after,Math.min(2500,600+l.text.length*60));return;}
+  listenSay(l.say||l.text,l.lang,after);
+}
+function listenSay(text,lang,cb){
+  var u=new SpeechSynthesisUtterance(text);u.lang=lang==='ru'?'ru-RU':'el-GR';u.rate=lang==='ru'?1:0.9;
+  var g=greekVoices(),v=lang==='ru'?ruVoice():(g.filter(function(x){return /^el[-_]GR$/i.test(x.lang);})[0]||g[0]);try{if(v)u.voice=v;}catch(e){}
+  var fired=false,tm=null,fin=function(){if(fired)return;fired=true;clearTimeout(tm);cb();};
+  u.onend=fin;u.onerror=fin;tm=setTimeout(fin,3000+text.length*150);
+  listenUtt=u;try{speechSynthesis.speak(u);}catch(e){fin();}
+}
+function listenStop(){listenGen++;listenUtt=null;if(session&&session.listen){session.listen.playing=false;session.listen.step=-1;}try{if(canSpeak)speechSynthesis.cancel();}catch(e){}wakeRelease();}
+function listenResume(){if(session&&session.mode==='listen'&&session.listen.playing&&view.name==='session')listenPlay();}
+function wakeAcquire(){try{if(navigator.wakeLock&&!wakeLock)navigator.wakeLock.request('screen').then(function(l){wakeLock=l;l.addEventListener('release',function(){wakeLock=null;});}).catch(function(){});}catch(e){}}
+function wakeRelease(){try{if(wakeLock){wakeLock.release();wakeLock=null;}}catch(e){}}
 /* ---------- режимы 8–10: отработка грамматики и лексики голосом ----------
    Распознавание — Web Speech API браузера (Chrome, Safari), язык el-GR. Кнопку микрофона держат,
    пока говорят. Предложение засчитано, если все его слова распознаны по порядку (без учёта
@@ -2381,7 +2452,7 @@ function parseImport(text){
 }
 
 /* ---------- actions ---------- */
-function goHome(){sayStop();dialogStop();storyStop();recRelease();micTest={};view={name:'home'};session=null;render();}
+function goHome(){sayStop();dialogStop();storyStop();listenStop();recRelease();micTest={};view={name:'home'};session=null;render();}
 
 /* ---------- установка на экран «Домой» ----------
    Android/Chrome: системный диалог через beforeinstallprompt. iPhone: API нет, показываем
@@ -2444,6 +2515,8 @@ document.addEventListener('click',function(ev){
     case 'install-hide':hideInstall();break;
     case 'install-close':installHelp=false;render();break;
     case 'pick-mode':startMode(el.getAttribute('data-key'));break;
+    case 'listen-play':listenPlay();break;
+    case 'listen-stop':listenStop();render();break;
     case 'speak':speak(el.getAttribute('data-text'));break;
     case 'speak-hint':speak(el.getAttribute('data-text'));if(session&&!session.hinted){session.hinted=true;render();}break;
     case 'toggle-learned':{var w=cur();setLearned(session.set,session.dir,w,!isLearned(session.set,session.dir,w));render();break;}
@@ -2685,7 +2758,7 @@ function checkUpdate(manual){
 checkUpdate(false);
 /* Офлайн: service worker (sw.js) кеширует страницу, файлы данных и иконки; см. docs/backend.md. */
 if('serviceWorker' in navigator){try{navigator.serviceWorker.register('sw.js');}catch(e){}}
-document.addEventListener('visibilitychange',function(){if(document.visibilityState==='visible')checkUpdate(false);});
+document.addEventListener('visibilitychange',function(){if(document.visibilityState==='visible'){checkUpdate(false);listenResume();}});
 
 function doImport(){
   var title=(document.getElementById('importTitle')||{}).value||'';var text=(document.getElementById('importText')||{}).value||'';
