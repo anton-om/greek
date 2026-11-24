@@ -24,7 +24,7 @@ var appZoom=1;
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Греческий">
-<meta name="build" content="2026-11-24-1">
+<meta name="build" content="2026-11-24-2">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <!-- Шрифт подключается без блокировки отрисовки: media=print, после загрузки — all. Без сети
@@ -323,9 +323,9 @@ input[type=text].big{font-family:var(--display);font-size:24px;text-align:center
   <main id="screen"></main>
   <footer id="actions"></footer>
 </div>
-<script src="words.js?v=2026-11-24-1"></script>
-<script src="sentences.js?v=2026-11-24-1"></script>
-<script src="grammar.js?v=2026-11-24-1"></script>
+<script src="words.js?v=2026-11-24-2"></script>
+<script src="sentences.js?v=2026-11-24-2"></script>
+<script src="grammar.js?v=2026-11-24-2"></script>
 <script>
 (function(){
 'use strict';
@@ -1074,7 +1074,9 @@ function gramRulesHtml(t,gp,P){
    текущую фразу хранится в listenUtt: без неё Chrome может собрать её сборщиком мусора и не
    прислать end. */
 var listenGen=0,listenUtt=null,wakeLock=null;
-var LISTEN_PAUSE=[500,700,600,1600];
+/* Паузы: после греческой строки — столько, сколько она звучала, плюс запас, чтобы повторить её
+   вслух (не меньше LISTEN_REPEAT_MIN); после перевода слова и после перевода предложения — по LISTEN_PAUSE. */
+var LISTEN_PAUSE=[500,700,600,1600],LISTEN_REPEAT_MIN=1500,LISTEN_REPEAT_EXTRA=700;
 function ruVoiceMissing(){var all=[];try{all=speechSynthesis.getVoices()||[];}catch(e){}return canSpeak&&all.length>0&&!ruVoice();}
 function listenLines(w){
   var L=session.listen,ss=sentencesFor(w),lines=[{lang:'el',text:w.gr,say:primaryTarget(w.gr)},{lang:'ru',text:w.ru}];
@@ -1092,7 +1094,7 @@ function listenPaint(){var c=document.getElementById('listenCard');if(c&&view.na
 function renderListen(){
   var L=session.listen;
   var h='<div id="listenCard">'+listenCardHtml()+'</div>';
-  h+='<p class="small muted" style="margin-top:10px">'+(L.playing?'Озвучка идёт по кругу: слово, перевод, предложение, перевод, затем следующее слово. На новом круге предложения другие.':'Нажми «Запустить»: слова набора прозвучат по кругу с переводом и предложением, без нажатий. Пока идёт озвучка, экран не гаснет.')+(isIOSDevice()?' На iPhone озвучку глушит переключатель беззвучного режима.':'')+(ruVoiceMissing()?' Русский голос не найден: переводы показываются без озвучки.':'')+'</p>'+voiceWarnHtml();
+  h+='<p class="small muted" style="margin-top:10px">'+(L.playing?'Озвучка идёт по кругу: слово, перевод, предложение, перевод, затем следующее слово. После греческого слова и предложения пауза, чтобы повторить их вслух. На новом круге предложения другие.':'Нажми «Запустить»: слова набора прозвучат по кругу с переводом и предложением, без нажатий; после греческого слова и предложения пауза, чтобы повторить их вслух. Пока идёт озвучка, экран не гаснет.')+(isIOSDevice()?' На iPhone озвучку глушит переключатель беззвучного режима.':'')+(ruVoiceMissing()?' Русский голос не найден: переводы показываются без озвучки.':'')+'</p>'+voiceWarnHtml();
   var foot=!canSpeak?'<p class="notice bad">Браузер не поддерживает синтез речи.</p>':L.playing?'<button class="btn primary" data-action="listen-stop">■ Остановить</button>':'<button class="btn primary" data-action="listen-play">▶ Запустить</button>';
   return {html:h,foot:foot};
 }
@@ -1109,14 +1111,14 @@ function listenNext(gen,again){
     if(L.step>=lines.length){session.i++;if(session.i>=session.words.length){session.i=0;L.round++;if(view.shuffle)shuffle(session.words);}L.step=0;w=cur();lines=listenLines(w);}}
   listenPaint();
   var l=lines[L.step],pause=L.step===lines.length-1?LISTEN_PAUSE[3]:LISTEN_PAUSE[L.step];
-  var after=function(){if(gen!==listenGen)return;setTimeout(function(){listenNext(gen,false);},pause);};
+  var after=function(dur){if(gen!==listenGen)return;if(l.lang==='el')pause=Math.max(LISTEN_REPEAT_MIN,(dur||0)+LISTEN_REPEAT_EXTRA);setTimeout(function(){listenNext(gen,false);},pause);};
   if(l.lang==='ru'&&!ruVoice()){setTimeout(after,Math.min(2500,600+l.text.length*60));return;}
   listenSay(l.say||l.text,l.lang,after);
 }
 function listenSay(text,lang,cb){
   var u=new SpeechSynthesisUtterance(text);u.lang=lang==='ru'?'ru-RU':'el-GR';u.rate=lang==='ru'?1:0.9;
   var g=greekVoices(),v=lang==='ru'?ruVoice():(g.filter(function(x){return /^el[-_]GR$/i.test(x.lang);})[0]||g[0]);try{if(v)u.voice=v;}catch(e){}
-  var fired=false,tm=null,fin=function(){if(fired)return;fired=true;clearTimeout(tm);cb();};
+  var fired=false,tm=null,t0=Date.now(),fin=function(){if(fired)return;fired=true;clearTimeout(tm);cb(Date.now()-t0);};
   u.onend=fin;u.onerror=fin;tm=setTimeout(fin,3000+text.length*150);
   listenUtt=u;try{speechSynthesis.speak(u);}catch(e){fin();}
 }
