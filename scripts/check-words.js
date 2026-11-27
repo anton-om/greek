@@ -44,7 +44,7 @@ Object.keys(G.plural).forEach(function(k){if(!known[k]){console.log('  ОШИБ�
     // Режим «Падежи: пишем» вписывает пропуски в поля: каждый пропуск должен быть непустым.
     var gp=gapParts(e[0],e[1]);if(gp.fixed.map(function(f,i){return f+(gp.gaps[i]||'');}).join('')!==e[1]||gp.gaps.some(function(x){return !x.trim();})){console.log('  ОШИБКА: пропуск не восстанавливается по полному предложению: '+e[0]+' / '+e[1]);errors++;}});});});
 // mix: комбинированные упражнения с ролями пропусков (см. docs/adding-lessons.md).
-var PREP_RE=/^(στ|σε|από|με|για|χωρίς|μετά|πριν|προς|μέχρι|κάτω|πάνω|δίπλα|κοντά)/;
+var PREP_RE=/^(στ|σε|από|με|για|χωρίς|μετά|πριν|προς|μέχρι|κάτω|πάνω|δίπλα|κοντά|μέσω|εξαιτίας|λόγω)/;
 function verbVariants(gr,p){var e=G.verbs[gr];if(!e)return null;var g=gr,f;
   if(e.f)f=e.f;else if(e.c==='1'){var st=g.replace(/ω$/,'');f=[st+'ω',st+'εις',st+'ει',st+'ουμε',st+'ετε',st+'ουν / '+st+'ουνε'];}
   else if(e.c==='2a'){var sa=g.replace(/(άω|ώ)$/,'');f=[sa+'ώ / '+sa+'άω',sa+'άς',sa+'ά / '+sa+'άει',sa+'άμε / '+sa+'ούμε',sa+'άτε',sa+'άνε / '+sa+'ούν / '+sa+'ούνε'];}
