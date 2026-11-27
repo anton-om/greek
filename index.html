@@ -24,7 +24,7 @@ var appZoom=1;
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Греческий">
-<meta name="build" content="2026-11-27-1">
+<meta name="build" content="2026-11-27-2">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <!-- Шрифт подключается без блокировки отрисовки: media=print, после загрузки — all. Без сети
@@ -323,9 +323,9 @@ input[type=text].big{font-family:var(--display);font-size:24px;text-align:center
   <main id="screen"></main>
   <footer id="actions"></footer>
 </div>
-<script src="words.js?v=2026-11-27-1"></script>
-<script src="sentences.js?v=2026-11-27-1"></script>
-<script src="grammar.js?v=2026-11-27-1"></script>
+<script src="words.js?v=2026-11-27-2"></script>
+<script src="sentences.js?v=2026-11-27-2"></script>
+<script src="grammar.js?v=2026-11-27-2"></script>
 <script>
 (function(){
 'use strict';
@@ -474,7 +474,7 @@ function pickSentence(w){
 /* Упражнения на падежи (grammar.js): cases — винительный, gen — родительный, формат одинаковый:
    [предложение с пропусками, полное предложение, перевод]. cs — набор падежей сеанса: acc, gen
    или all (оба вперемешку, режим «Падежи: пишем»). */
-var CASE_SETS={acc:{src:'cases',t:'Винительный падеж',ru:'винительного падежа'},gen:{src:'gen',t:'Родительный падеж',ru:'родительного падежа'},prep:{src:'prep',t:'Предлоги',ru:'предлогов από, σε и με'},mix:{src:'mix',t:'Всё вместе',ru:'падежей, предлоги и окончания глаголов'},plural:{t:'Множественное число'},conj:{t:'Спряжение глагола'}};
+var CASE_SETS={acc:{src:'cases',t:'Винительный падеж',ru:'винительного падежа'},gen:{src:'gen',t:'Родительный падеж',ru:'родительного падежа'},prep:{src:'prep',t:'Предлоги',ru:'предлогов'},mix:{src:'mix',t:'Всё вместе',ru:'падежей, предлоги и окончания глаголов'},plural:{t:'Множественное число'},conj:{t:'Спряжение глагола'}};
 function caseKinds(cs){return cs==='all'?['acc','gen']:[cs||'acc'];}
 function casesFor(w,k){var c=CASE_SETS[k||'acc'];return (c&&c.src&&GRAMMAR[c.src]&&GRAMMAR[c.src][w.gr])||[];}
 function hasCases(w,cs){return caseKinds(cs).some(function(k){return casesFor(w,k).length;});}
@@ -975,7 +975,7 @@ function rulePlural(w){return 'Множественное число. '+PL_RULES
 function rulePrep(g,gd,pl){var nu=gd==='f'&&!pl?NU_RULE:'';
   if(/^(στ|σε$|σε )/.test(g))return 'Предлог σε сливается с определённым артиклем: σε + τον → στον, σε + τη(ν) → στη(ν), σε + το → στο, во множественном числе στους, στις, στα; без артикля остаётся σε (σε μία ώρα). Отвечает на вопросы «где?» и «куда?». После σε винительный падеж.'+nu;
   if(/^από/.test(g))return 'Предлог από («откуда? от кого? из чего?») с артиклем не сливается: από τον, από τη(ν), από το, από τους, από τις, από τα. После από винительный падеж.'+nu;
-  if(/^με/.test(g))return 'Предлог με («с кем? на чём? чем?») с артиклем не сливается: με τον, με τη(ν), με το, με τους, με τις, με τα. После με винительный падеж.'+nu;
+  if(/^με(\s|$)/.test(g))return 'Предлог με («с кем? на чём? чем?») с артиклем не сливается: με τον, με τη(ν), με το, με τους, με τις, με τα. После με винительный падеж.'+nu;
   var r=PREP_RULES.filter(function(x){return g.indexOf(x[0])===0;})[0];
   return (r?r[1]:'Предлог с артиклем не сливается.')+(r&&r[2]?' После предлога стоит родительный падеж.':' После предлога стоит винительный падеж.'+(/την?$/.test(g)?nu:''));}
 function ruleCase(g,tok,gd,pl,isGen){
@@ -993,7 +993,7 @@ function gapRole(t,gp,i){
   if(k==='mix')return String(((t.e&&t.e[3])||[])[i]||'');
   if(k==='conj')return 'v:'+w.gr+':'+t.idx;
   if(k==='plural')return 'pl:'+w.gr;
-  if(/^(στ|σε$|σε |από|με)/.test(g))return 'prep';
+  if(/^(στ|σε$|σε |από|με$|με )/.test(g)||(k==='prep'&&PREP_RULES.some(function(x){return g.indexOf(x[0])===0;})))return 'prep';
   return (k==='gen'?'gen':'acc')+(t.e&&accCategory(w,t.e)==='p'?'p':'')+':'+w.gr;
 }
 /* Существительное после предлога: в комбинированном задании — следующий пропуск с ролью падежа,
@@ -1030,10 +1030,10 @@ function gramHow(t,gp,i){
     var grp=conjGroup(e);
     return sv+' Группа видна по словарной форме '+m[1]+' ('+(e.c==='1'?'безударное -ω':'ударное '+grp[0].slice(4))+'), окончание этого лица '+grp[2][p]+', как '+grp[3][p]+': '+m[1]+' → '+word+'.';}
   if(m[0]==='prep'){var n=prepNoun(t,gp,i),last=gl.replace(/^.*\s/,'');
-    var q=/^(στ|σε)/.test(gl)?'«где?» или «куда?» → σε':/^από/.test(gl)?'«откуда?», «от кого?», «из чего?» → από':/^με/.test(gl)?'«с кем?», «с чем?», «чем?» → με':/^για/.test(gl)?'«для кого?», «для чего?» → για':/^χωρίς/.test(gl)?'«без чего?» → χωρίς':'сверь с переводом → '+gl.replace(/\s+(τον|την|τη|το|τους|τις|τα)$/,'');
+    var q=/^(στ|σε)/.test(gl)?'«где?» или «куда?» → σε':/^από/.test(gl)?'«откуда?», «от кого?», «из чего?» → από':/^με(\s|$)/.test(gl)?'«с кем?», «с чем?», «чем?» → με':/^για/.test(gl)?'«для кого?», «для чего?» → για':/^χωρίς/.test(gl)?'«без чего?» → χωρίς':'сверь с переводом → '+gl.replace(/\s+(τον|την|τη|το|τους|τις|τα|του|της|των)$/,'');
     var sp='Задай вопрос от глагола: '+q+'.';
     if(n){var gd=wordGender(n),art=(n.pl?ART_ACC_PL:ART_ACC)[gd],rod=n.gr+' — '+GENDER_RU[gd]+' род'+(n.pl?', множественное число':'');
-      if(/^στ/.test(gl))sp+=' Род по словарной форме: '+rod+', артикль винительного падежа '+art+', слитно с σε: '+tok+'.';
+      if(/(^|\s)στ/.test(gl))sp+=' Род по словарной форме: '+rod+', артикль винительного падежа '+art+', слитно с σε: '+(/\s/.test(gl)?last:tok)+'.';
       else if(/\s(τον|την|τη|το|τους|τις|τα)$/.test(gl))sp+=' После предлога артикль винительного падежа: '+rod+' → '+last+'.';
       sp+=nuHow(last,gp,i);}
     return sp;}
